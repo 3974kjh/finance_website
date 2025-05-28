@@ -1,0 +1,45 @@
+{
+  "virtualInvestItemObject": {
+    "307950": {
+      "name": "현대오토에버",
+      "code": "307950",
+      "todayAmount": 145100,
+      "totalShares": 10,
+      "haveAmount": 1451000,
+      "data": [
+        {
+          "name": "현대오토에버",
+          "code": "307950",
+          "buyYn": "Y",
+          "date": "2025.05.28 09:31",
+          "todayAmount": 145100,
+          "todayShares": 10,
+          "totalShares": 10,
+          "buyAmount": 1451000,
+          "buyReason": "매수 저점 신호"
+        }
+      ]
+    },
+    "030200": {
+      "name": "KT",
+      "code": "030200",
+      "todayAmount": 50900,
+      "totalShares": 10,
+      "haveAmount": 509000,
+      "data": [
+        {
+          "name": "KT",
+          "code": "030200",
+          "buyYn": "Y",
+          "date": "2025.05.28 09:30",
+          "todayAmount": 50900,
+          "todayShares": 10,
+          "totalShares": 10,
+          "buyAmount": 509000,
+          "buyReason": ""
+        }
+      ]
+    }
+  },
+  "realInvestItemObject": {}
+}
