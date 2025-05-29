@@ -187,7 +187,6 @@
           bind:value={tradeInfo.buyReason} 
           autocomplete="off" 
           placeholder="사유 입력"
-          type="textarea"
           class="border w-full h-[100px] px-2"
         />
       </div>

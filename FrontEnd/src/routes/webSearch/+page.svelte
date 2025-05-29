@@ -20,23 +20,23 @@
   })
 </script>
 
-<div class="flex flex-col w-full h-full bg-gray-600 p-2 space-y-2">
-  <div class="flex flex-row w-full h-[50%] space-x-2">
-    <div class="flex w-[50%] h-full border bg-white rounded-md p-2">
+<div class="flex flex-row w-full h-full bg-gray-600 p-2 space-x-2">
+  <div class="flex flex-col w-[50%] h-full space-y-2">
+    <div class="flex w-full h-full border bg-white rounded-md p-2">
       <object data={investingUrl} type="text/html">
         브라우저가 object 태그를 지원하지 않거나 네이버 페이지를 로드할 수 없습니다.
       </object>
     </div>
-    <div class="flex w-[50%] h-full border bg-white rounded-md p-2">
-      <object data={mkStockurl} type="text/html">
+    <div class="flex w-full h-full border bg-white rounded-md p-2">
+      <object data={krxUrl} type="text/html">
         브라우저가 object 태그를 지원하지 않거나 네이버 페이지를 로드할 수 없습니다.
       </object>
     </div>
   </div>
-  <div class="flex w-full h-[50%] border bg-white rounded-md p-2">
-    <object data={krxUrl} type="text/html">
-      브라우저가 object 태그를 지원하지 않거나 네이버 페이지를 로드할 수 없습니다.
-    </object>
+  <div class="flex w-[50%] h-full border bg-white rounded-md p-2">
+    <object data={mkStockurl} type="text/html">
+        브라우저가 object 태그를 지원하지 않거나 네이버 페이지를 로드할 수 없습니다.
+      </object>
   </div>
 </div>
 
