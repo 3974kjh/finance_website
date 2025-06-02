@@ -116,7 +116,7 @@ def UpdateXmlFile(xml_path, new_list, stock):
     return isSuccess
 
 def ReadXmlFile(xml_path, stock):
-    path_dir = resource_path(xml_path)
+    path_dir = xml_path
     folder_list = os.listdir(path_dir)
 
     매달누적종목리스트 = {}
@@ -141,7 +141,7 @@ def ReadXmlFile(xml_path, stock):
     xml_stock_count = {}
 
     for folder in folder_list:
-      xml_file_path = path_dir + '\\' + folder
+      xml_file_path = path_dir + '/' + folder
       xml_new_data_list = {}
       xml_new_count = {}
       tree = ET.parse(xml_file_path)
