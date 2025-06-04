@@ -131,7 +131,6 @@ pnpm run dev
 ### 🌐 접속 정보
 - **Frontend**: http://localhost:7150
 - **Backend API**: http://localhost:8000
-- **API 문서**: http://localhost:8000/docs
 
 ## 💡 주요 이점
 
@@ -191,19 +190,19 @@ POST /save_buy_history/
 ## 🛣️ 로드맵
 
 ### 🎯 **단기 목표 (3개월)**
-- [ ] 암호화폐 데이터 지원
-- [ ] 실시간 알림 시스템
-- [ ] 모바일 앱 출시
+- [x] 암호화폐 데이터 지원
+- [x] 실시간 알림 시스템
+- [x] 모바일 앱 출시
 
 ### 🚀 **중기 목표 (6개월)**  
-- [ ] AI 기반 투자 추천 시스템
-- [ ] 소셜 트레이딩 기능
-- [ ] 클라우드 동기화
+- [x] AI 기반 투자 추천 시스템
+- [x] 소셜 트레이딩 기능
+- [x] 클라우드 동기화
 
 ### 🌟 **장기 목표 (1년)**
-- [ ] 기관 투자자용 프리미엄 기능
-- [ ] 글로벌 시장 확장
-- [ ] API 서비스 출시
+- [x] 기관 투자자용 프리미엄 기능
+- [x] 글로벌 시장 확장
+- [x] API 서비스 출시
 
 ## 🤝 기여하기
 
@@ -223,7 +222,7 @@ POST /save_buy_history/
 
 - **이슈 리포트**: [GitHub Issues](https://github.com/username/finance_website/issues)
 - **기능 요청**: [GitHub Discussions](https://github.com/username/finance_website/discussions)
-- **이메일**: contact@finance-platform.com
+- **이메일**: 42.4.jukim@gmail.com
 
 ---
 
@@ -231,6 +230,6 @@ POST /save_buy_history/
 
 **⭐ 이 프로젝트가 도움이 되었다면 스타를 눌러주세요! ⭐**
 
-Made with ❤️ by Finance Analysis Team
+Made with ❤️ by Jukim
 
 </div> 
