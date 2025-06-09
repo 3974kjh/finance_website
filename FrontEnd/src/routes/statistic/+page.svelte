@@ -43,7 +43,6 @@
   let innerHeight: number = 0;
 
   let loadProgress: boolean = false;
-  let loadingText: string = '';
 
   let allPeriodTextKey: string = '전체 기간 없음';
   let selectedMonthRank: string = '';
@@ -157,6 +156,82 @@
     kakaoAccessCode = e.detail;
     sessionStorage.setItem('kakaoAccessCode', e.detail);
   }
+
+  const setTopAverageRankSum = (financeRankList: any) => {
+    if (!!!financeRankList || financeRankList.length < 0) {
+      return 0;
+    }
+
+    // RankSum 기준으로 오름차순 정렬 (낮은 RankSum이 더 좋은 순위)
+    const sortedList = _.cloneDeep(financeRankList.map((item: any) => {return {...item, rankSum: parseInt(item.rankSum), count: parseInt(item.count)}}))
+      .filter((item: any) => item && typeof item.rankSum === 'number')
+      .sort((a: any, b: any) => a.rankSum - b.rankSum);
+
+    if (sortedList.length === 0) {
+      return 0;
+    }
+
+    // 상위 10% 계산 (최소 1개 이상)
+    const topPercentCount = Math.max(1, Math.floor(sortedList.length * 0.1));
+    
+    // 상위 10% 항목들을 가져옴
+    const topItems = sortedList.slice(0, topPercentCount);
+    
+    // 상위 10% 항목들의 RankSum 평균값 계산
+    return topItems.reduce((sum: number, item: any) => sum + item.rankSum, 0) / topItems.length;
+  }
+
+  const setFinanceListByTopAverageRankSum = (financeRankList: any) => {
+    if (!!!financeRankList || financeRankList.length < 0) {
+      return [];
+    }
+
+    // RankSum 기준으로 오름차순 정렬 (낮은 RankSum이 더 좋은 순위)
+    const sortedList = _.cloneDeep(financeRankList.map((item: any) => {return {...item, rankSum: parseInt(item.rankSum), count: parseInt(item.count)}}))
+      .filter((item: any) => item && typeof item.rankSum === 'number')
+      .sort((a: any, b: any) => a.rankSum - b.rankSum);
+
+    if (sortedList.length === 0) {
+      return [];
+    }
+
+    // 상위 10% 계산 (최소 1개 이상)
+    const topPercentCount = Math.max(1, Math.floor(sortedList.length * 0.1));
+    
+    // 상위 10% 항목들을 가져옴
+    const topItems = sortedList.slice(0, topPercentCount);
+    
+    // 상위 10% 항목들의 RankSum 평균값 계산
+    const averageRankSum = topItems.reduce((sum: number, item: any) => sum + item.rankSum, 0) / topItems.length;
+    
+    // 평균값보다 낮은(더 좋은) RankSum을 가진 항목들을 반환
+    const result = sortedList.filter((item: any) => item.rankSum <= averageRankSum);
+    
+    return result;
+  }
+
+  // BarChart 포인트 클릭 이벤트 핸들러
+  const handleBarChartPointClick = (event: CustomEvent) => {
+    const { item, seriesName } = event.detail;
+    
+    if (!item || item.name === '횟수') {
+      return;
+    }
+    
+    // SingleChart 모드로 전환
+    singleChartInfo = {
+      title: item.name,
+      searchDuration: searchDuration,
+      chartMode: item.code,
+      chartKey: item.code,
+      detailInfo: {
+        ...item,
+        seriesName: seriesName
+      }
+    };
+
+    isSingleMode = true;
+  }
 </script>
 
 <svelte:window bind:innerHeight/>
@@ -171,7 +246,8 @@
           {#if financeAllRankList.length > 0 && loadProgress === false}
             <div class="h-auto">
               <BarChart
-                barDataList={financeAllRankList.filter((item) => item?.count > 0)}
+                barDataList={setFinanceListByTopAverageRankSum(financeAllRankList)}
+                on:pointClick={handleBarChartPointClick}
               />
             </div>
           {:else if loadProgress}
@@ -262,7 +338,7 @@
                         isSingleMode = true;
                       }}
                     >
-                      <td style="width: 5%; text-align: center;">{index}</td>
+                      <td style="width: 5%; text-align: center; color: {setTopAverageRankSum(financeAllRankList) > financeAllRankInfo.rankSum ? 'red' : 'blue'}">{index}</td>
                       <td style="width: 10%; text-align: center;">{financeAllRankInfo?.rankSum ?? '-'}</td>
                       <td style="width: 10%; text-align: center;">{financeAllRankInfo?.count ?? '-'}</td>
                       <td style="width: 30%; text-align: center;">{financeAllRankInfo?.code ?? '-'}</td>
@@ -309,7 +385,8 @@
             {#key selectedFinanceMonthRankList}
               <div class="h-auto">
                 <BarChart
-                  barDataList={selectedFinanceMonthRankList.filter((item) => item?.count > 0)}
+                  barDataList={setFinanceListByTopAverageRankSum(selectedFinanceMonthRankList)}
+                  on:pointClick={handleBarChartPointClick}
                 />
               </div>
             {/key}
@@ -392,7 +469,7 @@
                         isSingleMode = true;
                       }}
                     >
-                      <td style="width: 5%; text-align: center;">{index}</td>
+                      <td style="width: 5%; text-align: center; color: {setTopAverageRankSum(selectedFinanceMonthRankList) > financeMonthRankInfo.rankSum ? 'red' : 'blue'}">{index}</td>
                       <td style="width: 10%; text-align: center;">{financeMonthRankInfo?.rankSum ?? '-'}</td>
                       <td style="width: 10%; text-align: center;">{financeMonthRankInfo?.count ?? '-'}</td>
                       <td style="width: 30%; text-align: center;">{financeMonthRankInfo?.code ?? '-'}</td>
