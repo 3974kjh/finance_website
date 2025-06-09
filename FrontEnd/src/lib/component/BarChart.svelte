@@ -1,6 +1,6 @@
 <script lang="ts">
   import Chart from 'devextreme/viz/chart';
-  import { onMount, tick } from 'svelte';
+  import { onMount, tick, createEventDispatcher } from 'svelte';
   import { selfNormalize } from '$lib/main/MainCore';
   import _ from 'lodash';
 
@@ -8,6 +8,9 @@
 
   let maxRankSum: number = 0;
   let minRankSum: number = 0;
+
+  // 이벤트 디스패처 생성
+  const dispatch = createEventDispatcher();
 
 /**
  * bar Chart 영역
@@ -44,7 +47,7 @@
         count: parseInt(item.count),
         rankNormalize: 100 - (selfNormalize(item.rankSum, minRankSum, maxRankSum) * 100)
       };
-    }), ['count', 'rankNormalize'], ['desc', 'desc']);
+    }), 'rankNormalize', 'desc');
 
     let maxValue: number = (_.maxBy(barDataList, 'count')?.count ?? 0);
 
@@ -184,6 +187,21 @@
         } else {
           series.show();
         }
+      },
+      // 포인트 클릭 이벤트 추가
+      onPointClick(e) {
+        const clickedItem = e.target.data;
+        
+        // '횟수' 항목은 클릭 이벤트를 발생시키지 않음
+        if (clickedItem?.name === '횟수') {
+          return;
+        }
+
+        // 클릭된 항목 데이터를 상위 컴포넌트로 dispatch
+        dispatch('pointClick', {
+          item: clickedItem,
+          seriesName: e.target.series.name
+        });
       }
     });
   }
