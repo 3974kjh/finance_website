@@ -63,7 +63,7 @@
     if (!!resultList?.data?.perMonthDataList) {
       financeMonthRankObject = {...resultList?.data?.allPeriodDataList, ...resultList.data?.perMonthDataList}
       selectedMonthRank = Object.keys(financeMonthRankObject)[0];
-      selectedFinanceMonthRankList = _.orderBy(financeMonthRankObject[selectedMonthRank].map((item: any) => {return {...item, rankSum: parseInt(item.rankSum), count: parseInt(item.count)}}), ['count', 'rankSum'], ['desc', 'asc']);
+      selectedFinanceMonthRankList = _.orderBy(financeMonthRankObject[selectedMonthRank].map((item: any) => {return {...item, rankAvg: Math.round(parseInt(item.rankSum) / parseInt(item.fullCount)), rankSum: parseInt(item.rankSum), count: parseInt(item.count)}}), ['rankAvg', 'count'], ['asc', 'desc']);
     };
   }
 

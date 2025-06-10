@@ -83,13 +83,13 @@
 
     if (!!resultList?.data?.allPeriodDataList) {
       allPeriodTextKey = Object.keys(resultList.data?.allPeriodDataList)[0];
-      financeAllRankList = _.orderBy(resultList.data?.allPeriodDataList[allPeriodTextKey].map((item) => {return {...item, rankSum: parseInt(item.rankSum), count: parseInt(item.count)}}), ['count', 'rankSum'], ['desc', 'asc']);
+      financeAllRankList = _.orderBy(resultList.data?.allPeriodDataList[allPeriodTextKey].map((item: any) => {return {...item, rankAvg: Math.round(parseInt(item.rankSum) / parseInt(item.fullCount)), rankSum: parseInt(item.rankSum), count: parseInt(item.count)}}), ['rankAvg', 'count'], ['asc', 'desc']);
     };
 
     if (!!resultList?.data?.perMonthDataList) {
       financeMonthRankObject = resultList.data?.perMonthDataList
       selectedMonthRank = Object.keys(financeMonthRankObject)[Object.keys(financeMonthRankObject).length - 1];
-      selectedFinanceMonthRankList = _.orderBy(financeMonthRankObject[selectedMonthRank].map((item) => {return {...item, rankSum: parseInt(item.rankSum), count: parseInt(item.count)}}), ['count', 'rankSum'], ['desc', 'asc']);
+      selectedFinanceMonthRankList = _.orderBy(financeMonthRankObject[selectedMonthRank].map((item: any) => {return {...item, rankAvg: Math.round(parseInt(item.rankSum) / parseInt(item.fullCount)), rankSum: parseInt(item.rankSum), count: parseInt(item.count)}}), ['rankAvg', 'count'], ['asc', 'desc']);
     };
   }
 
@@ -157,15 +157,15 @@
     sessionStorage.setItem('kakaoAccessCode', e.detail);
   }
 
-  const setTopAverageRankSum = (financeRankList: any) => {
+  const setTopAverageRankSumAvg = (financeRankList: any) => {
     if (!!!financeRankList || financeRankList.length < 0) {
       return 0;
     }
 
-    // RankSum 기준으로 오름차순 정렬 (낮은 RankSum이 더 좋은 순위)
-    const sortedList = _.cloneDeep(financeRankList.map((item: any) => {return {...item, rankSum: parseInt(item.rankSum), count: parseInt(item.count)}}))
-      .filter((item: any) => item && typeof item.rankSum === 'number')
-      .sort((a: any, b: any) => a.rankSum - b.rankSum);
+    // rankAvg 기준으로 오름차순 정렬 (낮은 RankSum이 더 좋은 순위)
+    const sortedList = _.cloneDeep(financeRankList)
+      .filter((item: any) => item && typeof item.rankAvg === 'number')
+      .sort((a: any, b: any) => a.rankAvg - b.rankAvg);
 
     if (sortedList.length === 0) {
       return 0;
@@ -177,19 +177,19 @@
     // 상위 10% 항목들을 가져옴
     const topItems = sortedList.slice(0, topPercentCount);
     
-    // 상위 10% 항목들의 RankSum 평균값 계산
-    return topItems.reduce((sum: number, item: any) => sum + item.rankSum, 0) / topItems.length;
+    // 상위 10% 항목들의 rankAvg 평균값 계산
+    return topItems.reduce((sum: number, item: any) => sum + item.rankAvg, 0) / topItems.length;
   }
 
-  const setFinanceListByTopAverageRankSum = (financeRankList: any) => {
+  const setFinanceListByTopAverageRankSumAvg = (financeRankList: any) => {
     if (!!!financeRankList || financeRankList.length < 0) {
       return [];
     }
 
-    // RankSum 기준으로 오름차순 정렬 (낮은 RankSum이 더 좋은 순위)
-    const sortedList = _.cloneDeep(financeRankList.map((item: any) => {return {...item, rankSum: parseInt(item.rankSum), count: parseInt(item.count)}}))
-      .filter((item: any) => item && typeof item.rankSum === 'number')
-      .sort((a: any, b: any) => a.rankSum - b.rankSum);
+    // rankAvg 기준으로 오름차순 정렬 (낮은 RankSum이 더 좋은 순위)
+    const sortedList = _.cloneDeep(financeRankList)
+      .filter((item: any) => item && typeof item.rankAvg === 'number')
+      .sort((a: any, b: any) => a.rankAvg - b.rankAvg);
 
     if (sortedList.length === 0) {
       return [];
@@ -201,11 +201,11 @@
     // 상위 10% 항목들을 가져옴
     const topItems = sortedList.slice(0, topPercentCount);
     
-    // 상위 10% 항목들의 RankSum 평균값 계산
-    const averageRankSum = topItems.reduce((sum: number, item: any) => sum + item.rankSum, 0) / topItems.length;
+    // 상위 10% 항목들의 rankAvg 평균값 계산
+    const averageRankSum = topItems.reduce((sum: number, item: any) => sum + item.rankAvg, 0) / topItems.length;
     
-    // 평균값보다 낮은(더 좋은) RankSum을 가진 항목들을 반환
-    const result = sortedList.filter((item: any) => item.rankSum <= averageRankSum);
+    // 평균값보다 낮은(더 좋은) rankAvg을 가진 항목들을 반환
+    const result = sortedList.filter((item: any) => item.rankAvg <= averageRankSum);
     
     return result;
   }
@@ -246,7 +246,7 @@
           {#if financeAllRankList.length > 0 && loadProgress === false}
             <div class="h-auto">
               <BarChart
-                barDataList={setFinanceListByTopAverageRankSum(financeAllRankList)}
+                barDataList={setFinanceListByTopAverageRankSumAvg(financeAllRankList)}
                 on:pointClick={handleBarChartPointClick}
               />
             </div>
@@ -310,7 +310,7 @@
               <thead>
                 <tr tabindex="0">
                   <th style="width: 5%; text-align: center;">Rank</th>
-                  <th style="width: 10%; text-align: center;">RankSum</th>
+                  <th style="width: 10%; text-align: center;">RankAvg</th>
                   <th style="width: 10%; text-align: center;">CountSum</th>
                   <th style="width: 30%; text-align: center;">코드</th>
                   <th style="width: 45%; text-align: left;">주식명</th>
@@ -338,8 +338,8 @@
                         isSingleMode = true;
                       }}
                     >
-                      <td style="width: 5%; text-align: center; color: {setTopAverageRankSum(financeAllRankList) > financeAllRankInfo.rankSum ? 'red' : 'blue'}">{index}</td>
-                      <td style="width: 10%; text-align: center;">{financeAllRankInfo?.rankSum ?? '-'}</td>
+                      <td style="width: 5%; text-align: center; color: {setTopAverageRankSumAvg(financeAllRankList) > financeAllRankInfo.rankAvg ? 'red' : 'blue'}">{index}</td>
+                      <td style="width: 10%; text-align: center;">{financeAllRankInfo?.rankAvg ?? '-'}</td>
                       <td style="width: 10%; text-align: center;">{financeAllRankInfo?.count ?? '-'}</td>
                       <td style="width: 30%; text-align: center;">{financeAllRankInfo?.code ?? '-'}</td>
                       <td style="width: 45%; text-align: left;">{financeAllRankInfo?.name ?? '-'}</td>
@@ -375,7 +375,7 @@
               <button class="border border-gray-400 h-[30px] rounded-md px-2 mr-1 my-0.5 {selectedMonthRank === financeMonth ? 'bg-gray-200' : 'bg-white'}" on:click={async () => {
                 selectedMonthRank = financeMonth;
                 selectedFinanceMonthRankList = financeMonthRankObject[selectedMonthRank];
-                selectedFinanceMonthRankList = _.orderBy(financeMonthRankObject[selectedMonthRank].map((item) => {return {...item, rankSum: parseInt(item.rankSum), count: parseInt(item.count)}}), ['count', 'rankSum'], ['desc', 'asc']);
+                selectedFinanceMonthRankList = _.orderBy(financeMonthRankObject[selectedMonthRank].map((item) => {return {...item, rankAvg: Math.round(parseInt(item.rankSum) / parseInt(item.fullCount)), rankSum: parseInt(item.rankSum), count: parseInt(item.count)}}), ['rankAvg', 'count'], ['asc', 'desc']);
               }}>{financeMonth}</button>
             {/each}
           {/if}
@@ -385,7 +385,7 @@
             {#key selectedFinanceMonthRankList}
               <div class="h-auto">
                 <BarChart
-                  barDataList={setFinanceListByTopAverageRankSum(selectedFinanceMonthRankList)}
+                  barDataList={setFinanceListByTopAverageRankSumAvg(selectedFinanceMonthRankList)}
                   on:pointClick={handleBarChartPointClick}
                 />
               </div>
@@ -441,7 +441,7 @@
               <thead>
                 <tr tabindex="0">
                   <th style="width: 5%; text-align: center;">Rank</th>
-                  <th style="width: 10%; text-align: center;">RankSum</th>
+                  <th style="width: 10%; text-align: center;">RankAvg</th>
                   <th style="width: 10%; text-align: center;">CountSum</th>
                   <th style="width: 30%; text-align: center;">코드</th>
                   <th style="width: 45%; text-align: left;">주식명</th>
@@ -469,8 +469,8 @@
                         isSingleMode = true;
                       }}
                     >
-                      <td style="width: 5%; text-align: center; color: {setTopAverageRankSum(selectedFinanceMonthRankList) > financeMonthRankInfo.rankSum ? 'red' : 'blue'}">{index}</td>
-                      <td style="width: 10%; text-align: center;">{financeMonthRankInfo?.rankSum ?? '-'}</td>
+                      <td style="width: 5%; text-align: center; color: {setTopAverageRankSumAvg(selectedFinanceMonthRankList) > financeMonthRankInfo.rankAvg ? 'red' : 'blue'}">{index}</td>
+                      <td style="width: 10%; text-align: center;">{financeMonthRankInfo?.rankAvg ?? '-'}</td>
                       <td style="width: 10%; text-align: center;">{financeMonthRankInfo?.count ?? '-'}</td>
                       <td style="width: 30%; text-align: center;">{financeMonthRankInfo?.code ?? '-'}</td>
                       <td style="width: 45%; text-align: left;">{financeMonthRankInfo?.name ?? '-'}</td>

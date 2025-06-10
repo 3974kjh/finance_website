@@ -18,8 +18,8 @@
   let barChart: HTMLDivElement;
 
   onMount(async () => {
-    maxRankSum = _.maxBy(barDataList, 'rankSum')?.rankSum ?? 0;
-    minRankSum = _.minBy(barDataList, 'rankSum')?.rankSum ?? 0;
+    maxRankSum = _.maxBy(barDataList, 'rankAvg')?.rankAvg ?? 0;
+    minRankSum = _.minBy(barDataList, 'rankAvg')?.rankAvg ?? 0;
 
     await tick();
 
@@ -45,7 +45,7 @@
       return {
         ...item,
         count: parseInt(item.count),
-        rankNormalize: 100 - (selfNormalize(item.rankSum, minRankSum, maxRankSum) * 100)
+        rankNormalize: 100 - (selfNormalize(item.rankAvg, minRankSum, maxRankSum) * 100)
       };
     }), 'rankNormalize', 'desc');
 
