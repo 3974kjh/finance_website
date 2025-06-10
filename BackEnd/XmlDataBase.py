@@ -30,6 +30,8 @@ def MakeXmlFile(xml_path, Good_Invest_Real_list, stock):
       sub_element3.text = '횟수'
       sub_element4 = SubElement(element, "COUNT")
       sub_element4.text = '1'
+      sub_element5 = SubElement(element, "FULLCOUNT")
+      sub_element5.text = '1'
 
       for Tag_Name in Good_Invest_Real_list:
         element = Element(stock)
@@ -42,6 +44,8 @@ def MakeXmlFile(xml_path, Good_Invest_Real_list, stock):
         sub_element3.text = Tag_Name['name']
         sub_element4 = SubElement(element, "COUNT")
         sub_element4.text = '1' if int(Tag_Name['rank']) <= 30 else '0'
+        sub_element5 = SubElement(element, "FULLCOUNT")
+        sub_element5.text = '1'
 
       tree = ElementTree(root)
       tree.write(
@@ -74,12 +78,14 @@ def UpdateXmlFile(xml_path, new_list, stock):
         for child in root.iter(stock):
           if child.find('NAME').text == '횟수' and IsUpdateCount == False:
             child.find('COUNT').text = str(1 + int(child.find('COUNT').text))
+            child.find('FULLCOUNT').text = str(1 + int(child.find('FULLCOUNT').text))
             IsUpdateCount = True
             IsInEqual = True
             break
           if child.find('CODE').text == codeInfo['code']:
             child.find('RANKSUM').text = str(int(codeInfo['rank']) + int(child.find('RANKSUM').text))
             child.find('COUNT').text = str(1 + int(child.find('COUNT').text)) if int(codeInfo['rank']) <= 30 else child.find('COUNT').text
+            child.find('FULLCOUNT').text = str(1 + int(child.find('FULLCOUNT').text))
             IsInEqual = True
             break
         if False == IsInEqual:
@@ -99,6 +105,8 @@ def UpdateXmlFile(xml_path, new_list, stock):
           sub_element3.text = Tag_Name['name']
           sub_element4 = SubElement(element, "COUNT")
           sub_element4.text = '1' if int(Tag_Name['rank']) <= 30 else '0'
+          sub_element5 = SubElement(element, "FULLCOUNT")
+          sub_element5.text = '1'
 
       print('success4')
 
@@ -128,6 +136,7 @@ def ReadXmlFile(xml_path, stock):
       매달누적종목리스트[nowDate[:-4]]['CODE'] = []
       매달누적종목리스트[nowDate[:-4]]['NAME'] = []
       매달누적종목리스트[nowDate[:-4]]['COUNT'] = []
+      매달누적종목리스트[nowDate[:-4]]['FULLCOUNT'] = []
 
     총누적종목리스트 = {}
     총누적종목리스트[folder_list[0][:-4]+' ~ '+folder_list[-1][:-4]] = {}
@@ -135,15 +144,18 @@ def ReadXmlFile(xml_path, stock):
     총누적종목리스트[folder_list[0][:-4]+' ~ '+folder_list[-1][:-4]]['CODE'] = []
     총누적종목리스트[folder_list[0][:-4]+' ~ '+folder_list[-1][:-4]]['NAME'] = []
     총누적종목리스트[folder_list[0][:-4]+' ~ '+folder_list[-1][:-4]]['COUNT'] = []
+    총누적종목리스트[folder_list[0][:-4]+' ~ '+folder_list[-1][:-4]]['FULLCOUNT'] = []
 
     xml_stack_data_list = {}
     xml_stock_name = {}
     xml_stock_count = {}
+    xml_stock_fullCount = {}
 
     for folder in folder_list:
       xml_file_path = path_dir + '/' + folder
       xml_new_data_list = {}
       xml_new_count = {}
+      xml_new_fullCount = {}
       tree = ET.parse(xml_file_path)
       root = tree.getroot()
 
@@ -153,16 +165,20 @@ def ReadXmlFile(xml_path, stock):
         if xml_data.find('CODE').text not in xml_stack_data_list:
           xml_stack_data_list[xml_data.find('CODE').text] = int(xml_data.find('RANKSUM').text)
           xml_stock_count[xml_data.find('CODE').text] = int(xml_data.find('COUNT').text)
+          xml_stock_fullCount[xml_data.find('CODE').text] = int(xml_data.find('FULLCOUNT').text)
         else:
           xml_stack_data_list[xml_data.find('CODE').text] += int(xml_data.find('RANKSUM').text)
           xml_stock_count[xml_data.find('CODE').text] += int(xml_data.find('COUNT').text)
+          xml_stock_fullCount[xml_data.find('CODE').text] += int(xml_data.find('FULLCOUNT').text)
         
         if xml_data.find('CODE').text not in xml_new_data_list:
           xml_new_data_list[xml_data.find('CODE').text] = int(xml_data.find('RANKSUM').text)
           xml_new_count[xml_data.find('CODE').text] = int(xml_data.find('COUNT').text)
+          xml_new_fullCount[xml_data.find('CODE').text] = int(xml_data.find('FULLCOUNT').text)
         else:
           xml_new_data_list[xml_data.find('CODE').text] += int(xml_data.find('RANKSUM').text)
           xml_new_count[xml_data.find('CODE').text] += int(xml_data.find('COUNT').text)
+          xml_new_fullCount[xml_data.find('CODE').text] += int(xml_data.find('FULLCOUNT').text)
 
       sorted_stack_xml_data = sorted(xml_stack_data_list.items(), key=lambda item:item[1])
       sorted_new_xml_data = sorted(xml_new_data_list.items(), key=lambda item:item[1])
@@ -172,12 +188,14 @@ def ReadXmlFile(xml_path, stock):
         매달누적종목리스트[folder[:-4]]['RANKSUM'].append(item[1])
         매달누적종목리스트[folder[:-4]]['NAME'].append(xml_stock_name[item[0]])
         매달누적종목리스트[folder[:-4]]['COUNT'].append(xml_new_count[item[0]])
+        매달누적종목리스트[folder[:-4]]['FULLCOUNT'].append(xml_new_fullCount[item[0]])
 
     for item in sorted_stack_xml_data:
       총누적종목리스트[folder_list[0][:-4]+' ~ '+folder_list[-1][:-4]]['CODE'].append(item[0])
       총누적종목리스트[folder_list[0][:-4]+' ~ '+folder_list[-1][:-4]]['RANKSUM'].append(item[1])
       총누적종목리스트[folder_list[0][:-4]+' ~ '+folder_list[-1][:-4]]['NAME'].append(xml_stock_name[item[0]])
       총누적종목리스트[folder_list[0][:-4]+' ~ '+folder_list[-1][:-4]]['COUNT'].append(xml_stock_count[item[0]])
+      총누적종목리스트[folder_list[0][:-4]+' ~ '+folder_list[-1][:-4]]['FULLCOUNT'].append(xml_stock_fullCount[item[0]])
 
     return 매달누적종목리스트, 총누적종목리스트
 
@@ -190,7 +208,8 @@ def transform_data(input_data):
         'code': value['CODE'][i],
         'name': value['NAME'][i],
         'rankSum': str(value['RANKSUM'][i]),
-        'count': str(value['COUNT'][i])
+        'count': str(value['COUNT'][i]),
+        'fullCount': str(value['FULLCOUNT'][i])
       })
   return result
 
