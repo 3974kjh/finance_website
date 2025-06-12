@@ -2,12 +2,12 @@
   import Chart from 'devextreme/viz/chart';
   import { onMount, tick, createEventDispatcher } from 'svelte';
   import { selfNormalize } from '$lib/main/MainCore';
-  import _ from 'lodash';
 
   export let barDataList: any = [];
 
   let maxRankSum: number = 0;
   let minRankSum: number = 0;
+  let chartInstance: any = null;
 
   // 이벤트 디스패처 생성
   const dispatch = createEventDispatcher();
@@ -17,14 +17,57 @@
  */
   let barChart: HTMLDivElement;
 
+  // 이전 데이터 해시값으로 변경 감지 최적화
+  let previousDataHash: string = '';
+
+  // barDataList가 변경될 때만 차트 업데이트
+  $: if (barDataList && barDataList.length > 0) {
+    const currentHash = `${barDataList.length}_${barDataList[0]?.code || ''}_${barDataList[barDataList.length - 1]?.code || ''}`;
+    if (currentHash !== previousDataHash) {
+      previousDataHash = currentHash;
+      handleDataChange();
+    }
+  }
+
+  // 데이터 변경 처리 함수 (더 직접적인 제어)
+  const handleDataChange = () => {
+    if (chartInstance) {
+      // 기존 차트가 있으면 즉시 데이터만 업데이트
+      const processedData = prepareChartData();
+      chartInstance.option('dataSource', processedData);
+      
+      // 업데이트 완료 이벤트 발생
+      setTimeout(() => {
+        dispatch('chartRendered');
+      }, 50); // 더 짧은 대기 시간
+    } else if (barChart) {
+      // 차트가 없으면 새로 생성
+      createCountBarChart();
+    }
+  };
+
   onMount(async () => {
-    maxRankSum = _.maxBy(barDataList, 'rankAvg')?.rankAvg ?? 0;
-    minRankSum = _.minBy(barDataList, 'rankAvg')?.rankAvg ?? 0;
-
     await tick();
-
-    createCountBarChart();
+    if (barDataList && barDataList.length > 0) {
+      createCountBarChart();
+    }
   })
+
+  const prepareChartData = () => {
+    if (!barDataList || barDataList.length < 1) {
+      return [];
+    }
+
+    // 이미 처리된 데이터라고 가정하고 최소한의 처리만 수행
+    maxRankSum = Math.max(...barDataList.map(item => item.rankAvg || 0));
+    minRankSum = Math.min(...barDataList.map(item => item.rankAvg || 0));
+
+    return barDataList.map(item => ({
+      ...item,
+      count: typeof item.count === 'number' ? item.count : parseInt(item.count) || 0,
+      rankNormalize: 100 - (selfNormalize(item.rankAvg, minRankSum, maxRankSum) * 100)
+    })).sort((a, b) => b.rankNormalize - a.rankNormalize);
+  }
 
   const getSeriesList = () => {
     return [
@@ -37,22 +80,15 @@
    * 바 차트
    */
   const createCountBarChart = () => {
-    if (!!!barDataList || barDataList.length < 1) {
+    if (!barDataList || barDataList.length < 1) {
       return;
     }
 
-    barDataList = _.orderBy(barDataList.map((item) => {
-      return {
-        ...item,
-        count: parseInt(item.count),
-        rankNormalize: 100 - (selfNormalize(item.rankAvg, minRankSum, maxRankSum) * 100)
-      };
-    }), 'rankNormalize', 'desc');
+    const processedData = prepareChartData();
+    const maxValue = Math.max(...processedData.map(item => item.count));
 
-    let maxValue: number = (_.maxBy(barDataList, 'count')?.count ?? 0);
-
-    new Chart(barChart, {
-      dataSource: barDataList,
+    chartInstance = new Chart(barChart, {
+      dataSource: processedData,
       commonSeriesSettings: {
         argumentField: 'code'
       },
@@ -79,7 +115,7 @@
           };
         }
 
-        return null;
+        return {};
       },
       customizeLabel: (e: any) => {
         if (e.data.name === '횟수') {
@@ -92,7 +128,7 @@
           };
         }
 
-        return null;
+        return {};
       },
       valueAxis: [
         {
@@ -164,7 +200,7 @@
       tooltip: {
 				enabled: true,
 				location: 'edge',
-				customizeTooltip: function (arg: { value: number, argument: string, point: {data:{code: string, name: string, rankSum: string, count: number}}, seriesName: string }) {
+				customizeTooltip: function (arg: { value: number, argument: string, point: {data: any}, seriesName: string }) {
           let toolTipText: string = '';
 
           const focusFinanceInfo = arg.point?.data;
@@ -202,6 +238,10 @@
           item: clickedItem,
           seriesName: e.target.series.name
         });
+      },
+      // 차트 렌더링 완료 이벤트 추가
+      onDrawn() {
+        dispatch('chartRendered');
       }
     });
   }
