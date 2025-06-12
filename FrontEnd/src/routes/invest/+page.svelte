@@ -2,8 +2,8 @@
   import { onMount } from 'svelte';
   import { InvestConfidence, ProgressCircle } from '$lib/component';
   import { calculateChangeRate, getFinanceDataListByChartMode, setUpDownColor, setUpDownRatioTag } from '$lib/main';
-  import { getFinanceStockList, getExpectStockValue, getAllFinanceRankList } from '$lib/api-connector/FinanceApi';
-  import { calculateRatio, formatCostValue, formatIncludeComma, createComponent } from '$lib/utils/CommonHelper';
+  import { getAllFinanceRankList } from '$lib/api-connector/FinanceApi';
+  import { formatIncludeComma, createComponent } from '$lib/utils/CommonHelper';
   import { StockListPopup } from '$lib/popup';
   import _ from 'lodash';
 
