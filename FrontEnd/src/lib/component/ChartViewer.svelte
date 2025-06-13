@@ -59,9 +59,11 @@
 </script>
 
 <div class="flex flex-col mr-1 mb-1">
-  <div class="flex flex-row h-[30px] w-full space-x-1 items-center relative">
-    <p class="font-bold">{title}</p>
-    <div class="flex flex-row grow justify-end space-x-1">
+  <div class="flex flex-row h-[30px] w-full items-center relative">
+    <p class="font-bold overflow-hidden whitespace-nowrap" 
+      style="width: calc(100% - 120px); text-overflow: ellipsis;" 
+      title={title}>{title}</p>
+    <div class="absolute right-0 flex flex-row space-x-1">
       {#if isMultiLine}
         <div class="absolute flex flex-col space-y-1 border rounded-md bg-white p-1 cursor-pointer" style="top: 0px; left: 0px"
           aria-hidden="true"
