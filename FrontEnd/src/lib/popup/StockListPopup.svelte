@@ -25,7 +25,6 @@
     name: string, 
     value: string,
     code: string,
-    name: string,
     close: any,
     chagesRatio: any,
     open: any,
@@ -39,6 +38,10 @@
   // 로딩 유무
   let isProgress: boolean = false;
 
+  // 동적 높이 관련 변수들
+  let popupHeight: number = 600; // 기본값을 더 작게 설정
+  let innerHeight: number = 0;
+
   let stockModeList: Array<{name: string, value: string, isSelected: boolean}> = [
     { name: '국내상장', value: 'KRX', isSelected: true },
     { name: '나스닥상장', value: 'NASDAQ', isSelected: false },
@@ -47,7 +50,16 @@
     { name: '도쿄상장', value: 'TSE', isSelected: false },
   ]
   
-  let searchInputDocument;
+  let searchInputDocument: HTMLInputElement;
+
+  // 브라우저 높이에 따른 팝업 높이 계산
+  $: {
+    // innerHeight가 유효한 값일 때만 계산
+    if (innerHeight > 200) {
+      const calculatedHeight = Math.floor(innerHeight * 0.85); // 85%
+      popupHeight = Math.min(Math.max(600, calculatedHeight), 1000); // 최소 600px, 최대 1000px
+    }
+  }
 
   onMount(async () => {
     isProgress = true;
@@ -70,7 +82,7 @@
       return [];
     }
 
-    return result.data.map((item) => {
+    return result.data.map((item: any) => {
       return {
         ...item,
         VolumeRatio: calculateRatio(item?.Marcap, item?.Amount)
@@ -131,7 +143,7 @@
     })
   }
 
-  const onFocusSearchText = (e) => {
+  const onFocusSearchText = (e: KeyboardEvent) => {
     if (e.key === 'F4' && filteredStockInfoList.length > 0) {
 			e.preventDefault(); // 기본 동작 막기
 			e.stopPropagation(); // 이벤트 전파 중단하기
@@ -141,10 +153,11 @@
   }
 </script>
 
-<svelte:window on:keydown={onFocusSearchText}/>
-<CommonPopup {titleName} on:closedDialogCallback={closedDialogCallback}>
-  <div class="flex flex-col w-[800px] h-[1000px] bg-white space-y-2 p-2">
-    <div class="flex h-auto w-full mt-2">
+<svelte:window bind:innerHeight on:keydown={onFocusSearchText}/>
+<CommonPopup {titleName} modalPositionType="center" on:closedDialogCallback={closedDialogCallback}>
+  <div class="flex flex-col w-[800px] bg-white" style="height: {popupHeight}px;">
+    <!-- 검색 영역 - 고정 높이 -->
+    <div class="flex h-auto w-full mt-2 px-2 flex-shrink-0">
       <!-- 검색란 -->
       <div class="flex flex-row w-full">
         <label class="w-[80px] font-bold" for="name">{'종목 검색'}</label>
@@ -175,7 +188,8 @@
         />
       </div>
     </div>
-    <div class="flex flex-row h-auto w-full space-x-1">
+    <!-- 버튼 영역 - 고정 높이 -->
+    <div class="flex flex-row h-auto w-full space-x-1 px-2 py-2 flex-shrink-0">
       {#each stockModeList as stockMode}
         <button
           class="border rounded-md px-1 border-gray-400 {stockMode.isSelected ? 'bg-gray-200' : 'bg-white'}"
@@ -193,9 +207,9 @@
         </button>
       {/each}
     </div>
-    <!-- 주식 목록 Grid -->
-    <div class="flex h-[800px] w-full">
-      <div class="tableWrap border">
+    <!-- 주식 목록 Grid - 남은 공간 모두 사용 -->
+    <div class="flex w-full flex-grow px-2 min-h-0 mb-1">
+      <div class="tableWrap">
         <table>
           <thead>
             <tr tabindex="0">
@@ -204,14 +218,14 @@
               <th style="width: 15%; text-align: center;">현재가</th>
               <th on:click={() => {
                 filteredStockInfoList = _.sortBy(filteredStockInfoList, (item) => { return item?.ChagesRatio; }).reverse();
-              }} style="width: 15%; text-align: center;">{@html `전일대비<br/>상승&하락`}</th>
+              }} style="width: 15%; text-align: center;">{@html "전일대비<br/>상승&하락"}</th>
               <th style="width: 15%; text-align: center;">시초가</th>
               <th on:click={() => {
                 filteredStockInfoList = _.sortBy(filteredStockInfoList, (item) => { return parseFloat(item?.VolumeRatio); }).reverse();
-              }} style="width: 15%; text-align: center;">{@html `거래 유동성`}</th>
+              }} style="width: 15%; text-align: center;">{@html "거래 유동성"}</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody class="{(isProgress || filteredStockInfoList.length === 0) ? 'loading-state' : ''}">
             {#if filteredStockInfoList.length > 0 && isProgress === false}
               {#each filteredStockInfoList as stockInfo}
                 <tr
@@ -243,29 +257,36 @@
                   <td style="width: 15%; text-align: right;">{`${formatIncludeComma(formatCostValue(stockInfo?.Close)) ?? '-'} ₩`}</td>
                   <td style="width: 15%; text-align: center; color: {setUpDownColor(stockInfo?.ChagesRatio)}">{`${setUpDownIcon(stockInfo?.ChagesRatio)} ${stockInfo?.ChagesRatio ?? '-'}%`}</td>
                   <td style="width: 15%; text-align: right;">{`${formatIncludeComma(formatCostValue(stockInfo?.Open)) ?? '-'} ₩`}</td>
-                  <td style="width: 15%; text-align: right;">{`${stockInfo?.VolumeRatio ?? '-'}%`}</td>
+                  <td style="width: 15%; text-align: right;">{`${stockInfo['VolumeRatio'] ?? '-'}%`}</td>
                 </tr>
               {/each}
             {:else if isProgress}
-              <div class="flex w-full h-full justify-center items-center font-bold text-gray">
-                <ProgressCircle
-                  text={'해당 증시 목록을 가져오는 중입니다...'}
-                />
-              </div>
+              <tr>
+                <td colspan="6">
+                  <ProgressCircle
+                    text={'해당 증시 목록을 가져오는 중입니다...'}
+                  />
+                </td>
+              </tr>
             {:else}
-              <p class="flex w-full h-full justify-center items-center font-bold text-gray">
-                {'목록이 없습니다.'}
-              </p>
+              <tr>
+                <td colspan="6">
+                  <p class="font-bold text-gray-500">
+                    {'목록이 없습니다.'}
+                  </p>
+                </td>
+              </tr>
             {/if}
           </tbody>
         </table>
       </div>
     </div>
-    <div class="flex w-full grow">
-      <div class="flex flex-wrap w-full h-[100px] border overflow-auto p-1 space-x-1">
+    <!-- 선택된 항목 영역 - 고정 높이 -->
+    <div class="flex w-full h-[80px] flex-shrink-0 px-2 pb-2">
+      <div class="flex flex-wrap w-full h-full border overflow-auto p-1 space-x-1">
         {#each choiceStockInfoList as choiceStockInfo}
           <button
-            class="border rounded-md px-1 border-gray-400 bg-white h-[30px]"
+            class="border rounded-md px-1 border-gray-400 bg-white h-[30px] flex-shrink-0"
             on:click={() => {
               choiceStockInfoList = choiceStockInfoList.filter((item) => item.value !== choiceStockInfo.value);
             }}
@@ -291,55 +312,138 @@
 <style>
 	.tableWrap {
 		width: 100%;
-		height: calc(100%);
+		height: 100%;
+		overflow: hidden;
+		border: 1px solid #ccc;
+		display: flex;
+		flex-direction: column;
+		min-height: 0; /* flexbox에서 축소 가능하도록 */
 	}
+	
+	table {
+		width: 100%;
+		height: 100%;
+		table-layout: fixed;
+		border-collapse: collapse;
+		display: flex;
+		flex-direction: column;
+		min-height: 0; /* flexbox에서 축소 가능하도록 */
+	}
+	
 	thead {
 		display: table;
 		table-layout: fixed;
 		width: 100%;
+		background-color: #4B5563;
+		flex-shrink: 0;
 	}
+	
 	tbody {
-		width: 100%;
 		display: block;
-		height: calc(100%);
-		overflow: auto;
+		width: 100%;
+		flex-grow: 1;
+		min-height: 0; /* flexbox에서 축소 가능하도록 */
+		max-height: 100%; /* 부모 컨테이너 높이를 넘지 않도록 */
+		overflow-y: auto;
+		overflow-x: hidden;
 	}
-  th {
-    color: white;
-    background-color: #4B5563;
-  }
-	tr {
+	
+	/* 로딩 상태일 때 tbody가 전체 높이를 사용하도록 */
+	tbody.loading-state {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		overflow: hidden;
+	}
+	
+	/* 로딩 상태의 tr이 전체 높이를 사용하도록 */
+	tbody.loading-state tr {
+		display: flex;
+		width: 100%;
+		height: 100%;
+		align-items: center;
+		justify-content: center;
+	}
+	
+	/* 로딩 상태의 td가 전체 공간을 사용하도록 */
+	tbody.loading-state td {
+		display: flex;
+		width: 100%;
+		height: 100%;
+		align-items: center;
+		justify-content: center;
+		border: none;
+	}
+	
+	thead tr, tbody tr {
 		display: table;
 		width: 100%;
 		table-layout: fixed;
-    border-bottom: 1px solid black; /* 각 행 하단에 라인 추가 */
 	}
-  tr:last-child {
-    border-bottom: none; /* 마지막 행에는 라인 제거 */
-  }
-	table {
-		table-layout: fixed;
+	
+	/* 일반 tbody tr에 최소 높이 설정 */
+	tbody:not(.loading-state) tr {
+		min-height: 35px; /* 각 행의 최소 높이 보장 */
 	}
-	tbody {
-		height: 740px;
-		grid-auto-flow: row;
+	
+	th {
+		color: white;
+		background-color: #4B5563;
+		padding: 8px 4px;
+		font-weight: bold;
+		border-right: 1px solid #6B7280;
+		height: 40px;
+		box-sizing: border-box;
 	}
+	
+	th:last-child {
+		border-right: none;
+	}
+	
 	td {
-		margin-top: -1px;
+		padding: 6px 4px;
+		border-bottom: 1px solid #e5e7eb;
+		border-right: 1px solid #e5e7eb;
+		box-sizing: border-box;
+		vertical-align: middle;
+		height: 35px; /* 고정 높이로 일관성 유지 */
+	}
+	
+	td:last-child {
+		border-right: none;
+	}
+	
+	tbody tr:last-child td {
+		border-bottom: none;
 	}
 
-  /* 기본 배경색 */
-  table tr {
-    background-color: white;
-  }
+	/* 기본 배경색 */
+	tbody tr {
+		background-color: white;
+	}
 
-  /* 포커스된 행의 배경색 */
-  table tr:hover {
-    background-color: #f0f8ff;
-  }
+	/* 호버 효과 */
+	tbody tr:hover {
+		background-color: #f0f8ff;
+		cursor: pointer;
+	}
 
-  /* 키보드 네비게이션을 위한 outline 제거 */
-  table tr:hover {
-    outline: none;
-  }
+	/* 스크롤바 스타일링 */
+	tbody::-webkit-scrollbar {
+		width: 8px;
+	}
+
+	tbody::-webkit-scrollbar-track {
+		background: #f1f1f1;
+		border-radius: 4px;
+	}
+
+	tbody::-webkit-scrollbar-thumb {
+		background: #c1c1c1;
+		border-radius: 4px;
+	}
+
+	tbody::-webkit-scrollbar-thumb:hover {
+		background: #a8a8a8;
+	}
 </style>

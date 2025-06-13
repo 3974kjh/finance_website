@@ -63,7 +63,10 @@
 
 	onMount(() => {
 		if (modalPositionType === 'center') {
-			moveToCenterInScreen();
+			// DOM 렌더링 완료 후 중앙 정렬
+			setTimeout(() => {
+				moveToCenterInScreen();
+			}, 10);
 		} else {
 			moveToCustomInScreen(top, left);
 		}
@@ -136,30 +139,51 @@
 	};
 
 	/**
-	 * 화면 중앙에 배치한다.
+	 * 화면 중앙으로 이동
 	 */
-	export const moveToCenterInScreen = () => {
-		const rect = mainContainer.getBoundingClientRect();
+	const moveToCenterInScreen = (): void => {
+		if (!mainContainer) return;
 
-		left = (document.body.clientWidth - rect.width) / 2;
-		top = (document.body.clientHeight - rect.height) / 2;
+		// DOM이 완전히 렌더링될 때까지 잠시 대기
+		setTimeout(() => {
+			const containerRect = mainContainer.getBoundingClientRect();
+			const viewportHeight = window.innerHeight;
+			const viewportWidth = window.innerWidth;
 
-		width = rect.width;
-		height = rect.height;
+			// 중앙 위치 계산 (간단한 방식)
+			const centerX = (viewportWidth - containerRect.width) / 2;
+			const centerY = (viewportHeight - containerRect.height) / 2;
 
-		mainContainer.style.top = `${top}px`;
-		mainContainer.style.left = `${left}px`;
+			// 최소 여백 보장 (20px)
+			const finalX = Math.max(20, centerX);
+			const finalY = Math.max(20, centerY);
+
+			// 위치 설정
+			mainContainer.style.left = `${finalX}px`;
+			mainContainer.style.top = `${finalY}px`;
+			
+			// 중앙 정렬 완료 후 팝업을 보이게 설정
+			if (modalPositionType === 'center') {
+				mainContainer.style.opacity = '1';
+			}
+		}, 0);
 	};
 </script>
 
-<svelte:window on:mousemove={mouseMoveInWindow} on:mouseup={mouseUpInWindow} on:resize={calcPositionForPopup} on:keyup={keyupInInwodw} />
+<svelte:window on:mousemove={mouseMoveInWindow} on:mouseup={mouseUpInWindow} on:resize={() => {
+	if (modalPositionType === 'center' && mainContainer) {
+		moveToCenterInScreen();
+	} else {
+		calcPositionForPopup();
+	}
+}} on:keyup={keyupInInwodw} />
 <!-- 팝업 배경 -->
 {#if isModal}
 	<div class="absolute left-0 top-0 w-full h-full bg-gray-200 opacity-50" style="z-index: 10" />
 {/if}
 
 <!-- 메인 팝업  -->
-<div class="fixed {className}" bind:this={mainContainer} style="z-index: {zIndex} ">
+<div class="fixed {className}" bind:this={mainContainer} style="z-index: {zIndex}; {modalPositionType === 'center' ? 'opacity: 0; transition: opacity 0.1s ease-in-out;' : ''}" >
 	<div class="flex justify-center items-center h-full">
 		<div class="flex flex-col shadow-lg bg-white popup-wrap">
 			<!-- 팝업 타이틀 창 -->
