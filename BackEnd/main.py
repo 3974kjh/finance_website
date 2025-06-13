@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from datetime import datetime, timedelta
 import FinanceDataReader as fdr
 import pandas as pd
-import CalculateLogic, XmlDataBase, JsonDataBase
+import CalculateLogic, XmlDataBase, JsonDataBase, WebCrawling
 
 app = FastAPI()
 app.add_middleware(
@@ -70,6 +70,14 @@ class GetJsonAnalyzeRequest(BaseModel):
     stock: str = ''
 class GetJsonAnalyzeResponse(BaseModel):
     data: list
+
+# 실시간 검색어 요청 / 응답
+class RealtimeSearchRequest(BaseModel):
+    pass  # 추가 파라미터가 필요한 경우 여기에 정의
+class RealtimeSearchResponse(BaseModel):
+    search_terms: List[str]
+    date_info: str
+    total_count: int
 
 @app.post("/stock_data/", response_model=StockResponse)
 async def get_stock_data(request: StockRequest):
@@ -169,3 +177,29 @@ async def getTodayAnalyze(request: GetJsonAnalyzeRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/get_realtime_search/", response_model=RealtimeSearchResponse)
+async def getRealtimeSearch(request: RealtimeSearchRequest):
+    try:
+        # WebCrawling 모듈의 getRealtimeSearchTerms 함수 호출
+        crawl_result = WebCrawling.getRealtimeSearchTerms()
+        
+        # 크롤링 실패 시 에러 처리
+        if not crawl_result.get("success", False):
+            raise HTTPException(status_code=500, detail=f"크롤링 실패: {crawl_result.get('error', '알 수 없는 오류')}")
+        
+        # 결과 데이터 추출
+        search_terms = crawl_result.get("search_terms", [])
+        date_info = crawl_result.get("date_info", "")
+        total_count = crawl_result.get("total_count", 0)
+        
+        return RealtimeSearchResponse(
+            search_terms=search_terms,
+            date_info=date_info,
+            total_count=total_count
+        )
+
+    except HTTPException:
+        raise  # HTTPException은 그대로 다시 발생
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"서버 오류: {str(e)}")
