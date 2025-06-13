@@ -48,6 +48,7 @@
 		<button class="flex px-1 w-full items-start {$page.url.pathname === '/analyze' ? 'bg-gray-300 font-bold border-l-2 border-white' : 'text-white'}" on:click={() => goto(`${base}/analyze`)}>ANALYZE</button>
 		<button class="flex px-1 w-full items-start {$page.url.pathname === '/statistic' ? 'bg-gray-300 font-bold border-l-2 border-white' : 'text-white'}" on:click={() => goto(`${base}/statistic`)}>STATISTIC</button>
 		<button class="flex px-1 w-full items-start {$page.url.pathname === '/webSearch' ? 'bg-gray-300 font-bold border-l-2 border-white' : 'text-white'}" on:click={() => goto(`${base}/webSearch`)}>SEARCH</button>
+		<button class="flex px-1 w-full items-start {$page.url.pathname === '/news' ? 'bg-gray-300 font-bold border-l-2 border-white' : 'text-white'}" on:click={() => goto(`${base}/news`)}>NEWS</button>
 		<button class="flex px-1 w-full items-start {$page.url.pathname === '/invest' ? 'bg-gray-300 font-bold border-l-2 border-white' : 'text-white'}" on:click={() => goto(`${base}/invest`)}>INVEST</button>
 		<button class="flex px-1 w-full items-start {$page.url.pathname === '/timeLine' ? 'bg-gray-300 font-bold border-l-2 border-white' : 'text-white'}" on:click={() => goto(`${base}/timeLine`)}>TIMELINE</button>
 	</div>

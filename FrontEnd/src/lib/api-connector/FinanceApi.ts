@@ -209,3 +209,28 @@ export const getTodayAnalyze = async (cancelController?: AbortController) => {
 		}
 	}
 }
+
+/**
+ * 실시간 검색어 가져오기
+ */
+export const getRealtimeSearchTerms = async (cancelController?: AbortController) => {
+	try {
+		const newAxiosInstance = localAxiosInstance();
+
+		if (!!cancelController) {
+			newAxiosInstance.defaults.signal = cancelController.signal;
+		}
+
+		const response = await newAxiosInstance.post(
+			'/get_realtime_search/',
+			{}
+		);
+
+		return response.data;
+	} catch (error) {
+		if (error) {
+			console.error('에러 발생 : ' + error);
+			return { isSuccess: false, data: 'fail-network' };
+		}
+	}
+}
