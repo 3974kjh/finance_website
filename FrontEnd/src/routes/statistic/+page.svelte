@@ -891,4 +891,28 @@
   tbody::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
   }
+
+  /* BarChart 영역 스크롤바 스타일링 - 얇은 스타일 */
+  .overflow-auto::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .overflow-auto::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 3px;
+  }
+
+  .overflow-auto::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+  }
+
+  .overflow-auto::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.4);
+  }
+
+  .overflow-auto::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 </style>
