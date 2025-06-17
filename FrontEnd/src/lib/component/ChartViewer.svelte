@@ -59,13 +59,13 @@
 </script>
 
 <div class="flex flex-col mr-1 mb-1">
-  <div class="flex flex-row h-[30px] w-full items-center relative">
-    <p class="font-bold overflow-hidden whitespace-nowrap" 
+  <div class="flex flex-row h-[30px] w-full items-center relative bg-gradient-to-r from-slate-50 to-gray-50 border-b border-gray-200/50 px-3 rounded-t-xl">
+    <p class="font-bold overflow-hidden whitespace-nowrap text-gray-800" 
       style="width: calc(100% - 120px); text-overflow: ellipsis;" 
       title={title}>{title}</p>
-    <div class="absolute right-0 flex flex-row space-x-1">
+    <div class="absolute right-0 flex flex-row">
       {#if isMultiLine}
-        <div class="absolute flex flex-col space-y-1 border rounded-md bg-white p-1 cursor-pointer" style="top: 0px; left: 0px"
+        <div class="absolute flex flex-col space-y-2 border-0 rounded-xl bg-white/95 backdrop-blur-md p-4 cursor-pointer shadow-2xl shadow-gray-900/20 border border-gray-200/50 z-[9999]" style="top: 35px; right: 0px; min-width: 300px; max-width: 400px;"
           aria-hidden="true"
           on:click={(e) => {
             e.preventDefault();
@@ -74,16 +74,37 @@
             isMultiLine = false;
           }}
         >
-          <p class="font-bold">{`[${title}] (최근 ${searchDuration.month}개월)`}</p>
-          <p>{@html `💲 현재 가: ${nowValue}`}</p>
-          <p>{@html `🎯 현재 예측가: ${expectValue}(${setUpDownRatioTag(nowValue, expectValue)})`}</p>
-          <p>{@html `🔮 한달뒤 예측가: ${afterMonthExpectValue}(${setUpDownRatioTag(nowValue, afterMonthExpectValue)})`}</p>
+          <p class="font-bold text-gray-800 border-b border-gray-200 pb-2 text-sm">{`[${title}] (최근 ${searchDuration.month}개월)`}</p>
+          <div class="space-y-2 text-sm">
+            <div class="flex items-center text-gray-700 flex-wrap">
+              <span class="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs mr-2 flex-shrink-0">💲</span>
+              <span class="flex-shrink-0 mr-1">현재 가:</span>
+              <span class="font-semibold text-gray-900 break-all">{nowValue}</span>
+            </div>
+            <div class="flex items-center text-gray-700 flex-wrap">
+              <span class="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center text-white text-xs mr-2 flex-shrink-0">🎯</span>
+              <span class="flex-shrink-0 mr-1">현재 예측가:</span>
+              <span class="font-semibold text-gray-900 break-all mr-1">{expectValue}</span>
+              <span class="break-all">{@html setUpDownRatioTag(nowValue, expectValue)}</span>
+            </div>
+            <div class="flex items-center text-gray-700 flex-wrap">
+              <span class="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center text-white text-xs mr-2 flex-shrink-0">🔮</span>
+              <span class="flex-shrink-0 mr-1">한달뒤 예측가:</span>
+              <span class="font-semibold text-gray-900 break-all mr-1">{afterMonthExpectValue}</span>
+              <span class="break-all">{@html setUpDownRatioTag(nowValue, afterMonthExpectValue)}</span>
+            </div>
+          </div>
         </div>
       {/if}
-      <button class="border-b-2 border-black px-1 text-sm" on:click={async () => {
+      <button class="border-0 bg-transparent hover:bg-gray-100/80 text-gray-600 hover:text-gray-900 px-2 py-1 text-sm rounded-md transition-all duration-200 font-medium" on:click={async () => {
         await addExpectStockValueToChart(searchDuration.week);
-      }}>📊분석</button>
-      <button class="border-b-2 border-black px-1 text-sm" on:click={() => {
+      }}>
+        <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+        </svg>
+        분석
+      </button>
+      <button class="border-0 bg-transparent hover:bg-gray-100/80 text-gray-600 hover:text-gray-900 px-2 py-1 text-sm rounded-md transition-all duration-200 font-medium" on:click={() => {
         dispatch('showDetailChartViewerCallback', {
           title: title,
           searchDuration: searchDuration,
@@ -91,10 +112,15 @@
           chartKey: chartKey,
           detailInfo: detailInfo
         });
-      }}>🔍상세</button>
+      }}>
+        <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+        </svg>
+        상세
+      </button>
     </div>
   </div>
-  <div class="border overflow-auto p-1 rounded-lg"
+  <div class="border-0 overflow-auto p-3 rounded-b-xl bg-white/90 backdrop-blur-sm shadow-xl shadow-gray-900/10 border border-gray-200/50"
     style="width: {widthRangeValue > width ? width : widthRangeValue}px; height: {heightRangeValue > height - 40 ? height - 40 : heightRangeValue}px">
     {#if dataList.length > 0 && widthRangeValue && heightRangeValue}
       {#key isMultiLine}
@@ -104,7 +130,16 @@
         />
       {/key}
     {:else}
-      <p class="flex h-full items-center justify-center">표시할 {title}차트가 없습니다.</p>
+      <div class="flex h-full items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border border-gray-200/50">
+        <div class="text-center space-y-2">
+          <div class="w-12 h-12 bg-gray-300 rounded-2xl flex items-center justify-center mx-auto">
+            <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+            </svg>
+          </div>
+          <p class="text-gray-600 font-medium">표시할 {title}차트가 없습니다.</p>
+        </div>
+      </div>
     {/if}
   </div>
 </div>

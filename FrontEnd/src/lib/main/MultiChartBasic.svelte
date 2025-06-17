@@ -127,7 +127,7 @@
     const todayDate = new Date().toISOString().slice(0, 10);
     const keys = Object.keys(window.localStorage).filter((key) => key.includes('chartModeObject'));
 
-    localStorage.removeItem(keys);
+    keys.forEach(key => localStorage.removeItem(key));
     localStorage.setItem(`${todayDate}chartModeObject`, JSON.stringify(chartModeObject));
   }
 
@@ -136,30 +136,48 @@
 <div class="flex flex-col space-y-2 p-2 w-full h-full scrollbar-thin-custom">
   <div class="flex flex-col w-full space-y-2 {isProgress ? 'disabledComponent' : ''}">
     <!-- 그래프로 표시할 종목들 -->
-    <div class="flex flex-wrap h-[75px] border rounded-md overflow-auto px-1 py-0.5 bg-gray-50 scrollbar-thin-custom">
+    <div class="flex flex-wrap h-[75px] border border-white/20 rounded-xl overflow-auto px-2 py-1 bg-white/10 backdrop-blur-md scrollbar-thin-custom shadow-lg">
       {#each Object.keys(chartModeObject) as chartMode}
-        <button class="border-white h-[30px] rounded-md px-2 mr-1 my-0.5 bg-gray-600 text-white relative" on:click={async () => {
-          chartModeObject[chartMode].dataList = await getFinanceDataListByChartMode(chartModeObject[chartMode].key, searchDuration.month, true);
-          chartModeObject[chartMode].newsInfoList = await getNewInfoList(chartMode+'지수', 20, 1);
+        {#if !!chartModeObject[chartMode]?.detailInfo}
+          <!-- 기업 종목 (삭제 가능) -->
+          <button class="border-0 h-[30px] rounded-lg px-3 mr-2 my-0.5 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white relative transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm border border-purple-300/30" on:click={async () => {
+            chartModeObject[chartMode].dataList = await getFinanceDataListByChartMode(chartModeObject[chartMode].key, searchDuration.month, true);
+            chartModeObject[chartMode].newsInfoList = await getNewInfoList(chartMode+'지수', 20, 1);
 
-          const todayDate = new Date().toISOString().slice(0, 10);
-          const keys = Object.keys(window.localStorage).filter((key) => key.includes('chartModeObject'));
+            const todayDate = new Date().toISOString().slice(0, 10);
+            const keys = Object.keys(window.localStorage).filter((key) => key.includes('chartModeObject'));
 
-          localStorage.removeItem(keys);
-          localStorage.setItem(`${todayDate}chartModeObject`, JSON.stringify(chartModeObject));
-        }}>{chartModeObject[chartMode].name}
-          {#if !!chartModeObject[chartMode]?.detailInfo}
-            <button class="absolute top-[-5px] right-[-5px] bg-red-400 border rounded-full w-[15px] h-[15px]"
+            keys.forEach(key => localStorage.removeItem(key));
+            localStorage.setItem(`${todayDate}chartModeObject`, JSON.stringify(chartModeObject));
+          }}>{chartModeObject[chartMode].name}
+            <button class="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 border-0 rounded-full w-[16px] h-[16px] flex items-center justify-center text-white text-xs transition-all duration-200 shadow-md hover:shadow-lg"
               on:click|capture|preventDefault|stopPropagation={() => {
                 delete chartModeObject[chartMode];
 
                 chartModeObject = chartModeObject;
               }}
-            />
-          {/if}
-        </button>
+            >
+              <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </button>
+        {:else}
+          <!-- 지수 종목 (기본 종목) -->
+          <button class="border-0 h-[30px] rounded-lg px-3 mr-2 my-0.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white relative transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm" on:click={async () => {
+            chartModeObject[chartMode].dataList = await getFinanceDataListByChartMode(chartModeObject[chartMode].key, searchDuration.month, true);
+            chartModeObject[chartMode].newsInfoList = await getNewInfoList(chartMode+'지수', 20, 1);
+
+            const todayDate = new Date().toISOString().slice(0, 10);
+            const keys = Object.keys(window.localStorage).filter((key) => key.includes('chartModeObject'));
+
+            keys.forEach(key => localStorage.removeItem(key));
+            localStorage.setItem(`${todayDate}chartModeObject`, JSON.stringify(chartModeObject));
+          }}>{chartModeObject[chartMode].name}
+          </button>
+        {/if}
       {/each}
-      <button class="flex border h-[30px] bg-gray-600 border-black rounded-md items-center px-1 mr-1 my-0.5" on:click={async() => {
+      <button class="flex border-0 h-[30px] bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 rounded-lg items-center px-3 mr-2 my-0.5 text-white font-medium text-sm transition-all duration-200 shadow-md hover:shadow-lg" on:click={async() => {
         const popupResult = await createComponent(StockListPopup, {
           titleName: '주식 목록 조회'
         });
@@ -182,15 +200,23 @@
           }
         }
       }}>
-        ➕
+        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+        </svg>
+        추가
       </button>
     </div>
     <div class="flex flex-row space-x-2">
       <!-- 분할모드 -->
       <div class="flex w-auto space-x-1 items-center">
-        <p class="font-bold mr-2 text-white">{'✖ 보기 모드'}</p>
+        <p class="font-bold mr-2 text-white flex items-center">
+          <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"></path>
+          </svg>
+          보기 모드
+        </p>
         {#each Object.keys(displayModeObject) as displayMode}
-          <button class="border h-[30px] rounded-md px-2 border-gray-400 {nowDisplayMode === displayModeObject[displayMode] ?  'bg-white' : 'bg-gray-500 text-white'}" on:click={() => {
+          <button class="border-0 h-[30px] rounded-lg px-3 transition-all duration-200 font-medium text-sm {nowDisplayMode === displayModeObject[displayMode] ? 'bg-white text-gray-800 shadow-lg' : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 shadow-md'}" on:click={() => {
             nowDisplayMode = displayModeObject[displayMode];
 
             heightRangeValue = Math.round((fullChartViewerHeight - 300) / displayModeObject[displayMode].row) - (displayModeObject[displayMode].row * 5);
@@ -211,9 +237,14 @@
       </div>
       <!-- 조회 기간 설정 -->
       <div class="flex grow space-x-1 items-center justify-end">
-        <p class="font-bold mr-2 text-white">{'📆 조회 기간'}</p>
+        <p class="font-bold mr-2 text-white flex items-center">
+          <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+          </svg>
+          조회 기간
+        </p>
         {#each Object.keys(durationObject) as duration}
-          <button disabled={isProgress} class="border h-[30px] rounded-md px-2 border-gray-400 {searchDuration === durationObject[duration] ?  'bg-white' : 'bg-gray-500 text-white'}" on:click={async () => {
+          <button disabled={isProgress} class="border-0 h-[30px] rounded-lg px-3 transition-all duration-200 font-medium text-sm disabled:opacity-50 {searchDuration === durationObject[duration] ? 'bg-white text-gray-800 shadow-lg' : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 shadow-md'}" on:click={async () => {
             searchDuration = durationObject[duration];
 
             await refreshAllFinanceDataList(Object.keys(chartModeObject), searchDuration.month);
