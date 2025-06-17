@@ -176,11 +176,25 @@
 			<div class="flex items-center justify-center mb-6 p-2">
 				<div class="relative group">
 					<div class="flex items-center justify-center w-12 h-12 bg-gradient-to-r from-blue-500 via-purple-500 to-teal-500 rounded-2xl shadow-2xl shadow-blue-500/40 transform rotate-3 transition-transform duration-200 group-hover:rotate-6 group-hover:scale-110">
-						<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+						<!-- 금융 차트 로고 SVG -->
+						<svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<!-- 상승 트렌드 라인 -->
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 17l4-4 4 4 6-6 4 4"></path>
+							<!-- 데이터 포인트들 -->
+							<circle cx="3" cy="17" r="1.5" fill="currentColor" opacity="0.8"></circle>
+							<circle cx="7" cy="13" r="1.5" fill="currentColor" opacity="0.9"></circle>
+							<circle cx="11" cy="17" r="1.5" fill="currentColor" opacity="0.8"></circle>
+							<circle cx="17" cy="11" r="1.5" fill="currentColor"></circle>
+							<circle cx="21" cy="15" r="1.5" fill="currentColor" opacity="0.9"></circle>
+							<!-- 상승 화살표 -->
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 7l4 0 0 4" opacity="0.7"></path>
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 7l-4 4" opacity="0.7"></path>
 						</svg>
 					</div>
+					<!-- 활성 상태 인디케이터 -->
 					<div class="absolute -top-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full animate-pulse shadow-lg shadow-emerald-400/50"></div>
+					<!-- 추가 데코레이션 -->
+					<div class="absolute -bottom-1 -left-1 w-2 h-2 bg-blue-400 rounded-full opacity-60 animate-pulse" style="animation-delay: 0.5s;"></div>
 				</div>
 			</div>
 
@@ -229,17 +243,31 @@
 			<div class="flex items-center space-x-4 mb-8 p-6">
 				<div class="relative">
 					<div class="flex items-center justify-center w-12 h-12 bg-gradient-to-r from-blue-500 via-purple-500 to-teal-500 rounded-2xl shadow-2xl shadow-blue-500/40 transform rotate-3">
-						<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+						<!-- 금융 차트 로고 SVG -->
+						<svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<!-- 상승 트렌드 라인 -->
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 17l4-4 4 4 6-6 4 4"></path>
+							<!-- 데이터 포인트들 -->
+							<circle cx="3" cy="17" r="1.5" fill="currentColor" opacity="0.8"></circle>
+							<circle cx="7" cy="13" r="1.5" fill="currentColor" opacity="0.9"></circle>
+							<circle cx="11" cy="17" r="1.5" fill="currentColor" opacity="0.8"></circle>
+							<circle cx="17" cy="11" r="1.5" fill="currentColor"></circle>
+							<circle cx="21" cy="15" r="1.5" fill="currentColor" opacity="0.9"></circle>
+							<!-- 상승 화살표 -->
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 7l4 0 0 4" opacity="0.7"></path>
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 7l-4 4" opacity="0.7"></path>
 						</svg>
 					</div>
+					<!-- 활성 상태 인디케이터 -->
 					<div class="absolute -top-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full animate-pulse shadow-lg shadow-emerald-400/50"></div>
+					<!-- 추가 데코레이션 -->
+					<div class="absolute -bottom-1 -left-1 w-2 h-2 bg-blue-400 rounded-full opacity-60 animate-pulse" style="animation-delay: 0.5s;"></div>
 				</div>
 				<div class="transition-all duration-200 {isExpanded ? 'opacity-100 translate-x-0 delay-100' : 'opacity-0 translate-x-4'}">
 					<h1 class="text-xl font-black bg-gradient-to-r from-white via-blue-200 to-purple-200 bg-clip-text text-transparent tracking-tight">
-						Finance
+						FinanceChart
 					</h1>
-					<p class="text-sm text-slate-300 font-medium">Dashboard</p>
+					<p class="text-sm text-slate-300 font-medium">Analytics Dashboard</p>
 				</div>
 			</div>
 
@@ -326,7 +354,7 @@
 	/* 기본 사이드바가 비활성화될 때 시각적 피드백 */
 	.sidebar-container > div:first-child.pointer-events-none {
 		opacity: 0.3;
-		transition: opacity 0.3s ease-out;
+		transition: opacity 0.1s ease-out;
 	}
 
 	/* 네비게이션 버튼 애니메이션 */
@@ -355,7 +383,7 @@
 			rgba(255, 255, 255, 0.1), 
 			transparent
 		);
-		transition: left 0.5s ease-out;
+		transition: left 0.1s ease-out;
 		border-radius: 16px;
 	}
 	
