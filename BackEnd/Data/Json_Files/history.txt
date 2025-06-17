@@ -1,9 +1,29 @@
 {
   "virtualInvestItemObject": {
+    "204270": {
+      "name": "제이앤티씨",
+      "code": "204270",
+      "todayAmount": 20650,
+      "totalShares": 50,
+      "haveAmount": 1032500,
+      "data": [
+        {
+          "name": "제이앤티씨",
+          "code": "204270",
+          "buyYn": "Y",
+          "date": "2025.06.17 16:37",
+          "todayAmount": 20650,
+          "todayShares": 50,
+          "totalShares": 50,
+          "buyAmount": 1032500,
+          "buyReason": "매수하기 좋은 자리, 하반기 기대감"
+        }
+      ]
+    },
     "307950": {
       "name": "현대오토에버",
       "code": "307950",
-      "todayAmount": 145100,
+      "todayAmount": 147200,
       "totalShares": 10,
       "haveAmount": 1451000,
       "data": [
@@ -23,7 +43,7 @@
     "030200": {
       "name": "KT",
       "code": "030200",
-      "todayAmount": 50900,
+      "todayAmount": 53000,
       "totalShares": 10,
       "haveAmount": 509000,
       "data": [
