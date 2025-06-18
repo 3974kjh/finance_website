@@ -59,7 +59,7 @@
 </script>
 
 <div class="flex flex-col mr-1 mb-1">
-  <div class="flex flex-row h-[30px] w-full items-center relative bg-gradient-to-r from-slate-50 to-gray-50 border-b border-gray-200/50 px-3 rounded-t-xl">
+  <div class="flex flex-row h-[30px] w-full items-center relative {!!detailInfo ? 'bg-gradient-to-r from-purple-100 to-purple-50' : 'bg-gradient-to-r from-blue-100 to-blue-50'} border-b border-gray-200/50 px-3 rounded-t-xl">
     <p class="font-bold overflow-hidden whitespace-nowrap text-gray-800" 
       style="width: calc(100% - 120px); text-overflow: ellipsis;" 
       title={title}>{title}</p>
@@ -96,7 +96,7 @@
           </div>
         </div>
       {/if}
-      <button class="border-0 bg-transparent hover:bg-gray-100/80 text-gray-600 hover:text-gray-900 px-2 py-1 text-sm rounded-md transition-all duration-200 font-medium" on:click={async () => {
+      <button class="border-0 bg-transparent {!!detailInfo ? 'hover:bg-purple-200/60 text-purple-700 hover:text-purple-900' : 'hover:bg-blue-200/60 text-blue-700 hover:text-blue-900'} px-2 py-1 text-sm rounded-md transition-all duration-200 font-medium" on:click={async () => {
         await addExpectStockValueToChart(searchDuration.week);
       }}>
         <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -104,7 +104,7 @@
         </svg>
         분석
       </button>
-      <button class="border-0 bg-transparent hover:bg-gray-100/80 text-gray-600 hover:text-gray-900 px-2 py-1 text-sm rounded-md transition-all duration-200 font-medium" on:click={() => {
+      <button class="border-0 bg-transparent {!!detailInfo ? 'hover:bg-purple-200/60 text-purple-700 hover:text-purple-900' : 'hover:bg-blue-200/60 text-blue-700 hover:text-blue-900'} px-2 py-1 text-sm rounded-md transition-all duration-200 font-medium" on:click={() => {
         dispatch('showDetailChartViewerCallback', {
           title: title,
           searchDuration: searchDuration,
