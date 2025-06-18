@@ -65,13 +65,13 @@
     return barDataList.map(item => ({
       ...item,
       count: typeof item.count === 'number' ? item.count : parseInt(item.count) || 0,
-      rankNormalize: 100 - (selfNormalize(item.rankAvg, minRankSum, maxRankSum) * 100)
+      rankNormalize: Math.round(100 - (selfNormalize(item.rankAvg, minRankSum, maxRankSum) * 100))
     })).sort((a, b) => b.rankNormalize - a.rankNormalize);
   }
 
   const getSeriesList = () => {
     return [
-      { valueField: 'count', name: '상위도달횟수', type: 'bar', axis: 'first', barWidth: 20, color: '#475569' },
+      { valueField: 'count', name: '상위도달횟수', type: 'bar', axis: 'first', barWidth: 20, color: '#E5E7EB' },
       { valueField: 'rankNormalize', name: '랭크일반화', type: 'line', axis: 'second', width: 3, color: '#FFA500' }
     ];
   }
@@ -108,9 +108,9 @@
       customizePoint: (e: any) => {
         if (e.data.name === '횟수') {
           return { 
-            color: e.seriesName === '랭크일반화' ? '#FFF7ED' : '#E5E7EB',
+            color: e.seriesName === '랭크일반화' ? '#FFF7ED' : '#EC4899',
             hoverStyle: {
-              color: e.seriesName === '랭크일반화' ? '#FFA500' : '#475569'
+              color: e.seriesName === '랭크일반화' ? '#FFA500' : '#BE185D'
             }
           };
         }
@@ -121,7 +121,7 @@
         if (e.data.name === '횟수') {
           return {
             visible: true,
-            backgroundColor: e.seriesName === '랭크일반화' ? '#FFA500' : '#475569',
+            backgroundColor: e.seriesName === '랭크일반화' ? '#FFA500' : '#EC4899',
             customizeText() {
               return `전체 ${e.data.count}회`;
             },
@@ -136,7 +136,7 @@
             text: '상위도달횟수',
             font: {
               size: 13,
-              color: '#475569'
+              color: '#E5E7EB'
             }
           },
           name: 'first',
@@ -171,7 +171,7 @@
           position: 'left',
           label: {
             customizeText: function (arg: { value? : any; }) {
-              let value = typeof arg?.value === 'number' ? arg?.value.toString() : arg?.value;
+              let value = typeof arg?.value === 'number' ? Math.round(arg?.value).toString() : arg?.value;
               return value;
             },
           },
@@ -200,6 +200,7 @@
       tooltip: {
 				enabled: true,
 				location: 'edge',
+				zIndex: 99999,
 				customizeTooltip: function (arg: { value: number, argument: string, point: {data: any}, seriesName: string }) {
           let toolTipText: string = '';
 
@@ -248,3 +249,30 @@
 </script>
 
 <div bind:this={barChart} class="h-[calc(100%)] w-[3500px]"/>
+
+<style>
+  /* DevExtreme 차트 툴팁을 최상단에 표시 */
+  :global(.dx-tooltip) {
+    z-index: 999999 !important;
+    position: fixed !important;
+  }
+
+  :global(.dx-tooltip-wrapper) {
+    z-index: 999999 !important;
+    position: fixed !important;
+  }
+
+  :global(.dx-overlay-wrapper) {
+    z-index: 999999 !important;
+  }
+
+  :global(.dx-overlay-content) {
+    z-index: 999999 !important;
+  }
+
+  /* 차트 컨테이너 자체도 적절한 z-index 설정 */
+  :global(.dx-chart) {
+    position: relative;
+    z-index: 100;
+  }
+</style>
