@@ -282,7 +282,7 @@
       disabled={false}
     >
       {#each Object.keys(chartModeObject) as chartMode}
-        <div class="flex flex-row p-2 border mr-1 mb-1 rounded-md bg-white relative">
+        <div class="flex flex-row p-2 mr-2 mb-2 rounded-2xl bg-white/95 backdrop-blur-lg relative shadow-xl hover:shadow-2xl transition-all duration-300 border border-gray-200/50 hover:border-gray-300/70 group">
           {#key refreshFlag}
             <ChartViewer
               {searchDuration}
@@ -311,13 +311,17 @@
             />
           </div>
           {#if !!chartModeObject[chartMode]?.detailInfo}
-            <button class="flex absolute top-[2px] right-[2px] w-[30px] h-[30px] justify-center items-center border border-red-400 rounded-full bg-white"
+            <button class="flex absolute top-2 right-2 w-7 h-7 justify-center items-center bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 group-hover:scale-110 border border-red-300/50"
               on:click|capture|preventDefault|stopPropagation={() => {
                 delete chartModeObject[chartMode];
 
                 chartModeObject = chartModeObject;
               }}
-            >{'❌'}</button>
+            >
+              <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
           {/if}
         </div>
       {/each}
