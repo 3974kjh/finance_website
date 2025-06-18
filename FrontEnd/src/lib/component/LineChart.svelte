@@ -87,24 +87,24 @@
   const getSeriesList = () => {
     if (!isMultiLine) {
       return [
-        { valueField: 'Close', name: '종가', hoverMode: 'none', color: setMainLineColor(upDownGradient) }
+        { valueField: 'Close', name: '종가', hoverMode: 'allArgumentPoints', color: setMainLineColor(upDownGradient) }
       ];
     }
 
     if (!isDetailMode) {
       return [
-        { valueField: 'Close', name: '종가', hoverMode: 'none', color: '#000000' },
-        { valueField: 'topValue', name: '저항평균선', hoverMode: 'none', color: '#FF0000', dashStyle: 'dash' },
-        { valueField: 'bottomValue', name: '지지평균선', hoverMode: 'none', color: '#0000FF', dashStyle: 'dash' }
+        { valueField: 'Close', name: '종가', hoverMode: 'allArgumentPoints', color: '#000000' },
+        { valueField: 'topValue', name: '저항평균선', hoverMode: 'allArgumentPoints', color: '#FF0000', dashStyle: 'dash' },
+        { valueField: 'bottomValue', name: '지지평균선', hoverMode: 'allArgumentPoints', color: '#0000FF', dashStyle: 'dash' }
       ];
     } else {
       return [
-        { valueField: 'Close', name: '종가', hoverMode: 'none', color: '#000000', width: 3 },
-        { valueField: 'topValue', name: '저항평균선', hoverMode: 'none', color: '#FF0000', dashStyle: 'dash' },
-        { valueField: 'bottomValue', name: '지지평균선', hoverMode: 'none', color: '#0000FF', dashStyle: 'dash' },
-        { valueField: 'ma5', name: '5일이평선', hoverMode: 'none', color: '#1E90FF', width: 3 },
-        { valueField: 'ma20', name: '20일이평선', hoverMode: 'none', color: '#FFA500', width: 3 },
-        { valueField: 'ma60', name: '60일이평선', hoverMode: 'none', color: '#32CD32', width: 3 }
+        { valueField: 'Close', name: '종가', hoverMode: 'allArgumentPoints', color: '#000000', width: 3 },
+        { valueField: 'topValue', name: '저항평균선', hoverMode: 'allArgumentPoints', color: '#FF0000', dashStyle: 'dash' },
+        { valueField: 'bottomValue', name: '지지평균선', hoverMode: 'allArgumentPoints', color: '#0000FF', dashStyle: 'dash' },
+        { valueField: 'ma5', name: '5일이평선', hoverMode: 'allArgumentPoints', color: '#1E90FF', width: 3 },
+        { valueField: 'ma20', name: '20일이평선', hoverMode: 'allArgumentPoints', color: '#FFA500', width: 3 },
+        { valueField: 'ma60', name: '60일이평선', hoverMode: 'allArgumentPoints', color: '#32CD32', width: 3 }
       ];
     }
   }
@@ -135,7 +135,8 @@
       commonSeriesSettings: {
         argumentField: 'Date',
         point: {
-          visible: false
+          visible: false,
+          hoverMode: 'allArgumentPoints'
         }
       },
       zoomAndPan: {
@@ -293,11 +294,66 @@
       tooltip: {
 				enabled: true,
 				location: 'edge',
-				customizeTooltip: function (arg: { value: number, argument: string }) {
-          const value: number = typeof arg.value === 'string' ? Math.round(parseInt(arg?.value) * 100) / 100 : Math.round(arg?.value * 100) / 100;
+				shared: true,
+				zIndex: 99999,
+				customizeTooltip: function (arg: { valueText: string, argument: string, point?: any }) {
+          if (!arg.argument) {
+            return { text: '' };
+          }
+
+          let toolTipText: string = '';
+          
+          // 멀티라인 모드인 경우 모든 시리즈 정보 표시
+          if (isMultiLine && arg.point) {
+            const data = arg.point.data;
+            if (data) {
+              let parts: string[] = [];
+              parts.push(`날짜: ${arg.argument}`);
+              
+              if (data.Close !== undefined && data.Close !== null && data.Close !== 0) {
+                const closeValue = typeof data.Close === 'string' ? parseFloat(data.Close) : data.Close;
+                parts.push(`종가: ${formatIncludeComma(Math.round(closeValue * 100) / 100)}`);
+              }
+              
+              if (data.topValue !== undefined && data.topValue !== null && data.topValue !== 0) {
+                const topValue = typeof data.topValue === 'string' ? parseFloat(data.topValue) : data.topValue;
+                parts.push(`저항평균: ${formatIncludeComma(Math.round(topValue * 100) / 100)}`);
+              }
+              
+              if (data.bottomValue !== undefined && data.bottomValue !== null && data.bottomValue !== 0) {
+                const bottomValue = typeof data.bottomValue === 'string' ? parseFloat(data.bottomValue) : data.bottomValue;
+                parts.push(`지지평균: ${formatIncludeComma(Math.round(bottomValue * 100) / 100)}`);
+              }
+
+              if (isDetailMode) {
+                if (data.ma5 !== undefined && data.ma5 !== null && data.ma5 !== 0) {
+                  const ma5Value = typeof data.ma5 === 'string' ? parseFloat(data.ma5) : data.ma5;
+                  parts.push(`5일이평: ${formatIncludeComma(Math.round(ma5Value * 100) / 100)}`);
+                }
+                
+                if (data.ma20 !== undefined && data.ma20 !== null && data.ma20 !== 0) {
+                  const ma20Value = typeof data.ma20 === 'string' ? parseFloat(data.ma20) : data.ma20;
+                  parts.push(`20일이평: ${formatIncludeComma(Math.round(ma20Value * 100) / 100)}`);
+                }
+                
+                if (data.ma60 !== undefined && data.ma60 !== null && data.ma60 !== 0) {
+                  const ma60Value = typeof data.ma60 === 'string' ? parseFloat(data.ma60) : data.ma60;
+                  parts.push(`60일이평: ${formatIncludeComma(Math.round(ma60Value * 100) / 100)}`);
+                }
+              }
+              
+              toolTipText = parts.join(' | ');
+            }
+          } else {
+            // 단일 라인 모드인 경우
+            if (arg.point && arg.point.data && arg.point.data.Close !== undefined) {
+              const closeValue = typeof arg.point.data.Close === 'string' ? parseFloat(arg.point.data.Close) : arg.point.data.Close;
+              toolTipText = `날짜: ${arg.argument} | 지수: ${formatIncludeComma(Math.round(closeValue * 100) / 100)}`;
+            }
+          }
 
 					return {
-						text: `날짜: ${arg.argument} | 지수: ${formatIncludeComma(value)}`
+						text: toolTipText
 					};
 				}
 			},

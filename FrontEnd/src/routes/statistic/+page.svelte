@@ -352,30 +352,7 @@
    */
   const scrollToTableTop = (tableType: 'all' | 'month') => {
     try {
-      // 더 간단한 방법: 검색 입력 필드를 기준으로 스크롤
-      if (tableType === 'all') {
-        // 전체 테이블의 검색 영역으로 즉시 스크롤
-        const searchElement = document.querySelector('input[placeholder*="종목명/종목코드 실시간 검색"]');
-        if (searchElement) {
-          searchElement.scrollIntoView({ 
-            behavior: 'auto', 
-            block: 'start',
-            inline: 'nearest'
-          });
-        }
-      } else {
-        // 월별 테이블 영역으로 즉시 스크롤 - 월별 버튼 영역을 기준으로
-        const monthButtonArea = document.querySelector('.flex.flex-wrap.h-\\[75px\\]');
-        if (monthButtonArea) {
-          monthButtonArea.scrollIntoView({ 
-            behavior: 'auto', 
-            block: 'start',
-            inline: 'nearest'
-          });
-        }
-      }
-      
-      // tbody 내부 스크롤도 즉시 초기화
+      // tbody 내부 스크롤만 초기화 (페이지 전체 스크롤 방지)
       const allTbodies = document.querySelectorAll('tbody');
       if (tableType === 'all' && allTbodies[0]) {
         // 즉시 맨 위로 이동
@@ -392,24 +369,31 @@
 </script>
 
 <svelte:window bind:innerHeight/>
-<div class="flex w-full h-full bg-gray-600 relative">
-  <div class="flex flex-col w-full h-full p-2 space-y-2">
+<div class="flex w-full h-full bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 relative overflow-hidden">
+  <!-- 배경 데코레이션 -->
+  <div class="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,_rgba(59,130,246,0.1)_1px,_transparent_0)] bg-[size:32px_32px] pointer-events-none"></div>
+  <div class="absolute top-0 left-0 w-96 h-96 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 animate-pulse"></div>
+  <div class="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-r from-cyan-500/20 to-teal-500/20 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 animate-pulse"></div>
+  <div class="absolute top-1/2 left-1/2 w-64 h-64 bg-gradient-to-r from-violet-500/15 to-pink-500/15 rounded-full blur-2xl -translate-x-1/2 -translate-y-1/2"></div>
+  
+  <div class="flex flex-col w-full h-full p-2 space-y-2 relative z-10">
     <!-- 전체 -->
-    <div class="flex flex-row h-[50%] space-x-2 border bg-white rounded-e-md">
+    <div class="flex flex-row h-[50%] space-x-2 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-xl">
       <!-- bar chart -->
-      <div class="flex flex-col h-full w-[50%] border-r p-2 space-y-2">
-        <p class="flex h-auto w-full font-bold">{allPeriodTextKey}</p>
-        <div class="flex grow rounded-md overflow-auto">
+      <div class="flex flex-col h-full w-[50%] border-r border-white/20 p-2 space-y-2">
+        <p class="flex h-auto w-full font-bold text-white">{allPeriodTextKey}</p>
+        <div class="flex grow rounded-md overflow-auto relative z-20">
           {#if financeAllRankList.length > 0 && loadProgress === false}
-            <div class="h-auto">
+            <div class="h-auto relative z-30">
               <BarChart
                 barDataList={setFinanceListByTopAverageRankSumAvg(financeAllRankList)}
                 on:pointClick={handleBarChartPointClick}
               />
             </div>
           {:else if loadProgress}
-            <div class="flex w-full h-full justify-center items-center font-bold text-gray">
+            <div class="flex w-full h-full justify-center items-center font-bold text-white">
               <ProgressCircle
+                isTextBlack={false}
                 size={100}
                 thickness={10}
                 isLarge={true}
@@ -417,7 +401,7 @@
               />
             </div>
           {:else}
-            <p class="flex w-full h-full justify-center items-center font-bold text-gray">
+            <p class="flex w-full h-full justify-center items-center font-bold text-white">
               {'저장된 전체 기간 상위도달횟수 데이터가 없습니다.'}
             </p>
           {/if}
@@ -425,14 +409,20 @@
       </div>
       <div class="flex flex-col h-full w-[50%]">
         <div class="flex flex-row h-auto w-full pt-2 pb-1 px-2">
-          <div class="flex flex-row grow space-x-1 items-center">
-            <p class="font-bold mr-2">{'🔍 종목 검색'}</p>
+          <div class="flex flex-row grow items-center">
+            <div class="flex items-center space-x-2 mr-4">
+              <div class="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
+                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+              </div>
+              <span class="font-bold text-white">종목 검색</span>
+            </div>
             <input
-              type="text"
               autocomplete="off"
               id="name"
               name="name"
-              class="border w-[280px] px-2 py-1 rounded-md text-sm"
+              class="h-10 px-3 rounded-lg bg-white/90 backdrop-blur-sm border border-white/30 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/50 outline-none transition-all duration-200 text-gray-800 placeholder-gray-500 shadow-md hover:shadow-lg w-[280px]"
               autofocus={true}
               disabled={financeAllRankList.length < 1 ? true : false}
               minlength="0"
@@ -445,6 +435,7 @@
           <div class="flex grow">
             <KakaoLoginAndSend
               bind:kakaoAccessCode
+              isTextDark={false}
               on:onSendFinanceResultByKakaoApiCallback={sendFinanceResultByKakaoApi}
               on:onUpdateKakaoAccessCodeCallback={onUpdateKakaoAccessCode}
             />
@@ -453,12 +444,12 @@
         <!-- 검색 상태 표시 -->
         {#if searchAllStockText.trim() !== ''}
           <div class="flex justify-center py-1">
-            <div class="px-3 py-1 bg-blue-50 border border-blue-200 rounded-full text-sm text-blue-700">
-              🔍 '<span class="font-semibold">{searchAllStockText}</span>' 검색 중 - {filteredAllRankList.length}개 결과
+            <div class="px-3 py-1 bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 rounded-full text-sm text-blue-200 shadow-lg">
+              🔍 '<span class="font-semibold text-white">{searchAllStockText}</span>' 검색 중 - {filteredAllRankList.length}개 결과
             </div>
           </div>
         {/if}
-        <div class="flex grow w-full">
+        <div class="flex grow w-full relative z-10">
           <div class="tableWrap p-1">
             <table>
               <thead>
@@ -470,7 +461,7 @@
                   <th style="width: 45%; text-align: left;">주식명</th>
                 </tr>
               </thead>
-              <tbody style="height: {(innerHeight / 2) - 135}px">
+              <tbody style="height: {(innerHeight / 2) - 155}px">
                 {#if financeAllRankList.length > 0 && loadProgress === false}
                   {#if allTableData.length > 0}
                     {#each allTableData as financeAllRankInfo, index}
@@ -508,8 +499,9 @@
                     </tr>
                   {/if}
                 {:else if loadProgress}
-                  <div class="flex w-full h-full justify-center items-center font-bold text-gray">
+                  <div class="absolute inset-0 flex w-full h-full justify-center items-center font-bold text-white">
                     <ProgressCircle
+                      isTextBlack={false}
                       size={100}
                       thickness={10}
                       isLarge={true}
@@ -517,9 +509,9 @@
                     />
                   </div>
                 {:else}
-                  <p class="flex w-full h-full justify-center items-center font-bold text-gray">
+                  <div class="absolute inset-0 flex w-full h-full justify-center items-center font-bold text-white">
                     {'저장된 전체 기간 RankSum 데이터가 없습니다.'}
-                  </p>
+                  </div>
                 {/if}
               </tbody>
             </table>
@@ -527,13 +519,12 @@
         </div>
         <!-- 전체 테이블 페이지네이션 -->
         {#if filteredAllRankList.length > itemsPerPage}
-          <div class="flex justify-center items-center space-x-3 py-1">
+          <div class="flex justify-center items-center space-x-3 py-1 px-2">
             <button 
-              class="group relative w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold transition-all duration-300 transform {allTableCurrentPage === 0 ? 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-500 to-blue-600 border-blue-500 text-white hover:from-blue-600 hover:to-blue-700 hover:scale-110 hover:shadow-lg active:scale-95'}"
+              class="group relative w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold transition-all duration-300 transform {allTableCurrentPage === 0 ? 'bg-white/20 border-white/30 text-white/50 cursor-not-allowed' : 'bg-gradient-to-r from-blue-500 to-blue-600 border-blue-500 text-white hover:from-blue-600 hover:to-blue-700 hover:scale-110 hover:shadow-lg active:scale-95'}"
               disabled={allTableCurrentPage === 0}
               on:click={() => {
                 allTableCurrentPage = Math.max(0, allTableCurrentPage - 1);
-                // requestAnimationFrame으로 즉시 스크롤 실행
                 requestAnimationFrame(() => scrollToTableTop('all'));
               }}
               title="이전 페이지"
@@ -544,28 +535,27 @@
             </button>
             
             <div class="flex items-center space-x-2">
-              <span class="px-3 py-1 text-xs font-semibold bg-gradient-to-r from-gray-50 to-gray-100 rounded-full border-2 border-gray-200 shadow-sm">
-                <span class="text-blue-600">{allTableCurrentPage + 1}</span>
-                <span class="text-gray-400 mx-1">/</span>
-                <span class="text-gray-600">{allTableMaxPage}</span>
+              <span class="px-2 py-1 text-xs font-semibold bg-white/20 backdrop-blur-sm rounded-full border border-white/30 shadow-sm text-white">
+                <span class="text-blue-300">{allTableCurrentPage + 1}</span>
+                <span class="text-white/60 mx-1">/</span>
+                <span class="text-white">{allTableMaxPage}</span>
               </span>
               {#if searchAllStockText.trim() !== ''}
-                <span class="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full border border-blue-200">
+                <span class="text-xs px-2 py-0.5 bg-blue-500/20 text-blue-200 rounded-full border border-blue-400/30 backdrop-blur-sm">
                   검색: {filteredAllRankList.length}/{financeAllRankList.length}
                 </span>
               {:else}
-                <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full border border-gray-200">
+                <span class="text-xs px-2 py-0.5 bg-white/20 text-white rounded-full border border-white/30 backdrop-blur-sm">
                   총 {filteredAllRankList.length}개
                 </span>
               {/if}
             </div>
             
             <button 
-              class="group relative w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold transition-all duration-300 transform {allTableCurrentPage >= allTableMaxPage - 1 ? 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-500 to-blue-600 border-blue-500 text-white hover:from-blue-600 hover:to-blue-700 hover:scale-110 hover:shadow-lg active:scale-95'}"
+              class="group relative w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold transition-all duration-300 transform {allTableCurrentPage >= allTableMaxPage - 1 ? 'bg-white/20 border-white/30 text-white/50 cursor-not-allowed' : 'bg-gradient-to-r from-blue-500 to-blue-600 border-blue-500 text-white hover:from-blue-600 hover:to-blue-700 hover:scale-110 hover:shadow-lg active:scale-95'}"
               disabled={allTableCurrentPage >= allTableMaxPage - 1}
               on:click={() => {
                 allTableCurrentPage = Math.min(allTableMaxPage - 1, allTableCurrentPage + 1);
-                // requestAnimationFrame으로 즉시 스크롤 실행
                 requestAnimationFrame(() => scrollToTableTop('all'));
               }}
               title="다음 페이지"
@@ -579,14 +569,14 @@
       </div>
     </div>
     <!-- 월별 -->
-    <div class="flex flex-row h-[50%] space-x-2 border bg-white rounded-e-md">
+    <div class="flex flex-row h-[50%] space-x-2 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-xl">
       <!-- bar chart -->
-      <div class="flex flex-col h-full w-[50%] border-r p-2 space-y-2">
-        <div class="flex flex-wrap h-[75px] w-full border rounded-md overflow-auto px-1 py-0.5">
+      <div class="flex flex-col h-full w-[50%] border-r border-white/20 p-2 space-y-2">
+        <div class="flex flex-wrap h-[75px] w-full border border-white/30 rounded-md overflow-auto px-1 py-0.5 bg-white/5 backdrop-blur-sm">
           {#if !!financeMonthRankObject}
             {#each Object.keys(financeMonthRankObject) as financeMonth}
               <button 
-                class="border border-gray-400 h-[30px] rounded-md px-2 mr-1 my-0.5 {selectedMonthRank === financeMonth ? 'bg-gray-200' : 'bg-white'}" 
+                class="h-[30px] rounded-md px-2 mr-1 my-0.5 font-medium text-sm transition-all duration-200 shadow-md hover:shadow-lg {selectedMonthRank === financeMonth ? 'bg-white text-gray-800 shadow-lg' : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 border border-white/30'}" 
                 disabled={monthlyLoadProgress}
                 on:click={async () => {
                 // 이미 업데이트 중이면 무시
@@ -614,18 +604,19 @@
             {/each}
           {/if}
         </div>
-        <div class="flex grow rounded-md overflow-auto">
+        <div class="flex grow rounded-md overflow-auto relative z-20">
           {#if monthlyLoadProgress}
-            <div class="flex w-full h-full justify-center items-center font-bold text-gray">
+            <div class="flex w-full h-full justify-center items-center font-bold text-white">
               <ProgressCircle
-                size={60}
-                thickness={8}
-                isLarge={false}
+                isTextBlack={false}
+                size={100}
+                thickness={10}
+                isLarge={true}
                 text={'차트 업데이트 중...'}
               />
             </div>
           {:else if selectedFinanceMonthRankList.length > 0 && loadProgress === false}
-            <div class="h-auto">
+            <div class="h-auto relative z-30">
               <BarChart
                 barDataList={setFinanceListByTopAverageRankSumAvg(selectedFinanceMonthRankList)}
                 on:pointClick={handleBarChartPointClick}
@@ -633,8 +624,9 @@
               />
             </div>
           {:else if loadProgress}
-            <div class="flex w-full h-full justify-center items-center font-bold text-gray">
+            <div class="flex w-full h-full justify-center items-center font-bold text-white">
               <ProgressCircle
+                isTextBlack={false}
                 size={100}
                 thickness={10}
                 isLarge={true}
@@ -642,21 +634,27 @@
               />
             </div>
           {:else}
-            <p class="flex w-full h-full justify-center items-center font-bold text-gray">
+            <p class="flex w-full h-full justify-center items-center font-bold text-white">
               {'저장된 월별 상위도달횟수 데이터가 없습니다.'}
             </p>
           {/if}
         </div>
       </div>
       <div class="flex flex-col h-full w-[50%]">
-        <div class="flex flex-row h-auto w-full space-x-1 pt-2 pb-1 items-center">
-          <p class="font-bold mr-2">{'🔍 종목 검색'}</p>
+        <div class="flex flex-row h-auto w-full space-x-4 pt-2 pb-1 items-center">
+          <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
+              <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+              </svg>
+            </div>
+            <span class="font-bold text-white">종목 검색</span>
+          </div>
           <input
-            type="text"
             id="name"
             name="name"
             autocomplete="off"
-            class="border w-[280px] px-2 py-1 rounded-md text-sm"
+            class="h-10 px-3 rounded-lg bg-white/90 backdrop-blur-sm border border-white/30 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/50 outline-none transition-all duration-200 text-gray-800 placeholder-gray-500 shadow-md hover:shadow-lg w-[280px]"
             autofocus={true}
             disabled={selectedFinanceMonthRankList.length < 1 || monthlyLoadProgress ? true : false}
             minlength="0"
@@ -669,12 +667,12 @@
         <!-- 검색 상태 표시 -->
         {#if searchMonthStockText.trim() !== ''}
           <div class="flex justify-center py-1">
-            <div class="px-3 py-1 bg-green-50 border border-green-200 rounded-full text-sm text-green-700">
-              🔍 '<span class="font-semibold">{searchMonthStockText}</span>' 검색 중 - {filteredMonthRankList.length}개 결과
+            <div class="px-3 py-1 bg-green-500/20 backdrop-blur-sm border border-green-400/30 rounded-full text-sm text-green-200 shadow-lg">
+              🔍 '<span class="font-semibold text-white">{searchMonthStockText}</span>' 검색 중 - {filteredMonthRankList.length}개 결과
             </div>
           </div>
         {/if}
-        <div class="flex h-full w-full">
+        <div class="flex h-full w-full relative z-10">
           <div class="tableWrap p-1">
             <table>
               <thead>
@@ -686,13 +684,13 @@
                   <th style="width: 45%; text-align: left;">주식명</th>
                 </tr>
               </thead>
-              <tbody style="height: {(innerHeight / 2) - 135}px">
+              <tbody style="height: {(innerHeight / 2) - 155}px">
                 {#if monthlyLoadProgress}
-                  <div class="flex w-full h-full justify-center items-center font-bold text-gray">
+                  <div class="absolute inset-0 flex w-full h-full justify-center items-center font-bold text-white">
                     <ProgressCircle
-                      size={60}
-                      thickness={8}
-                      isLarge={false}
+                      size={100}
+                      thickness={10}
+                      isLarge={true}
                       text={'테이블 업데이트 중...'}
                     />
                   </div>
@@ -733,7 +731,7 @@
                     </tr>
                   {/if}
                 {:else if loadProgress}
-                  <div class="flex w-full h-full justify-center items-center font-bold text-gray">
+                  <div class="absolute inset-0 flex w-full h-full justify-center items-center font-bold text-white">
                     <ProgressCircle
                       size={100}
                       thickness={10}
@@ -742,9 +740,9 @@
                     />
                   </div>
                 {:else}
-                  <p class="flex w-full h-full justify-center items-center font-bold text-gray">
+                  <div class="absolute inset-0 flex w-full h-full justify-center items-center font-bold text-white">
                     {'저장된 월별 RankSum 데이터가 없습니다.'}
-                  </p>
+                  </div>
                 {/if}
               </tbody>
             </table>
@@ -752,13 +750,12 @@
         </div>
         <!-- 월별 테이블 페이지네이션 -->
         {#if filteredMonthRankList.length > itemsPerPage}
-          <div class="flex justify-center items-center space-x-3 py-1">
+          <div class="flex justify-center items-center space-x-3 py-1 px-2">
             <button 
-              class="group relative w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold transition-all duration-300 transform {monthTableCurrentPage === 0 ? 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-green-500 to-green-600 border-green-500 text-white hover:from-green-600 hover:to-green-700 hover:scale-110 hover:shadow-lg active:scale-95'}"
+              class="group relative w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold transition-all duration-300 transform {monthTableCurrentPage === 0 ? 'bg-white/20 border-white/30 text-white/50 cursor-not-allowed' : 'bg-gradient-to-r from-green-500 to-green-600 border-green-500 text-white hover:from-green-600 hover:to-green-700 hover:scale-110 hover:shadow-lg active:scale-95'}"
               disabled={monthTableCurrentPage === 0}
               on:click={() => {
                 monthTableCurrentPage = Math.max(0, monthTableCurrentPage - 1);
-                // requestAnimationFrame으로 즉시 스크롤 실행
                 requestAnimationFrame(() => scrollToTableTop('month'));
               }}
               title="이전 페이지"
@@ -769,28 +766,27 @@
             </button>
             
             <div class="flex items-center space-x-2">
-              <span class="px-3 py-1 text-xs font-semibold bg-gradient-to-r from-gray-50 to-gray-100 rounded-full border-2 border-gray-200 shadow-sm">
-                <span class="text-green-600">{monthTableCurrentPage + 1}</span>
-                <span class="text-gray-400 mx-1">/</span>
-                <span class="text-gray-600">{monthTableMaxPage}</span>
+              <span class="px-2 py-1 text-xs font-semibold bg-white/20 backdrop-blur-sm rounded-full border border-white/30 shadow-sm text-white">
+                <span class="text-green-300">{monthTableCurrentPage + 1}</span>
+                <span class="text-white/60 mx-1">/</span>
+                <span class="text-white">{monthTableMaxPage}</span>
               </span>
               {#if searchMonthStockText.trim() !== ''}
-                <span class="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full border border-green-200">
+                <span class="text-xs px-2 py-0.5 bg-green-500/20 text-green-200 rounded-full border border-green-400/30 backdrop-blur-sm">
                   검색: {filteredMonthRankList.length}/{selectedFinanceMonthRankList.length}
                 </span>
               {:else}
-                <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full border border-gray-200">
+                <span class="text-xs px-2 py-0.5 bg-white/20 text-white rounded-full border border-white/30 backdrop-blur-sm">
                   총 {filteredMonthRankList.length}개
                 </span>
               {/if}
             </div>
             
             <button 
-              class="group relative w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold transition-all duration-300 transform {monthTableCurrentPage >= monthTableMaxPage - 1 ? 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-green-500 to-green-600 border-green-500 text-white hover:from-green-600 hover:to-green-700 hover:scale-110 hover:shadow-lg active:scale-95'}"
+              class="group relative w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold transition-all duration-300 transform {monthTableCurrentPage >= monthTableMaxPage - 1 ? 'bg-white/20 border-white/30 text-white/50 cursor-not-allowed' : 'bg-gradient-to-r from-green-500 to-green-600 border-green-500 text-white hover:from-green-600 hover:to-green-700 hover:scale-110 hover:shadow-lg active:scale-95'}"
               disabled={monthTableCurrentPage >= monthTableMaxPage - 1}
               on:click={() => {
                 monthTableCurrentPage = Math.min(monthTableMaxPage - 1, monthTableCurrentPage + 1);
-                // requestAnimationFrame으로 즉시 스크롤 실행
                 requestAnimationFrame(() => scrollToTableTop('month'));
               }}
               title="다음 페이지"
@@ -804,13 +800,15 @@
       </div>
     </div>
   </div>
-  {#if isSingleMode}
-    <SingleChartBasic
-      {singleChartInfo}
-      on:closeSingleChartModeCallback={() => {
-        isSingleMode = false;
-      }}
-    />
+  {#if isSingleMode && singleChartInfo}
+    <div class="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm">
+      <SingleChartBasic
+        singleChartInfo={singleChartInfo}
+        on:closeSingleChartModeCallback={() => {
+          isSingleMode = false;
+        }}
+      />
+    </div>
   {/if}
 </div>
 
@@ -829,38 +827,48 @@
 		display: block;
 		height: calc(100%);
 		overflow: auto;
+		position: relative;
 	}
   th {
-    color: white;
-    background-color: #4B5563;
+    color: #374151;
+    background: #F8FAFC;
+    font-weight: 600;
+    padding: 8px 12px;
+    border-bottom: 2px solid #E2E8F0;
   }
 	tr {
 		display: table;
 		width: 100%;
 		table-layout: fixed;
-    border-bottom: 1px solid black; /* 각 행 하단에 라인 추가 */
 	}
-  tr:last-child {
-    border-bottom: none; /* 마지막 행에는 라인 제거 */
-  }
 	table {
 		table-layout: fixed;
+		background: rgba(255, 255, 255, 0.95);
+		backdrop-filter: blur(16px);
+		border-radius: 16px;
+		overflow: hidden;
+		box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 	}
 	tbody {
 		grid-auto-flow: row;
 	}
 	td {
 		margin-top: -1px;
+		padding: 8px 12px;
+		color: #374151;
 	}
 
   /* 기본 배경색 */
   table tr {
-    background-color: white;
+    background-color: rgba(255, 255, 255, 0.8);
+    transition: all 0.2s ease;
   }
 
   /* 포커스된 행의 배경색 */
   table tr:hover {
-    background-color: #f0f8ff;
+    background: linear-gradient(to right, rgba(59, 130, 246, 0.1), rgba(99, 102, 241, 0.1));
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
 
   /* 키보드 네비게이션을 위한 outline 제거 */
@@ -873,23 +881,24 @@
     transition: transform 0.2s ease-in-out;
   }
 
-  /* 스크롤바 스타일링 (선택사항) */
+  /* 현대적인 스크롤바 스타일링 */
   tbody::-webkit-scrollbar {
     width: 8px;
   }
 
   tbody::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
   }
 
   tbody::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 4px;
+    background: linear-gradient(45deg, rgba(59, 130, 246, 0.6), rgba(99, 102, 241, 0.6));
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
   }
 
   tbody::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
+    background: linear-gradient(45deg, rgba(59, 130, 246, 0.8), rgba(99, 102, 241, 0.8));
   }
 
   /* BarChart 영역 스크롤바 스타일링 - 얇은 스타일 */
@@ -899,20 +908,52 @@
   }
 
   .overflow-auto::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.05);
+    background: rgba(255, 255, 255, 0.1);
     border-radius: 3px;
   }
 
   .overflow-auto::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(255, 255, 255, 0.3);
     border-radius: 3px;
   }
 
   .overflow-auto::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(255, 255, 255, 0.5);
   }
 
   .overflow-auto::-webkit-scrollbar-corner {
     background: transparent;
+  }
+
+  /* Firefox용 스크롤바 */
+  tbody {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(59, 130, 246, 0.6) rgba(0, 0, 0, 0.1);
+  }
+
+  /* 애니메이션 */
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* 글래스모피즘 효과 강화 */
+  :global(.backdrop-blur-md) {
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+  }
+
+  :global(.backdrop-blur-lg) {
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+  }
+
+  :global(.backdrop-blur-sm) {
+    backdrop-filter: blur(8px) saturate(180%);
+    -webkit-backdrop-filter: blur(8px) saturate(180%);
   }
 </style>

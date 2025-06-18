@@ -172,8 +172,7 @@
         amount: stockInfo?.Amount,
         trendScore: parseFloat(scoreResult.toFixed(2)),
         marcapScore: stockInfo?.Marcap <= 0 ? 0 : parseFloat((selfNormalize(rank, 1, totalStockInfoList) * 50).toFixed(2)),
-        totalScore: stockInfo?.Marcap <= 0 ? scoreResult : scoreResult + parseFloat((selfNormalize(rank, 1, totalStockInfoList) * 50).toFixed(2)),
-        marcap: stockInfo?.Marcap ?? 0
+        totalScore: stockInfo?.Marcap <= 0 ? scoreResult : scoreResult + parseFloat((selfNormalize(rank, 1, totalStockInfoList) * 50).toFixed(2))
       })
     }
 
@@ -193,7 +192,7 @@
       return [];
     }
 
-    return result.data.map((item) => {
+    return result.data.map((item: any) => {
       return {
         ...item,
         VolumeRatio: calculateRatio(item?.Marcap, item?.Amount)
@@ -435,48 +434,81 @@
 </script>
 
 <svelte:window bind:innerHeight/>
-<div class="flex w-full h-full relative bg-gray-600">
-  <div class="flex flex-col w-full h-full p-2 space-y-2">
+<div class="flex w-full h-full relative bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 overflow-hidden">
+  <!-- 배경 데코레이션 -->
+  <div class="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,_rgba(59,130,246,0.1)_1px,_transparent_0)] bg-[size:32px_32px] pointer-events-none"></div>
+  <div class="absolute top-0 left-0 w-96 h-96 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 animate-pulse"></div>
+  <div class="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-r from-cyan-500/20 to-teal-500/20 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 animate-pulse"></div>
+  
+  <div class="flex flex-col w-full h-full p-4 space-y-4 relative z-10">
     <!-- 조회 조건 -->
-    <div class="flex flex-row h-[30px] items-center w-full space-x-5">
-      <div class="flex flex-row space-x-1">
-        <p class="font-bold mr-2 text-white">{'📊 지수 항목'}</p>
-        {#each stockModeList as stockMode}
-          <button
-            class="border rounded-md px-1 border-gray-400 {stockMode.isSelected ? 'bg-white' : 'bg-gray-500 text-white'}"
-            on:click={() => {
-              nowStateText = null;
-              stockModeList = setSelectStockModeList(stockModeList, stockMode.value);
-            }}
-          >
-            {stockMode.name}
-          </button>
-        {/each}
-      </div>
+    <div class="flex flex-wrap gap-4 items-center bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-xl">
+      <!-- 지수 항목 -->
+      <div class="flex items-center space-x-3">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+            </svg>
+          </div>
+          <span class="font-bold text-white">지수 항목</span>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          {#each stockModeList as stockMode}
+            <button
+              class="h-10 px-3 rounded-lg font-medium text-sm transition-all duration-200 shadow-md hover:shadow-lg {stockMode.isSelected ? 'bg-white text-gray-800 shadow-lg' : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30'}"
+              on:click={() => {
+                nowStateText = null;
+                stockModeList = setSelectStockModeList(stockModeList, stockMode.value);
+              }}
+            >
+              {stockMode.name}
+            </button>
+          {/each}
+        </div>
+      </div>   
       <!-- 조회 기간 설정 -->
-      <div class="flex flex-row space-x-1">
-        <p class="font-bold mr-2 text-white">{'📆 조회 기간'}</p>
-        {#each Object.keys(durationObject) as duration}
-          <button class="border rounded-md px-2 border-gray-400 {searchDuration === durationObject[duration] ? 'bg-white' : 'bg-gray-500 text-white'}"
-            on:click={() => {
-              nowStateText = null;
-              selectedDurationKey = duration;
-              searchDuration = durationObject[duration];
-            }}>
+      <div class="flex items-center space-x-3">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+            </svg>
+          </div>
+          <span class="font-bold text-white">조회 기간</span>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          {#each Object.keys(durationObject) as duration}
+            <button 
+              class="h-10 px-3 rounded-lg font-medium text-sm transition-all duration-200 shadow-md hover:shadow-lg {searchDuration === durationObject[duration] ? 'bg-white text-gray-800 shadow-lg' : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30'}"
+              on:click={() => {
+                nowStateText = null;
+                selectedDurationKey = duration;
+                searchDuration = durationObject[duration];
+              }}
+            >
               {duration}
-          </button>
-        {/each}
+            </button>
+          {/each}
+        </div>
       </div>
       <!-- 검색란 -->
-      <div class="flex flex-row space-x-1">
-        <p class="font-bold mr-2 text-white">{'🔍 종목 검색'}</p>
+      <div class="flex items-center space-x-3">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+          </div>
+          <span class="font-bold text-white">종목 검색</span>
+        </div>
         <input
           bind:this={searchInputDocument}
-          autocomplete="off"
           type="text"
+          autocomplete="off"
           id="name"
           name="name"
-          class="border-gray-400 w-[200px] px-1 rounded-md"
+          class="h-10 px-3 rounded-lg bg-white/90 backdrop-blur-sm border border-white/30 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/50 outline-none transition-all duration-200 text-gray-800 placeholder-gray-500 shadow-md hover:shadow-lg w-48"
           autofocus={true}
           disabled={loadProgress}
           minlength="4"
@@ -487,7 +519,10 @@
           on:keypress={async (e) => {
             if (e.key === 'Enter') {
               loadProgress = true;
-              filteredCalcSignalScoreResultList = sortBySimilarity(searchStockText, calcSignalScoreResultList.filter((item) => item?.code?.includes(searchStockText) || item?.name?.includes(searchStockText)), ['code', 'name']);
+              const filteredList = calcSignalScoreResultList.filter((item) => 
+                item?.code?.includes(searchStockText) || item?.name?.includes(searchStockText)
+              );
+              filteredCalcSignalScoreResultList = sortBySimilarity(searchStockText, filteredList, ['code', 'name']);
               loadProgress = false;
 
               await tick();
@@ -495,9 +530,12 @@
             }
           }}
         />
-      </div>
-      <div class="flex flex-row space-x-1">
-        <button disabled={loadProgress} class="border rounded-md px-1 bg-gray-600 border-gray-400 text-white"
+      </div>    
+      <!-- 액션 버튼들 -->
+      <div class="flex items-center space-x-2 ml-auto">
+        <button 
+          disabled={loadProgress} 
+          class="h-10 flex items-center space-x-2 px-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed"
           on:click={async () => {
             if ($page.url.hostname !== 'localhost') {
               toast.error('수행 권환이 없습니다.');
@@ -529,7 +567,7 @@
 
             stockInfoList = _.sortBy(stockInfoList, (stockInfo) => {
               return parseInt(stockInfo?.Marcap ?? 0);
-            })
+            });
 
 
             // 카운트 시작
@@ -560,154 +598,196 @@
             // 카운트 초기화
             count = -1;
             loadProgress = false;
-        }}>📈 분석시작</button>
-        <button disabled={loadProgress} class="border rounded-md px-1 bg-gray-600 border-gray-400 text-white"
+        }}>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+          </svg>
+          <span>분석시작</span>
+        </button>
+        <button 
+          disabled={loadProgress} 
+          class="h-10 flex items-center space-x-2 px-4 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed"
           on:click={onSaveFinanceRankList}
-        >💾 저장</button>
-      </div>
-      <div class="flex grow">
-        <KakaoLoginAndSend
-          bind:kakaoAccessCode
-          isTextDark={false}
-          on:onSendFinanceResultByKakaoApiCallback={sendFinanceResultByKakaoApi}
-          on:onUpdateKakaoAccessCodeCallback={onUpdateKakaoAccessCode}
-        />
-      </div>
-    </div>
-    <div class="flex grow border bg-white">
-      <div class="flex grow w-full">
-        <div class="tableWrap">
-          <table>
-            <thead>
-              <tr tabindex="0">
-                <th style="width: 5%; text-align: center;">Rank</th>
-                <th style="width: 10%; text-align: center;">코드</th>
-                <th style="width: 20%; text-align: left;">주식명</th>
-                <th style="width: 10%; text-align: right;">총점수</th>
-                <th style="width: 10%; text-align: right;">추세점수</th>
-                <th style="width: 10%; text-align: right;">규모점수</th>
-                <th style="width: 10%; text-align: right;">현재가</th>
-                <th style="width: 25%; text-align: center;">시가총액</th>
-              </tr>
-            </thead>
-            <tbody style="height: {innerHeight - 90}px">
-              {#if filteredCalcSignalScoreResultList.length > 0 && loadProgress === false}
-                {#each filteredCalcSignalScoreResultList as calcSignalScoreResultInfo}
-                  <tr
-                    on:click={() => {
-                      singleChartInfo = {
-                        title: calcSignalScoreResultInfo.name,
-                        searchDuration: searchDuration,
-                        chartMode: calcSignalScoreResultInfo.code,
-                        chartKey: calcSignalScoreResultInfo.code,
-                        detailInfo: calcSignalScoreResultInfo
-                      }
-
-                      isSingleMode = true;
-                    }}
-                  >
-                    <td style="width: 5%; text-align: center;">{calcSignalScoreResultInfo.rank}</td>
-                    <td style="width: 10%; text-align: center;">{calcSignalScoreResultInfo.code}</td>
-                    <td style="width: 20%; text-align: left;">{calcSignalScoreResultInfo.name}</td>
-                    <td style="width: 10%; text-align: right;">{calcSignalScoreResultInfo?.totalScore ?? '-'}</td>
-                    <td style="width: 10%; text-align: right;">{calcSignalScoreResultInfo?.trendScore ?? '-'}</td>
-                    <td style="width: 10%; text-align: right;">{calcSignalScoreResultInfo?.marcapScore ?? '-'}</td>
-                    <td style="width: 10%; text-align: right;">{`${formatIncludeComma(calcSignalScoreResultInfo?.close) ?? '-'} ₩`}</td>
-                    <td style="width: 25%; text-align: right;">{`${formatIncludeComma(calcSignalScoreResultInfo?.marcap) ?? '-'} ₩`}</td>
-                  </tr>
-                {/each}
-              {:else if loadProgress}
-                {#if count < 0}
-                  <div class="flex w-full h-full justify-center items-center font-bold text-gray">
-                    <ProgressCircle
-                      size={100}
-                      thickness={10}
-                      isLarge={true}
-                      text={loadingText}
-                    />
-                  </div>
-                {:else}
-                  <div class="flex flex-col w-full h-full justify-center items-center font-bold text-gray">
-                    <p>{totalStockInfoList}개의 주식 분석중입니다.</p>
-                    <DownLoadProgressBar
-                      min={0}
-                      max={totalStockInfoList}
-                      nowCount={count}
-                    />
-                  </div>
-                {/if}
-              {:else}
-                <p class="flex w-full h-full justify-center items-center font-bold text-gray">
-                  {'목록이 없습니다.'}
-                </p>
-              {/if}
-            </tbody>
-          </table>
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path>
+          </svg>
+          <span>저장</span>
+        </button>
+        <div class="ml-4">
+          <KakaoLoginAndSend
+            bind:kakaoAccessCode
+            isTextDark={false}
+            on:onSendFinanceResultByKakaoApiCallback={sendFinanceResultByKakaoApi}
+            on:onUpdateKakaoAccessCodeCallback={onUpdateKakaoAccessCode}
+          />
         </div>
       </div>
     </div>
+    <!-- 데이터 테이블 -->
+    <div class="flex-1 bg-white/95 backdrop-blur-lg rounded-2xl shadow-2xl overflow-hidden">
+      <div class="tableWrap h-full">
+        <table class="w-full h-full">
+          <thead class="bg-gradient-to-r from-gray-100 to-gray-200 border-b border-gray-300/50">
+            <tr>
+              <th class="text-gray-700 font-semibold py-2 px-3 text-center" style="width: 5%;">Rank</th>
+              <th class="text-gray-700 font-semibold py-2 px-3 text-center" style="width: 10%;">코드</th>
+              <th class="text-gray-700 font-semibold py-2 px-3 text-left" style="width: 20%;">주식명</th>
+              <th class="text-gray-700 font-semibold py-2 px-3 text-right" style="width: 10%;">총점수</th>
+              <th class="text-gray-700 font-semibold py-2 px-3 text-right" style="width: 10%;">추세점수</th>
+              <th class="text-gray-700 font-semibold py-2 px-3 text-right" style="width: 10%;">규모점수</th>
+              <th class="text-gray-700 font-semibold py-2 px-3 text-right" style="width: 10%;">현재가</th>
+              <th class="text-gray-700 font-semibold py-2 px-3 text-right" style="width: 25%;">시가총액</th>
+            </tr>
+          </thead>
+          <tbody style="height: {innerHeight - 180}px" class="divide-y divide-gray-200/30">
+            {#if filteredCalcSignalScoreResultList.length > 0 && loadProgress === false}
+              {#each filteredCalcSignalScoreResultList as calcSignalScoreResultInfo, index}
+                <tr
+                  class="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200 cursor-pointer group {index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}"
+                  on:click={() => {
+                    singleChartInfo = {
+                      title: calcSignalScoreResultInfo.name,
+                      searchDuration: searchDuration,
+                      chartMode: calcSignalScoreResultInfo.code,
+                      chartKey: calcSignalScoreResultInfo.code,
+                      detailInfo: calcSignalScoreResultInfo
+                    }
+
+                    isSingleMode = true;
+                  }}
+                >
+                  <td class="py-2 px-3 text-center text-gray-700 font-medium" style="width: 5%;">{calcSignalScoreResultInfo.rank}</td>
+                  <td class="py-2 px-3 text-center text-gray-700 font-mono text-sm" style="width: 10%;">{calcSignalScoreResultInfo.code}</td>
+                  <td class="py-2 px-3 text-left text-gray-800 font-semibold" style="width: 20%;">{calcSignalScoreResultInfo.name}</td>
+                  <td class="py-2 px-3 text-right text-gray-700 font-medium" style="width: 10%;">{calcSignalScoreResultInfo?.totalScore ?? '-'}</td>
+                  <td class="py-2 px-3 text-right text-gray-700 font-medium" style="width: 10%;">{calcSignalScoreResultInfo?.trendScore ?? '-'}</td>
+                  <td class="py-2 px-3 text-right text-gray-700 font-medium" style="width: 10%;">{calcSignalScoreResultInfo?.marcapScore ?? '-'}</td>
+                  <td class="py-2 px-3 text-right text-gray-700 font-medium" style="width: 10%;">{`${formatIncludeComma(calcSignalScoreResultInfo?.close) ?? '-'} ₩`}</td>
+                  <td class="py-2 px-3 text-right text-gray-700 font-medium" style="width: 25%;">{`${formatIncludeComma(calcSignalScoreResultInfo?.marcap) ?? '-'} ₩`}</td>
+                </tr>
+              {/each}
+            {:else if loadProgress}
+              <tr>
+                <td colspan="8" class="relative" style="height: {innerHeight - 180}px;">
+                  <div class="absolute inset-0 flex justify-center items-center">
+                    {#if count < 0}
+                      <ProgressCircle
+                        size={100}
+                        thickness={10}
+                        isLarge={true}
+                        text={loadingText}
+                      />
+                    {:else}
+                      <div class="flex flex-col items-center space-y-4">
+                        <p class="text-gray-700 font-semibold text-lg">{totalStockInfoList}개의 주식 분석중입니다.</p>
+                        <DownLoadProgressBar
+                          min={0}
+                          max={totalStockInfoList}
+                          nowCount={count}
+                        />
+                      </div>
+                    {/if}
+                  </div>
+                </td>
+              </tr>
+            {:else}
+              <tr class="relative">
+                <td colspan="8" class="relative" style="height: {innerHeight - 180}px;">
+                  <div class="absolute inset-0 flex flex-col justify-center items-center space-y-4">
+                    <div class="w-16 h-16 bg-gray-300 rounded-2xl flex items-center justify-center">
+                      <svg class="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                      </svg>
+                    </div>
+                    <p class="text-gray-600 font-semibold text-lg">목록이 없습니다.</p>
+                  </div>
+                </td>
+              </tr>
+            {/if}
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
-  {#if isSingleMode}
-		<SingleChartBasic
-			{singleChartInfo}
-			on:closeSingleChartModeCallback={() => {
-				isSingleMode = false;
-			}}
-		/>
-	{/if}
+  
+  {#if isSingleMode && singleChartInfo}
+    <div class="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm">
+      <SingleChartBasic
+        {singleChartInfo}
+        on:closeSingleChartModeCallback={() => {
+          isSingleMode = false;
+        }}
+      />
+    </div>
+  {/if}
 </div>
 
 <style>
 	.tableWrap {
 		width: 100%;
-		height: calc(100%);
+		height: 100%;
+		overflow: hidden;
 	}
+	
+	table {
+		width: 100%;
+		height: 100%;
+		table-layout: fixed;
+	}
+	
 	thead {
 		display: table;
 		table-layout: fixed;
 		width: 100%;
 	}
+	
 	tbody {
 		width: 100%;
 		display: block;
-		height: calc(100%);
-		overflow: auto;
+		overflow-y: auto;
+		overflow-x: hidden;
 	}
-  th {
-    color: white;
-    background-color: #4B5563;
-  }
+	
 	tr {
 		display: table;
 		width: 100%;
 		table-layout: fixed;
-    border-bottom: 1px solid black; /* 각 행 하단에 라인 추가 */
-	}
-  tr:last-child {
-    border-bottom: none; /* 마지막 행에는 라인 제거 */
-  }
-	table {
-		table-layout: fixed;
-	}
-	tbody {
-		grid-auto-flow: row;
-	}
-	td {
-		margin-top: -1px;
 	}
 
-  /* 기본 배경색 */
-  table tr {
-    background-color: white;
+  /* 현대적인 스크롤바 */
+  tbody::-webkit-scrollbar {
+    width: 8px;
   }
 
-  /* 포커스된 행의 배경색 */
-  table tr:hover {
-    background-color: #f0f8ff;
+  tbody::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
   }
 
-  /* 키보드 네비게이션을 위한 outline 제거 */
-  table tr:hover {
-    outline: none;
+  tbody::-webkit-scrollbar-thumb {
+    background: linear-gradient(45deg, rgba(59, 130, 246, 0.6), rgba(99, 102, 241, 0.6));
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
   }
-</style>
+
+  tbody::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(45deg, rgba(59, 130, 246, 0.8), rgba(99, 102, 241, 0.8));
+  }
+
+  /* Firefox용 스크롤바 */
+  tbody {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(59, 130, 246, 0.6) rgba(0, 0, 0, 0.1);
+  }
+
+  /* 애니메이션 */
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+</style> 

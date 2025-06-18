@@ -192,10 +192,11 @@
 
   const setProfitLossTitleText = (profitLossAmount: number | string) => {
     if (!!!profitLossAmount || profitLossAmount === '0') {
-      return '📊 이득액 :';
+      return '이득액 :';
     }
 
-    return profitLossAmount > 0 ? '📈 이득액 :' : '📉 손실액 :';
+    const numericValue = typeof profitLossAmount === 'string' ? parseFloat(profitLossAmount) : profitLossAmount;
+    return numericValue > 0 ? '📈 이득액 :' : '📉 손실액 :';
   }
   
   const onDeleteStockInfoCallback = async (stockInfo: any, isReal: boolean) => {
@@ -244,35 +245,55 @@
   }
 </script>
 
-<div class="flex flex-col w-full h-full">
-  <div class="flex flex-col w-full h-[50%] border-b p-2">
-    <div class="flex flex-row w-full text-sky-50 italic space-x-10">
-      <p class="text-3xl font-bold">{'📝 Virtual Investment'}</p>
-      <div class="flex flex-row grow justify-end items-center space-x-5 text-xl font-bold">
-        <div class="flex flex-row space-x-2">
-          <p class="">{'💰 전체 투자액 :'}</p>
-          <p class="">{`${formatIncludeComma(virtualTotalInvestInfo?.totalAmount) ?? '-'} ₩`}</p>
+<div class="flex flex-row w-full h-full bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 relative overflow-hidden p-4">
+  <!-- 배경 데코레이션 -->
+  <div class="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,_rgba(59,130,246,0.1)_1px,_transparent_0)] bg-[size:32px_32px] pointer-events-none"></div>
+  <div class="absolute top-0 left-0 w-96 h-96 bg-gradient-to-r from-violet-500/20 to-purple-500/20 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 animate-pulse"></div>
+  <div class="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-r from-cyan-500/20 to-teal-500/20 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 animate-pulse"></div>
+
+  <!-- Virtual Investment Section -->
+  <div class="flex flex-col w-[50%] h-full border-b border-slate-600/40 relative z-10 mr-4">
+    <div class="flex flex-row w-full items-center justify-between mb-4 bg-slate-800/60 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-2xl shadow-black/20 p-6">
+      <div class="flex items-center space-x-4">
+        <div class="w-12 h-12 bg-gradient-to-r from-violet-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/30">
+          <span class="text-white text-xl">📝</span>
         </div>
-        <div class="flex flex-row space-x-2">
-          <p class="">{setProfitLossTitleText(virtualTotalInvestInfo?.totalProfitLossAmount)}</p>
-          <p class="" style="color: {setUpDownColor(virtualTotalInvestInfo?.totalProfitLossAmount)}; text-shadow: 0 0 5px #fff, 0 0 10px #fff;">
-            {`${formatIncludeComma(virtualTotalInvestInfo?.totalProfitLossAmount) ?? '-'} ₩`}
-          </p>
-          <p style="text-shadow: 0 0 5px #fff, 0 0 10px #fff;">
-            <span>{'('}</span>
-            {@html setUpDownRatioTag(virtualTotalInvestInfo?.totalAmount, virtualTotalInvestInfo?.totalAmount + virtualTotalInvestInfo?.totalProfitLossAmount)}
-            <span>{')'}</span>
-          </p>
-        </div>
+        <h2 class="text-2xl font-black bg-gradient-to-r from-violet-400 to-purple-400 bg-clip-text text-transparent">Virtual Investment</h2>
       </div>
-      <div class="w-auto">
-        <button class="w-[36px] h-[36px] border rounded-md bg-gray-50 z-10" 
-          on:click={() => onOpenAddTimeLinePopup(false)}>{'💾'}</button>
+      
+      <div class="flex items-center space-x-4">
+        <div class="flex items-center space-x-6">
+          <div class="flex items-center space-x-3 bg-slate-700/80 backdrop-blur-sm rounded-xl px-4 py-2 border border-slate-500/30">
+            <div class="w-6 h-6 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-lg flex items-center justify-center">
+              <span class="text-white text-sm">💰</span>
+            </div>
+            <span class="text-slate-200 font-medium text-sm">전체 투자액 :</span>
+            <span class="text-white font-bold text-lg">{`${formatIncludeComma(virtualTotalInvestInfo?.totalAmount) ?? '-'} ₩`}</span>
+          </div>
+          
+          <div class="flex items-center space-x-3 bg-slate-200/90 backdrop-blur-sm rounded-xl px-4 py-2 border border-slate-300/50 shadow-sm">
+            <span class="text-slate-700 font-medium text-sm">{setProfitLossTitleText(virtualTotalInvestInfo?.totalProfitLossAmount)}</span>
+            <span class="font-bold text-lg drop-shadow-lg" style="color: {setUpDownColor(virtualTotalInvestInfo?.totalProfitLossAmount)};">
+              {`${formatIncludeComma(virtualTotalInvestInfo?.totalProfitLossAmount) ?? '-'} ₩`}
+            </span>
+            <span class="text-slate-600 font-medium">
+              <span>{'('}</span>
+              {@html setUpDownRatioTag(virtualTotalInvestInfo?.totalAmount, virtualTotalInvestInfo?.totalAmount + virtualTotalInvestInfo?.totalProfitLossAmount)}
+              <span>{')'}</span>
+            </span>
+          </div>
+        </div>
+        
+        <button class="w-12 h-12 bg-gradient-to-r from-violet-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-violet-500/30 transition-all duration-200 hover:scale-110 hover:shadow-xl hover:shadow-violet-500/40 border border-violet-400/50" 
+          on:click={() => onOpenAddTimeLinePopup(false)}>
+          <span class="text-white text-xl">➕</span>
+        </button>
       </div>
     </div>
+    
     {#if Object.keys(virtualInvestItemObject).length > 0}
       <div 
-        class="flex flex-col w-full hidden-scrollbar overflow-auto space-y-5 rounded-e-md"
+        class="flex flex-col w-full h-full bg-slate-800/40 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-inner p-4 space-y-4 overflow-auto modern-scrollbar"
         bind:clientWidth={componentWidth}
       >
         {#each Object.keys(virtualInvestItemObject) as virtualInvestItem, index}
@@ -286,37 +307,60 @@
         {/each}
       </div>
     {:else}
-      <div class="flex w-full h-full justify-center items-center font-bold text-gray-50 text-xl italic">{'💾 버튼을 눌러 종목을 추가해주세요.'}</div>
+      <div class="flex w-full h-full justify-center items-center bg-slate-800/40 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-inner">
+        <div class="text-center space-y-3">
+          <div class="w-16 h-16 bg-gradient-to-r from-slate-600 to-slate-500 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
+            <span class="text-white text-2xl">➕</span>
+          </div>
+          <p class="text-slate-300 font-medium text-lg">➕ 버튼을 눌러 종목을 추가해주세요</p>
+        </div>
+      </div>
     {/if}
   </div>
-  <div class="flex flex-col w-full h-[50%] border-t p-2">
-    <div class="flex flex-row w-full text-sky-50 italic space-x-10">
-      <p class="text-3xl font-bold">{'💵 Real Investment'}</p>
-      <div class="flex flex-row grow justify-end items-center space-x-5 text-xl font-bold">
-        <div class="flex flex-row space-x-2">
-          <p class="">{'💰 전체 투자액 :'}</p>
-          <p class="">{`${formatIncludeComma(realTotalInvestInfo?.totalAmount) ?? '-'} ₩`}</p>
+
+  <!-- Real Investment Section -->
+  <div class="flex flex-col w-[50%] h-full border-t border-slate-600/40 relative z-10">
+    <div class="flex flex-row w-full items-center justify-between mb-4 bg-slate-800/60 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-2xl shadow-black/20 p-6">
+      <div class="flex items-center space-x-4">
+        <div class="w-12 h-12 bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
+          <span class="text-white text-xl">💵</span>
         </div>
-        <div class="flex flex-row space-x-2">
-          <p class="">{setProfitLossTitleText(realTotalInvestInfo?.totalProfitLossAmount)}</p>
-          <p class="" style="color: {setUpDownColor(realTotalInvestInfo?.totalProfitLossAmount)}; text-shadow: 0 0 5px #fff, 0 0 10px #fff;">
-            {`${formatIncludeComma(realTotalInvestInfo?.totalProfitLossAmount) ?? '-'} ₩`}
-          </p>
-          <p style="text-shadow: 0 0 5px #fff, 0 0 10px #fff;">
-            <span>{'('}</span>
-            {@html setUpDownRatioTag(realTotalInvestInfo?.totalAmount, realTotalInvestInfo?.totalAmount + realTotalInvestInfo?.totalProfitLossAmount)}
-            <span>{')'}</span>
-          </p>
-        </div>
+        <h2 class="text-2xl font-black bg-gradient-to-r from-emerald-400 to-green-400 bg-clip-text text-transparent">Real Investment</h2>
       </div>
-      <div class="w-auto">
-        <button class="w-[36px] h-[36px] border rounded-md bg-gray-50 z-10"
-          on:click={() => onOpenAddTimeLinePopup(true)}>{'💾'}</button>
+      
+      <div class="flex items-center space-x-4">
+        <div class="flex items-center space-x-6">
+          <div class="flex items-center space-x-3 bg-slate-700/80 backdrop-blur-sm rounded-xl px-4 py-2 border border-slate-500/30">
+            <div class="w-6 h-6 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-lg flex items-center justify-center">
+              <span class="text-white text-sm">💰</span>
+            </div>
+            <span class="text-slate-200 font-medium text-sm">전체 투자액 :</span>
+            <span class="text-white font-bold text-lg">{`${formatIncludeComma(realTotalInvestInfo?.totalAmount) ?? '-'} ₩`}</span>
+          </div>
+          
+          <div class="flex items-center space-x-3 bg-slate-200/90 backdrop-blur-sm rounded-xl px-4 py-2 border border-slate-300/50 shadow-sm">
+            <span class="text-slate-700 font-medium text-sm">{setProfitLossTitleText(realTotalInvestInfo?.totalProfitLossAmount)}</span>
+            <span class="font-bold text-lg drop-shadow-lg" style="color: {setUpDownColor(realTotalInvestInfo?.totalProfitLossAmount)};">
+              {`${formatIncludeComma(realTotalInvestInfo?.totalProfitLossAmount) ?? '-'} ₩`}
+            </span>
+            <span class="text-slate-600 font-medium">
+              <span>{'('}</span>
+              {@html setUpDownRatioTag(realTotalInvestInfo?.totalAmount, realTotalInvestInfo?.totalAmount + realTotalInvestInfo?.totalProfitLossAmount)}
+              <span>{')'}</span>
+            </span>
+          </div>
+        </div>
+        
+        <button class="w-12 h-12 bg-gradient-to-r from-emerald-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/30 transition-all duration-200 hover:scale-110 hover:shadow-xl hover:shadow-emerald-500/40 border border-emerald-400/50"
+          on:click={() => onOpenAddTimeLinePopup(true)}>
+          <span class="text-white text-xl">➕</span>
+        </button>
       </div>
     </div>
+    
     {#if Object.keys(realInvestItemObject).length > 0}
       <div 
-        class="flex flex-col w-full hidden-scrollbar overflow-auto space-y-5 rounded-e-md"
+        class="flex flex-col w-full h-full bg-slate-800/40 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-inner p-4 space-y-4 overflow-auto modern-scrollbar"
         bind:clientWidth={componentWidth}
       >
         {#each Object.keys(realInvestItemObject) as realInvestItem, index}
@@ -330,24 +374,96 @@
         {/each}
       </div>
     {:else}
-      <div class="flex w-full h-full justify-center items-center font-bold text-gray-50 text-xl italic">{'💾 버튼을 눌러 종목을 추가해주세요.'}</div>
+      <div class="flex w-full h-full justify-center items-center bg-slate-800/40 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-inner">
+        <div class="text-center space-y-3">
+          <div class="w-16 h-16 bg-gradient-to-r from-slate-600 to-slate-500 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
+            <span class="text-white text-2xl">➕</span>
+          </div>
+          <p class="text-slate-300 font-medium text-lg">➕ 버튼을 눌러 종목을 추가해주세요</p>
+        </div>
+      </div>
     {/if}
   </div>
-  {#if isSingleMode}
-    <SingleChartBasic
-      {singleChartInfo}
-      on:closeSingleChartModeCallback={() => {
-        isSingleMode = false;
-      }}
-    />
+
+  {#if isSingleMode && singleChartInfo}
+    <div class="absolute inset-0 z-40 bg-black/50 backdrop-blur-sm">
+      <SingleChartBasic
+        singleChartInfo={singleChartInfo}
+        on:closeSingleChartModeCallback={() => {
+          isSingleMode = false;
+        }}
+      />
+    </div>
   {/if}
 </div>
 
 <style>
-  .hidden-scrollbar {
-    scrollbar-width: none; /* Firefox */
+  /* 글래스모피즘 효과 강화 */
+  :global(.backdrop-blur-xl) {
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
   }
-  .hidden-scrollbar::-webkit-scrollbar {
-    display: none; /* Chrome, Safari */
+
+  /* 애니메이션 */
+  :global(.animate-pulse) {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  /* 현대적인 스크롤바 */
+  .modern-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.6) rgba(0, 0, 0, 0.1);
+  }
+
+  .modern-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .modern-scrollbar::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+  }
+
+  .modern-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(45deg, rgba(148, 163, 184, 0.6), rgba(203, 213, 225, 0.8));
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .modern-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(45deg, rgba(100, 116, 139, 0.8), rgba(148, 163, 184, 0.9));
+  }
+
+  /* 버튼 효과 */
+  button {
+    outline: none;
+  }
+
+  button:focus {
+    outline: none;
+    box-shadow: none;
+  }
+
+  /* 텍스트 그라데이션 */
+  .bg-clip-text {
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
+
+  /* 드롭 섀도우 효과 */
+  .drop-shadow-lg {
+    filter: drop-shadow(0 10px 8px rgb(0 0 0 / 0.04)) drop-shadow(0 4px 3px rgb(0 0 0 / 0.1));
+  }
+
+  /* 반응형 디자인 */
+  @media (max-width: 768px) {
+    .modern-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
   }
 </style>
