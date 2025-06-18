@@ -54,7 +54,7 @@
 		{ 
 			path: '/analyze', 
 			label: 'ANALYZE', 
-			icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+			icon: 'M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z',
 			gradient: 'from-emerald-500 to-teal-600',
 			description: '데이터 분석'
 		},
@@ -67,10 +67,10 @@
 		},
 		{ 
 			path: '/webSearch', 
-			label: 'SEARCH', 
+			label: 'RESEARCH', 
 			icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
 			gradient: 'from-orange-500 to-red-600',
-			description: '웹 검색'
+			description: '투자 리서치'
 		},
 		{ 
 			path: '/news', 
@@ -84,14 +84,14 @@
 			label: 'INVEST', 
 			icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1',
 			gradient: 'from-green-500 to-emerald-600',
-			description: '투자 정보'
+			description: '모의 투자'
 		},
 		{ 
 			path: '/timeLine', 
-			label: 'TIMELINE', 
-			icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+			label: 'PORTFOLIO', 
+			icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10',
 			gradient: 'from-violet-500 to-purple-600',
-			description: '시간별 추이'
+			description: '포트폴리오 관리'
 		}
 	];
 
