@@ -6,7 +6,6 @@
   export let nowCount: number;
 
   let progressBarElement: HTMLDivElement;
-  let progressTrackElement: HTMLDivElement;
   let containerWidth: number = 0;
   let actualFillWidth: number = 0;
   let resizeObserver: ResizeObserver | null = null;
@@ -39,10 +38,7 @@
 
   // 컨테이너 크기 측정 및 관찰
   const setupResizeObserver = () => {
-    // progress-track 요소를 기준으로 측정 (실제 채움 영역)
-    const targetElement = progressTrackElement || progressBarElement;
-    
-    if (targetElement && !resizeObserver) {
+    if (progressBarElement && !resizeObserver) {
       resizeObserver = new ResizeObserver((entries) => {
         for (let entry of entries) {
           // contentRect는 border와 padding을 제외한 실제 콘텐츠 영역
@@ -50,15 +46,15 @@
         }
       });
       
-      resizeObserver.observe(targetElement);
+      resizeObserver.observe(progressBarElement);
       
       // 초기 너비 설정 - clientWidth 사용 (border 제외, padding 포함)
-      containerWidth = targetElement.clientWidth;
+      containerWidth = progressBarElement.clientWidth;
     }
   };
 
   // 프로그래스 바 엘리먼트가 바인딩되면 ResizeObserver 설정
-  $: if (progressBarElement || progressTrackElement) {
+  $: if (progressBarElement) {
     setupResizeObserver();
   }
 
@@ -73,7 +69,6 @@
 <div class="download-progress">
   <div class="progress-container">
     <div class="progress-bar" bind:this={progressBarElement}>
-      <div class="progress-track" bind:this={progressTrackElement}></div>
       <div class="progress-fill {percentage >= 100 ? 'progress-fill-complete' : ''}" style="width: {progressWidth}"></div>
       <div class="progress-glow" style="width: {progressWidth}"></div>
       <div class="progress-shimmer" style="width: {progressWidth}"></div>
@@ -104,30 +99,12 @@
     width: 100%;
     height: 16px;
     border-radius: 16px;
-    overflow: hidden;
-    box-shadow: 
-      0 4px 20px rgba(0, 0, 0, 0.15),
-      inset 0 2px 4px rgba(0, 0, 0, 0.2);
-    backdrop-filter: blur(8px);
+    overflow: visible;
     /* 정확한 너비 계산을 위해 모든 여백 제거 */
     padding: 0;
     margin: 0;
     border: none;
     box-sizing: border-box;
-  }
-
-  .progress-track {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(135deg, 
-      rgba(30, 41, 59, 0.3) 0%, 
-      rgba(51, 65, 85, 0.2) 100%
-    );
-    border-radius: 16px;
-    /* border 제거로 정확한 너비 확보 */
   }
 
   .progress-fill {
@@ -144,6 +121,7 @@
     transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 
       0 0 30px rgba(59, 130, 246, 0.6),
+      0 4px 20px rgba(0, 0, 0, 0.15),
       inset 0 1px 0 rgba(255, 255, 255, 0.3),
       inset 0 -1px 0 rgba(0, 0, 0, 0.1);
     overflow: hidden;

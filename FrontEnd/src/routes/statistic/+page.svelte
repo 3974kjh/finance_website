@@ -417,19 +417,34 @@
               </div>
               <span class="font-bold text-white">종목 검색</span>
             </div>
-            <input
-              autocomplete="off"
-              id="name"
-              name="name"
-              class="h-10 px-3 rounded-lg bg-white/90 backdrop-blur-sm border border-white/30 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/50 outline-none transition-all duration-200 text-gray-800 placeholder-gray-500 shadow-md hover:shadow-lg w-[280px]"
-              autofocus={true}
-              disabled={financeAllRankList.length < 1 ? true : false}
-              minlength="0"
-              maxlength="20"
-              size="10"
-              placeholder="종목명/종목코드 실시간 검색"
-              bind:value={searchAllStockText}
-            />
+            <div class="relative">
+              <input
+                autocomplete="off"
+                id="name"
+                name="name"
+                class="h-10 px-3 pr-10 rounded-lg bg-white/90 backdrop-blur-sm border border-white/30 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/50 outline-none transition-all duration-200 text-gray-800 placeholder-gray-500 shadow-md hover:shadow-lg w-[280px]"
+                autofocus={true}
+                disabled={financeAllRankList.length < 1 ? true : false}
+                minlength="0"
+                maxlength="20"
+                size="10"
+                placeholder="종목명/종목코드 실시간 검색"
+                bind:value={searchAllStockText}
+              />
+              {#if searchAllStockText.trim() !== ''}
+                <button
+                  class="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 bg-gray-500/20 hover:bg-gray-500/40 rounded-full flex items-center justify-center transition-all duration-200 group"
+                  on:click={() => {
+                    searchAllStockText = '';
+                  }}
+                  title="검색어 지우기"
+                >
+                  <svg class="w-3 h-3 text-gray-600 group-hover:text-gray-800 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
+              {/if}
+            </div>
           </div>
           <div class="flex items-center">
             <KakaoLoginAndSend
@@ -648,19 +663,34 @@
             </div>
             <span class="font-bold text-white">종목 검색</span>
           </div>
-          <input
-            id="name"
-            name="name"
-            autocomplete="off"
-            class="h-10 px-3 rounded-lg bg-white/90 backdrop-blur-sm border border-white/30 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/50 outline-none transition-all duration-200 text-gray-800 placeholder-gray-500 shadow-md hover:shadow-lg w-[280px]"
-            autofocus={true}
-            disabled={selectedFinanceMonthRankList.length < 1 || monthlyLoadProgress ? true : false}
-            minlength="0"
-            maxlength="20"
-            size="10"
-            placeholder="종목명/종목코드 실시간 검색"
-            bind:value={searchMonthStockText}
-          />
+          <div class="relative">
+            <input
+              id="name"
+              name="name"
+              autocomplete="off"
+              class="h-10 px-3 pr-10 rounded-lg bg-white/90 backdrop-blur-sm border border-white/30 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/50 outline-none transition-all duration-200 text-gray-800 placeholder-gray-500 shadow-md hover:shadow-lg w-[280px]"
+              autofocus={true}
+              disabled={selectedFinanceMonthRankList.length < 1 || monthlyLoadProgress ? true : false}
+              minlength="0"
+              maxlength="20"
+              size="10"
+              placeholder="종목명/종목코드 실시간 검색"
+              bind:value={searchMonthStockText}
+            />
+            {#if searchMonthStockText.trim() !== ''}
+              <button
+                class="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 bg-gray-500/20 hover:bg-gray-500/40 rounded-full flex items-center justify-center transition-all duration-200 group"
+                on:click={() => {
+                  searchMonthStockText = '';
+                }}
+                title="검색어 지우기"
+              >
+                <svg class="w-3 h-3 text-gray-600 group-hover:text-gray-800 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+            {/if}
+          </div>
         </div>
         <!-- 검색 상태 표시 -->
         {#if searchMonthStockText.trim() !== ''}

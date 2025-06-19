@@ -75,6 +75,14 @@
   let kakaoAccessCode: string = '';
   let kakaoAccessToken: string = '';
 
+  // 실시간 검색 필터링
+  $: filteredCalcSignalScoreResultList = searchStockText.trim() === '' 
+    ? calcSignalScoreResultList
+    : calcSignalScoreResultList.filter((item: any) => 
+        item.name.toLowerCase().includes(searchStockText.toLowerCase()) || 
+        item.code.toLowerCase().includes(searchStockText.toLowerCase())
+      );
+
   onMount(async () => {
     if (!!!sessionStorage) {
       return;
@@ -502,34 +510,43 @@
           </div>
           <span class="font-bold text-white">종목 검색</span>
         </div>
-        <input
-          bind:this={searchInputDocument}
-          type="text"
-          autocomplete="off"
-          id="name"
-          name="name"
-          class="h-10 px-3 rounded-lg bg-white/90 backdrop-blur-sm border border-white/30 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/50 outline-none transition-all duration-200 text-gray-800 placeholder-gray-500 shadow-md hover:shadow-lg w-48"
-          autofocus={true}
-          disabled={loadProgress}
-          minlength="4"
-          maxlength="8"
-          size="10"
-          placeholder="종목명/종목코드 검색"
-          bind:value={searchStockText}
-          on:keypress={async (e) => {
-            if (e.key === 'Enter') {
-              loadProgress = true;
-              const filteredList = calcSignalScoreResultList.filter((item) => 
-                item?.code?.includes(searchStockText) || item?.name?.includes(searchStockText)
-              );
-              filteredCalcSignalScoreResultList = sortBySimilarity(searchStockText, filteredList, ['code', 'name']);
-              loadProgress = false;
-
-              await tick();
-              searchInputDocument?.focus();
-            }
-          }}
-        />
+        <div class="relative">
+          <input
+            bind:this={searchInputDocument}
+            type="text"
+            autocomplete="off"
+            id="name"
+            name="name"
+            class="h-10 px-3 pr-10 rounded-lg bg-white/90 backdrop-blur-sm border border-white/30 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/50 outline-none transition-all duration-200 text-gray-800 placeholder-gray-500 shadow-md hover:shadow-lg w-60"
+            autofocus={true}
+            disabled={loadProgress}
+            minlength="4"
+            maxlength="8"
+            size="10"
+            placeholder="종목명/종목코드 검색"
+            bind:value={searchStockText}
+            on:keypress={async (e) => {
+              if (e.key === 'Enter') {
+                await tick();
+                searchInputDocument?.focus();
+              }
+            }}
+          />
+          {#if searchStockText.trim() !== ''}
+            <button
+              class="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 bg-gray-500/20 hover:bg-gray-500/40 rounded-full flex items-center justify-center transition-all duration-200 group"
+              on:click={() => {
+                searchStockText = '';
+                searchInputDocument?.focus();
+              }}
+              title="검색어 지우기"
+            >
+              <svg class="w-3 h-3 text-gray-600 group-hover:text-gray-800 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          {/if}
+        </div>
       </div>    
       <!-- 액션 버튼들 -->
       <div class="flex items-center space-x-2 ml-auto">
@@ -549,7 +566,6 @@
             count = -1;
             totalStockInfoList = 0;
             calcSignalScoreResultList = [];
-            filteredCalcSignalScoreResultList = [];
 
             await tick();
 
@@ -593,8 +609,6 @@
               }
             });
 
-            filteredCalcSignalScoreResultList = _.cloneDeep(calcSignalScoreResultList);
-
             // 카운트 초기화
             count = -1;
             loadProgress = false;
@@ -624,6 +638,14 @@
         </div>
       </div>
     </div>
+    <!-- 검색 상태 표시 -->
+    {#if searchStockText.trim() !== '' && calcSignalScoreResultList.length > 0}
+      <div class="flex justify-center pb-2">
+        <div class="px-4 py-2 bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 rounded-full text-sm text-blue-200 shadow-lg">
+          🔍 '<span class="font-semibold text-white">{searchStockText}</span>' 검색 중 - <span class="font-semibold text-white">{filteredCalcSignalScoreResultList.length}</span>개 결과 / 전체 <span class="font-semibold text-white">{calcSignalScoreResultList.length}</span>개
+        </div>
+      </div>
+    {/if}
     <!-- 데이터 테이블 -->
     <div class="flex-1 bg-white/95 backdrop-blur-lg rounded-2xl shadow-2xl overflow-hidden">
       <div class="tableWrap h-full">
@@ -688,6 +710,22 @@
                         />
                       </div>
                     {/if}
+                  </div>
+                </td>
+              </tr>
+            {:else if searchStockText.trim() !== '' && calcSignalScoreResultList.length > 0}
+              <tr class="relative">
+                <td colspan="8" class="relative" style="height: {innerHeight - 180}px;">
+                  <div class="absolute inset-0 flex flex-col justify-center items-center space-y-4">
+                    <div class="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+                      <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                      </svg>
+                    </div>
+                    <div class="text-center space-y-2">
+                      <p class="text-gray-700 font-semibold text-lg">'{searchStockText}' 검색 결과가 없습니다.</p>
+                      <p class="text-gray-500 text-sm">다른 검색어를 시도해보세요.</p>
+                    </div>
                   </div>
                 </td>
               </tr>
