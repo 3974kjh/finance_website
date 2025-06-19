@@ -216,7 +216,7 @@
 
 </script>
 
-<div class="flex flex-col w-full h-full bg-gradient-to-br from-slate-50 to-gray-100 absolute p-3 space-y-3" style="top: 0px; left: 0px" bind:clientHeight={clientHeight}>
+<div class="flex flex-col w-full h-full bg-gradient-to-br from-slate-50 to-gray-100 absolute p-3 space-y-3 z-10" style="top: 0px; left: 0px" bind:clientHeight={clientHeight}>
   {#if singleChartInfo}
     <div class="flex w-full h-auto items-center bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 px-4 py-3">
       <button 

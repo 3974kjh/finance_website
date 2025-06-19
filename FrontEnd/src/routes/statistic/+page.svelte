@@ -799,7 +799,7 @@
     </div>
   </div>
   {#if isSingleMode && singleChartInfo}
-    <div class="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm">
+    <div class="absolute inset-0 z-20 bg-black/50 backdrop-blur-sm">
       <SingleChartBasic
         singleChartInfo={singleChartInfo}
         on:closeSingleChartModeCallback={() => {

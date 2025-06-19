@@ -26,14 +26,16 @@
 			isSingleMode = true;
 		}}
 	/>
-	{#if isSingleMode}
-		<SingleChartBasic
-			{singleChartInfo}
-			on:closeSingleChartModeCallback={() => {
-				isSingleMode = false;
-				singleChartInfo = null;
-			}}
-		/>
+	{#if isSingleMode && singleChartInfo}
+		<div class="absolute inset-0 z-20 bg-black/50 backdrop-blur-sm">
+			<SingleChartBasic
+				{singleChartInfo}
+				on:closeSingleChartModeCallback={() => {
+					isSingleMode = false;
+					singleChartInfo = null;
+				}}
+			/>
+		</div>
 	{/if}
 </div>
 

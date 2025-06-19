@@ -166,7 +166,7 @@
 	
 	<!-- 확장 가능한 사이드바 -->
 	<div 
-		class="sidebar-container relative z-20"
+		class="sidebar-container relative z-30"
 		on:mouseenter={handleMouseEnter}
 		on:mouseleave={handleMouseLeave}
 	>
@@ -347,7 +347,7 @@
 
 	/* 확장된 사이드바 */
 	.expanded-sidebar {
-		z-index: 50;
+		z-index: 40;
 		transform-origin: left center;
 	}
 
