@@ -5,7 +5,6 @@
   import { BarChart, ProgressCircle, KakaoLoginAndSend } from '$lib/component';
   import toast from 'svelte-french-toast';
   import { cancelRequest } from "$lib/axios-provider/AxiosProvider";
-  import _ from 'lodash';
 
   let durationObject: any = {
     '2 YEAR': {month: 24, week: 104},
@@ -378,7 +377,7 @@
   
   <div class="flex flex-col w-full h-full p-2 space-y-2 relative z-10">
     <!-- 전체 -->
-    <div class="flex flex-row h-[50%] space-x-2 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-xl">
+    <div class="flex flex-row h-[50%] bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-xl">
       <!-- bar chart -->
       <div class="flex flex-col h-full w-[50%] border-r border-white/20 p-2 space-y-2">
         <p class="flex h-auto w-full font-bold text-white">{allPeriodTextKey}</p>
@@ -409,8 +408,8 @@
       </div>
       <div class="flex flex-col h-full w-[50%]">
         <div class="flex flex-row h-auto w-full pt-2 pb-1 px-2">
-          <div class="flex flex-row grow items-center">
-            <div class="flex items-center space-x-2 mr-4">
+          <div class="flex flex-row grow items-center space-x-4">
+            <div class="flex items-center space-x-2">
               <div class="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
                 <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
@@ -432,7 +431,7 @@
               bind:value={searchAllStockText}
             />
           </div>
-          <div class="flex grow">
+          <div class="flex items-center">
             <KakaoLoginAndSend
               bind:kakaoAccessCode
               isTextDark={false}
@@ -450,9 +449,9 @@
           </div>
         {/if}
         <div class="flex grow w-full relative z-10">
-          <div class="tableWrap p-1">
+          <div class="tableWrap px-2 py-1">
             <table>
-              <thead>
+              <thead class="all-table-header">
                 <tr tabindex="0">
                   <th style="width: 5%; text-align: center;">Rank</th>
                   <th style="width: 10%; text-align: center;">RankAvg</th>
@@ -501,7 +500,6 @@
                 {:else if loadProgress}
                   <div class="absolute inset-0 flex w-full h-full justify-center items-center font-bold text-white">
                     <ProgressCircle
-                      isTextBlack={false}
                       size={100}
                       thickness={10}
                       isLarge={true}
@@ -569,7 +567,7 @@
       </div>
     </div>
     <!-- 월별 -->
-    <div class="flex flex-row h-[50%] space-x-2 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-xl">
+    <div class="flex flex-row h-[50%] bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-xl">
       <!-- bar chart -->
       <div class="flex flex-col h-full w-[50%] border-r border-white/20 p-2 space-y-2">
         <div class="flex flex-wrap h-[75px] w-full border border-white/30 rounded-md overflow-auto px-1 py-0.5 bg-white/5 backdrop-blur-sm">
@@ -641,7 +639,7 @@
         </div>
       </div>
       <div class="flex flex-col h-full w-[50%]">
-        <div class="flex flex-row h-auto w-full space-x-4 pt-2 pb-1 items-center">
+        <div class="flex flex-row h-auto w-full space-x-4 pt-2 pb-1 items-center px-2">
           <div class="flex items-center space-x-2">
             <div class="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
               <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -673,9 +671,9 @@
           </div>
         {/if}
         <div class="flex h-full w-full relative z-10">
-          <div class="tableWrap p-1">
+          <div class="tableWrap px-2 py-1">
             <table>
-              <thead>
+              <thead class="month-table-header">
                 <tr tabindex="0">
                   <th style="width: 5%; text-align: center;">Rank</th>
                   <th style="width: 10%; text-align: center;">RankAvg</th>
@@ -816,6 +814,8 @@
 	.tableWrap {
 		width: 100%;
 		height: calc(100%);
+		display: flex;
+		flex-direction: column;
 	}
 	thead {
 		display: table;
@@ -842,6 +842,7 @@
 		table-layout: fixed;
 	}
 	table {
+		width: 100%;
 		table-layout: fixed;
 		background: rgba(255, 255, 255, 0.95);
 		backdrop-filter: blur(16px);
@@ -955,5 +956,21 @@
   :global(.backdrop-blur-sm) {
     backdrop-filter: blur(8px) saturate(180%);
     -webkit-backdrop-filter: blur(8px) saturate(180%);
+  }
+
+  /* 전체 테이블 헤더 - 파란색 그라데이션 */
+  .all-table-header th {
+    background: #3b82f6;
+    color: white;
+    border-bottom: 2px solid #1e40af;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  }
+
+  /* 월별 테이블 헤더 - 초록색 그라데이션 */
+  .month-table-header th {
+    background: #10b981;
+    color: white;
+    border-bottom: 2px solid #065f46;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   }
 </style>
