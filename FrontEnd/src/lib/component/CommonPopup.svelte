@@ -177,38 +177,70 @@
 		calcPositionForPopup();
 	}
 }} on:keyup={keyupInInwodw} />
+
 <!-- 팝업 배경 -->
 {#if isModal}
-	<div class="absolute left-0 top-0 w-full h-full bg-gray-200 opacity-50" style="z-index: 10" />
+	<div class="fixed inset-0 w-screen h-screen bg-black/40 backdrop-blur-md" style="z-index: 50" />
 {/if}
 
 <!-- 메인 팝업  -->
-<div class="fixed {className}" bind:this={mainContainer} style="z-index: {zIndex}; {modalPositionType === 'center' ? 'opacity: 0; transition: opacity 0.1s ease-in-out;' : ''}" >
-	<div class="flex justify-center items-center h-full">
-		<div class="flex flex-col shadow-lg bg-white popup-wrap">
+<div class="fixed {className}" bind:this={mainContainer} style="z-index: 60; {modalPositionType === 'center' ? 'opacity: 0; transition: opacity 0.3s ease-in-out;' : ''}" >
+	<div class="flex justify-center items-center h-full p-4">
+		<div class="flex flex-col shadow-2xl bg-white/95 backdrop-blur-lg popup-wrap rounded-2xl overflow-hidden hover:shadow-3xl transition-all duration-300 max-h-[95vh] w-full">
 			<!-- 팝업 타이틀 창 -->
-			<div id="commonDialog" class="text-white p-2 bg-gray-600 flex justify-between {isMoving} 'cursor-move' :'cursor-arrow'" role="none" on:mousedown={mouseDownOnTitle}>
-				<span class="font-bold">{titleName}</span>
+			<div id="commonDialog" class="text-white p-4 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 flex justify-between items-center border-b border-white/10 transition-all duration-200 flex-shrink-0 {isMoving ? 'cursor-move' : 'cursor-default'}" role="none" on:mousedown={mouseDownOnTitle}>
+				<span class="font-bold text-lg flex items-center">
+					<svg class="w-5 h-5 mr-2 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+					</svg>
+					{titleName}
+				</span>
 				{#if !isHideCloseBtn}
-					<button class="w-[1.4rem] h-[1.4rem]" on:click={closeEvent} {disabled}>
-						<svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-							<g id="Group 197">
-								<path id="Line" d="M11.2088 1.30936L1.30928 11.2089" stroke="#8696CC" stroke-width="1.5" stroke-linecap="round" />
-								<path id="Line_2" d="M11.2088 11.2089L1.30929 1.30936" stroke="#8696CC" stroke-width="1.5" stroke-linecap="round" />
-							</g>
+					<button class="w-8 h-8 rounded-full bg-white/10 hover:bg-red-500/80 backdrop-blur-sm border border-white/20 hover:border-red-300/50 flex items-center justify-center transition-all duration-200 hover:scale-110 shadow-md hover:shadow-lg group" on:click={closeEvent} {disabled}>
+						<svg class="w-4 h-4 text-white group-hover:text-white transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path>
 						</svg>
 					</button>
 				{/if}
 			</div>
 			<!-- 메인 표시 항목 -->
-			<slot />
+			<div class="bg-white/90 backdrop-blur-md flex-grow min-h-0 overflow-hidden">
+				<slot />
+			</div>
 			<!-- 하단 표시 항목 -->
-			<footer class="p-2 bg-gray-600">
-				<slot name="subInfo" />
+			<footer class="p-2 bg-gradient-to-r from-slate-600 to-slate-700 border-t border-white/10 flex-shrink-0">
+				<div class="text-white">
+					<slot name="subInfo" />
+				</div>
 			</footer>
 		</div>
 	</div>
 </div>
+
+<style>
+	.popup-wrap {
+		min-width: 300px;
+		max-width: 95vw;
+		min-height: 200px;
+	}
+	
+	/* 향상된 그림자 효과 - 떠있는 느낌 */
+	.shadow-3xl {
+		box-shadow: 
+			0 60px 120px -20px rgba(0, 0, 0, 0.3),
+			0 35px 60px -12px rgba(0, 0, 0, 0.25),
+			0 15px 25px -5px rgba(0, 0, 0, 0.1),
+			0 0 0 1px rgba(255, 255, 255, 0.05);
+	}
+	
+	/* 기본 그림자도 강화 */
+	.shadow-2xl {
+		box-shadow: 
+			0 25px 50px -12px rgba(0, 0, 0, 0.25),
+			0 10px 20px -5px rgba(0, 0, 0, 0.1),
+			0 0 0 1px rgba(255, 255, 255, 0.05);
+	}
+</style>
 
 <!--
 @component

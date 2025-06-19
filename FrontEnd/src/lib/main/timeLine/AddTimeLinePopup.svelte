@@ -211,12 +211,9 @@
     </div>
   </div>
   
-  <div slot="subInfo" class="flex w-full justify-end items-end space-x-2">
-    <div class="text-sm text-gray-600 mr-auto">
-      {tradeInfo.name ? `${tradeInfo.name} (${tradeInfo.code}) 선택됨` : '종목을 선택해주세요'}
-    </div>
+  <div slot="subInfo" class="flex w-full justify-end items-center space-x-2">
     <button
-      class="flex items-center justify-center border-2 rounded-md px-4 py-2 border-blue-500 bg-blue-500 text-white hover:bg-blue-600 transition-colors duration-200 font-semibold"
+      class="flex items-center justify-center border-2 rounded-md px-4 py-2 border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600 hover:border-emerald-600 transition-colors duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
       disabled={!tradeInfo.name || !tradeInfo.code || tradeInfo.todayShares < 1}
       on:click={applyInfoToTimeLine}
     >
@@ -226,7 +223,7 @@
       적용
     </button>
     <button
-      class="flex items-center justify-center border-2 rounded-md px-4 py-2 border-gray-400 bg-white hover:bg-gray-50 transition-colors duration-200"
+      class="flex items-center justify-center border-2 rounded-md px-4 py-2 border-red-400/50 bg-red-500/20 text-white hover:bg-red-500/40 hover:border-red-400/70 backdrop-blur-sm transition-colors duration-200 font-medium"
       on:click={closedDialogCallback}
     >
       <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">

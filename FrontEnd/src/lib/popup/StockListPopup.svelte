@@ -11,7 +11,8 @@
   export let isSingleMode: boolean = false;
 
   // 주식 목록
-	let originStockInfoList: StockType[] = [];
+	let originalStockData: StockType[] = []; // 원본 데이터 (변경되지 않음)
+	let originStockInfoList: StockType[] = []; // 표시용 데이터 (정렬/필터링 적용)
 
   // 표시할 주식 목록
 	let filteredStockInfoList: StockType[] = [];
@@ -65,8 +66,8 @@
   $: {
     // innerHeight가 유효한 값일 때만 계산
     if (innerHeight > 200) {
-      const calculatedHeight = Math.floor(innerHeight * 0.85); // 85%
-      popupHeight = Math.min(Math.max(600, calculatedHeight), 1000); // 최소 600px, 최대 1000px
+      const calculatedHeight = Math.floor(innerHeight * 0.8); // 80%로 더 보수적으로 계산
+      popupHeight = Math.min(Math.max(400, calculatedHeight), 800); // 최소 400px, 최대 800px로 더 작게 조정
     }
   }
 
@@ -97,7 +98,9 @@
 
   onMount(async () => {
     isProgress = true;
-    originStockInfoList = await setFinanceStockList(getSelectedStockModeValue(stockModeList));
+    const stockData = await setFinanceStockList(getSelectedStockModeValue(stockModeList));
+    originalStockData = [...stockData]; // 원본 데이터 저장
+    originStockInfoList = [...stockData]; // 표시용 데이터 초기화
     isProgress = false;
 
     await tick();
@@ -198,7 +201,8 @@
     sortState.volumeRatio = 'none';
     sortState.chagesRatio = nextState;
 
-    const sorted = [...searchFilteredList].sort((a: any, b: any) => {
+    // 표시용 데이터만 정렬 (원본 데이터는 보존)
+    const sorted = [...originStockInfoList].sort((a: any, b: any) => {
       const aRatio = parseFloat(a?.ChagesRatio) || 0;
       const bRatio = parseFloat(b?.ChagesRatio) || 0;
       
@@ -209,7 +213,7 @@
       }
     });
     
-    // 원본 데이터 업데이트
+    // 표시용 데이터만 업데이트
     originStockInfoList = sorted;
     currentPage = 0; // 첫 페이지로 이동
   }
@@ -227,7 +231,8 @@
     sortState.chagesRatio = 'none';
     sortState.volumeRatio = nextState;
 
-    const sorted = [...searchFilteredList].sort((a: any, b: any) => {
+    // 표시용 데이터만 정렬 (원본 데이터는 보존)
+    const sorted = [...originStockInfoList].sort((a: any, b: any) => {
       const aRatio = parseFloat(a?.VolumeRatio) || 0;
       const bRatio = parseFloat(b?.VolumeRatio) || 0;
       
@@ -238,7 +243,7 @@
       }
     });
     
-    // 원본 데이터 업데이트
+    // 표시용 데이터만 업데이트
     originStockInfoList = sorted;
     currentPage = 0; // 첫 페이지로 이동
   }
@@ -296,10 +301,8 @@
     // 페이지 초기화
     currentPage = 0;
     
-    // 원본 데이터를 다시 불러오기
-    isProgress = true;
-    originStockInfoList = await setFinanceStockList(getSelectedStockModeValue(stockModeList));
-    isProgress = false;
+    // 원본 데이터를 표시용 데이터로 복원 (API 호출 없음)
+    originStockInfoList = [...originalStockData];
     
     // 검색 입력창에 포커스
     await tick();
@@ -309,7 +312,7 @@
 
 <svelte:window bind:innerHeight on:keydown={onFocusSearchText}/>
 <CommonPopup {titleName} modalPositionType="center" on:closedDialogCallback={closedDialogCallback}>
-  <div class="flex flex-col w-[800px] bg-white" style="height: {popupHeight}px;">
+  <div class="flex flex-col w-[800px] bg-white overflow-hidden" style="height: {popupHeight}px;">
     <!-- 검색 영역 - 고정 높이 -->
     <div class="flex h-auto w-full mt-2 px-2 flex-shrink-0">
       <!-- 검색란 -->
@@ -348,7 +351,7 @@
 
     <!-- 검색 상태 표시 -->
     {#if searchStockText.trim() !== '' || sortState.chagesRatio !== 'none' || sortState.volumeRatio !== 'none'}
-      <div class="flex justify-center py-1 px-2">
+      <div class="flex justify-center py-1 px-2 flex-shrink-0">
         <div class="px-3 py-1 bg-blue-50 border border-blue-200 rounded-full text-sm text-blue-700 flex items-center space-x-2">
           {#if searchStockText.trim() !== ''}
             <span>🔍 '<span class="font-semibold">{searchStockText}</span>' 검색 중 - {searchFilteredList.length}개 결과</span>
@@ -376,8 +379,12 @@
     <div class="flex flex-row h-auto w-full space-x-1 px-2 py-2 flex-shrink-0">
       {#each stockModeList as stockMode}
         <button
-          class="border rounded-md px-3 py-1 border-gray-400 transition-colors duration-200 {stockMode.isSelected ? 'bg-blue-100 border-blue-400 text-blue-700 font-semibold' : 'bg-white hover:bg-gray-50'}"
+          class="border rounded-md px-3 py-1 border-gray-400 transition-colors duration-200 {stockMode.isSelected ? 'bg-blue-100 border-blue-400 text-blue-700 font-semibold' : 'bg-white hover:bg-gray-50'} {isProgress ? 'opacity-50 cursor-not-allowed' : ''} {isProgress && stockMode.isSelected ? 'loading-tab' : ''}"
+          disabled={isProgress}
           on:click={async () => {
+            // 이미 로딩 중이거나 같은 모드를 선택한 경우 무시
+            if (isProgress || stockMode.isSelected) return;
+            
             searchStockText = '';
             currentPage = 0;
 
@@ -388,45 +395,85 @@
             stockModeList = setSelectStockModeList(stockModeList, stockMode.value);
 
             isProgress = true;
-            originStockInfoList = await setFinanceStockList(getSelectedStockModeValue(stockModeList));
+            const stockData = await setFinanceStockList(getSelectedStockModeValue(stockModeList));
+            originalStockData = [...stockData]; // 원본 데이터 저장
+            originStockInfoList = [...stockData]; // 표시용 데이터 초기화
             isProgress = false;
           }}
         >
-          {stockMode.name}
+          {#if isProgress && stockMode.isSelected}
+            <div class="flex items-center space-x-1 relative z-10">
+              <svg class="animate-spin h-3 w-3 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>로딩중...</span>
+            </div>
+          {:else}
+            {stockMode.name}
+          {/if}
         </button>
       {/each}
     </div>
 
     <!-- 주식 목록 Grid - 남은 공간 모두 사용 -->
-    <div class="flex w-full flex-grow px-2 min-h-0 mb-1">
-      <div class="tableWrap">
-        <table>
-          <thead>
-            <tr tabindex="0">
-              <th style="width: 10%; text-align: left;">코드</th>
-              <th style="width: 30%; text-align: left;">주식명</th>
-              <th style="width: 15%; text-align: center;">현재가</th>
+    <div class="flex w-full flex-grow px-2 min-h-0 mb-1 overflow-hidden">
+      <div class="modern-table-wrap rounded-xl overflow-hidden shadow-lg bg-white/95 backdrop-blur-sm border border-gray-200/50">
+        <table class="modern-table">
+          <thead class="modern-thead">
+            <tr>
+              <th class="modern-th" style="width: 12%;">
+                <div class="flex items-center justify-start">
+                  <span class="text-sm font-semibold">📋 코드</span>
+                </div>
+              </th>
+              <th class="modern-th" style="width: 28%;">
+                <div class="flex items-center justify-start">
+                  <span class="text-sm font-semibold">🏢 주식명</span>
+                </div>
+              </th>
+              <th class="modern-th" style="width: 15%;">
+                <div class="flex items-center justify-center">
+                  <span class="text-sm font-semibold">💰 현재가</span>
+                </div>
+              </th>
               <th 
-                class="cursor-pointer hover:bg-gray-600 transition-colors duration-200" 
+                class="modern-th cursor-pointer hover:bg-slate-600/90 transition-all duration-200 group" 
                 on:click={sortByChagesRatio} 
-                style="width: 15%; text-align: center;"
+                style="width: 15%;"
                 title="클릭하여 정렬"
-              >{@html `전일대비<br/>상승&하락 ${getSortIcon(sortState.chagesRatio)}`}</th>
-              <th style="width: 15%; text-align: center;">시초가</th>
+              >
+                <div class="flex items-center justify-center">
+                  <span class="text-sm font-semibold group-hover:scale-105 transition-transform duration-200">
+                    📈 전일대비 {getSortIcon(sortState.chagesRatio)}
+                  </span>
+                </div>
+              </th>
+              <th class="modern-th" style="width: 15%;">
+                <div class="flex items-center justify-center">
+                  <span class="text-sm font-semibold">🌅 시초가</span>
+                </div>
+              </th>
               <th 
-                class="cursor-pointer hover:bg-gray-600 transition-colors duration-200" 
+                class="modern-th cursor-pointer hover:bg-slate-600/90 transition-all duration-200 group" 
                 on:click={sortByVolumeRatio} 
-                style="width: 15%; text-align: center;"
+                style="width: 15%;"
                 title="클릭하여 정렬"
-              >{@html `거래 유동성 ${getSortIcon(sortState.volumeRatio)}`}</th>
+              >
+                <div class="flex items-center justify-center">
+                  <span class="text-sm font-semibold group-hover:scale-105 transition-transform duration-200">
+                    💧 유동성 {getSortIcon(sortState.volumeRatio)}
+                  </span>
+                </div>
+              </th>
             </tr>
           </thead>
-          <tbody style="height: {popupHeight - 280}px" class="{(isProgress || searchFilteredList.length === 0) ? 'loading-state' : ''}">
+          <tbody class="modern-tbody" style="height: {Math.max(120, popupHeight - 420)}px">
             {#if searchFilteredList.length > 0 && isProgress === false}
               {#if tableData.length > 0}
-                {#each tableData as stockInfo}
+                {#each tableData as stockInfo, index}
                   <tr
-                    class="hover:bg-blue-50 transition-colors duration-150 cursor-pointer"
+                    class="modern-tr group hover:bg-gradient-to-r hover:from-blue-50/80 hover:to-indigo-50/80 transition-all duration-200 cursor-pointer hover:shadow-sm"
                     on:click={() => {
                       let newStockInfo = {
                         name: stockInfo?.Name ?? '',
@@ -453,35 +500,81 @@
                       }
                     }}
                   >
-                    <td style="width: 10%">{stockInfo?.Code ?? stockInfo?.Symbol}</td>
-                    <td style="width: 30%">{stockInfo?.Name}</td>
-                    <td style="width: 15%; text-align: right;">{`${formatIncludeComma(formatCostValue(stockInfo?.Close)) ?? '-'} ₩`}</td>
-                    <td style="width: 15%; text-align: center; color: {setUpDownColor(stockInfo?.ChagesRatio)}">{`${setUpDownIcon(stockInfo?.ChagesRatio)} ${stockInfo?.ChagesRatio ?? '-'}%`}</td>
-                    <td style="width: 15%; text-align: right;">{`${formatIncludeComma(formatCostValue(stockInfo?.Open)) ?? '-'} ₩`}</td>
-                    <td style="width: 15%; text-align: right;">{`${stockInfo.VolumeRatio ?? '-'}%`}</td>
+                    <td class="modern-td" style="width: 12%;">
+                      <div class="flex items-center justify-start">
+                        <span class="font-mono text-xs bg-gray-100 px-2 py-1 rounded-md group-hover:bg-blue-100 transition-colors duration-200">
+                          {stockInfo?.Code ?? stockInfo?.Symbol}
+                        </span>
+                      </div>
+                    </td>
+                    <td class="modern-td" style="width: 28%;">
+                      <div class="flex items-center justify-start">
+                        <span class="font-medium text-gray-800 group-hover:text-blue-800 transition-colors duration-200">
+                          {stockInfo?.Name}
+                        </span>
+                      </div>
+                    </td>
+                    <td class="modern-td" style="width: 15%;">
+                      <div class="flex items-center justify-end">
+                        <span class="font-semibold text-gray-900 group-hover:text-blue-900 transition-colors duration-200">
+                          {formatIncludeComma(formatCostValue(stockInfo?.Close)) ?? '-'}<span class="text-xs text-gray-500 ml-1">₩</span>
+                        </span>
+                      </div>
+                    </td>
+                    <td class="modern-td" style="width: 15%;">
+                      <div class="flex items-center justify-center">
+                        <span class="font-bold text-sm px-2 py-1 rounded-md transition-all duration-200" style="color: {setUpDownColor(stockInfo?.ChagesRatio)};">
+                          {setUpDownIcon(stockInfo?.ChagesRatio)} {stockInfo?.ChagesRatio ?? '-'}%
+                        </span>
+                      </div>
+                    </td>
+                    <td class="modern-td" style="width: 15%;">
+                      <div class="flex items-center justify-end">
+                        <span class="text-gray-700 group-hover:text-gray-900 transition-colors duration-200">
+                          {formatIncludeComma(formatCostValue(stockInfo?.Open)) ?? '-'}<span class="text-xs text-gray-500 ml-1">₩</span>
+                        </span>
+                      </div>
+                    </td>
+                    <td class="modern-td" style="width: 15%;">
+                      <div class="flex items-center justify-end">
+                        <span class="text-gray-700 group-hover:text-indigo-700 transition-colors duration-200 font-medium">
+                          {stockInfo.VolumeRatio ?? '-'}<span class="text-xs text-gray-500 ml-1">%</span>
+                        </span>
+                      </div>
+                    </td>
                   </tr>
                 {/each}
               {:else}
-                <tr>
-                  <td colspan="6" class="text-center py-4 text-gray-500">
-                    '{searchStockText}' 검색 결과가 없습니다.
+                <tr class="modern-tr">
+                  <td colspan="6" class="modern-td text-center py-8">
+                    <div class="flex flex-col items-center space-y-2">
+                      <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.291-1.004-5.824-2.412M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                      </svg>
+                      <span class="text-gray-500 font-medium">'{searchStockText}' 검색 결과가 없습니다.</span>
+                    </div>
                   </td>
                 </tr>
               {/if}
             {:else if isProgress}
-              <tr>
-                <td colspan="6">
-                  <ProgressCircle
-                    text={'해당 증시 목록을 가져오는 중입니다...'}
-                  />
+              <tr class="modern-tr h-full">
+                <td colspan="6" class="modern-td">
+                  <div class="flex items-center justify-center h-full">
+                    <ProgressCircle
+                      text={'해당 증시 목록을 가져오는 중입니다...'}
+                    />
+                  </div>
                 </td>
               </tr>
             {:else}
-              <tr>
-                <td colspan="6">
-                  <p class="font-bold text-gray-500">
-                    {'목록이 없습니다.'}
-                  </p>
+              <tr class="modern-tr">
+                <td colspan="6" class="modern-td text-center py-8">
+                  <div class="flex flex-col items-center space-y-2">
+                    <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+                    </svg>
+                    <span class="font-medium text-gray-500">목록이 없습니다.</span>
+                  </div>
                 </td>
               </tr>
             {/if}
@@ -515,7 +608,7 @@
           </span>
           {#if searchStockText.trim() !== ''}
             <span class="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full border border-blue-200">
-              검색: {searchFilteredList.length}/{originStockInfoList.length}
+              검색: {searchFilteredList.length}/{originalStockData.length}
             </span>
           {:else}
             <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full border border-gray-200">
@@ -540,8 +633,8 @@
       </div>
     {/if}
 
-    <!-- 선택된 항목 영역 - 고정 높이 -->
-    <div class="flex w-full h-[80px] flex-shrink-0 px-2 pb-2">
+    <!-- 선택된 항목 영역 - 최우선 보장 -->
+    <div class="flex w-full min-h-[70px] flex-shrink-0 px-2 pb-2" style="height: {Math.max(70, Math.min(140, choiceStockInfoList.length * 18 + 40))}px;">
       <div class="flex flex-wrap w-full h-full border rounded-md overflow-auto p-1 bg-gray-50">
         {#if choiceStockInfoList.length === 0}
           <div class="flex items-center justify-center w-full h-full text-gray-500 text-sm">
@@ -564,12 +657,12 @@
       </div>
     </div>
   </div>
-  <div slot="subInfo" class="flex w-full justify-end items-end space-x-2">
-    <div class="text-sm text-gray-600 mr-auto">
+  <div slot="subInfo" class="flex w-full justify-end items-center space-x-2">
+    <div class="text-sm text-white mr-auto">
       {choiceStockInfoList.length}개 종목 선택됨
     </div>
     <button
-      class="flex items-center justify-center border-2 rounded-md px-4 py-2 border-blue-500 bg-blue-500 text-white hover:bg-blue-600 transition-colors duration-200 font-semibold"
+      class="flex items-center justify-center border-2 rounded-md px-4 py-2 border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600 hover:border-emerald-600 transition-colors duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
       disabled={choiceStockInfoList.length === 0}
       on:click={applyStockInfoToGraph}
     >
@@ -579,7 +672,7 @@
       적용
     </button>
     <button
-      class="flex items-center justify-center border-2 rounded-md px-4 py-2 border-gray-400 bg-white hover:bg-gray-50 transition-colors duration-200"
+      class="flex items-center justify-center border-2 rounded-md px-4 py-2 border-red-400/50 bg-red-500/20 text-white hover:bg-red-500/40 hover:border-red-400/70 backdrop-blur-sm transition-colors duration-200 font-medium"
       on:click={closedDialogCallback}
     >
       <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -591,63 +684,119 @@
 </CommonPopup>
 
 <style>
-	.tableWrap {
+	/* 현대적인 테이블 컨테이너 */
+	.modern-table-wrap {
 		width: 100%;
 		height: 100%;
 		overflow: hidden;
-		border: 1px solid #ccc;
 		display: flex;
 		flex-direction: column;
-		min-height: 0; /* flexbox에서 축소 가능하도록 */
+		min-height: 0;
+		position: relative;
 	}
 	
-	table {
+	/* 현대적인 테이블 기본 스타일 */
+	.modern-table {
 		width: 100%;
 		height: 100%;
 		table-layout: fixed;
-		border-collapse: collapse;
+		border-collapse: separate;
+		border-spacing: 0;
 		display: flex;
 		flex-direction: column;
-		min-height: 0; /* flexbox에서 축소 가능하도록 */
+		min-height: 0;
+		background: transparent;
 	}
 	
-	thead {
+	/* 현대적인 테이블 헤더 */
+	.modern-thead {
 		display: table;
 		table-layout: fixed;
 		width: 100%;
-		background-color: #4B5563;
+		background: linear-gradient(135deg, #475569 0%, #334155 100%);
 		flex-shrink: 0;
+		position: relative;
+		z-index: 10;
 	}
 	
-	tbody {
+	/* 현대적인 테이블 헤더 셀 */
+	.modern-th {
+		color: white;
+		background: transparent;
+		padding: 16px 12px;
+		font-weight: 600;
+		border: none;
+		height: 56px;
+		box-sizing: border-box;
+		position: relative;
+		vertical-align: middle;
+	}
+	
+	.modern-th:not(:last-child)::after {
+		content: '';
+		position: absolute;
+		right: 0;
+		top: 50%;
+		transform: translateY(-50%);
+		width: 1px;
+		height: 24px;
+		background: rgba(255, 255, 255, 0.2);
+	}
+	
+	/* 현대적인 테이블 바디 */
+	.modern-tbody {
 		display: block;
 		width: 100%;
 		flex-grow: 1;
-		min-height: 0; /* flexbox에서 축소 가능하도록 */
-		max-height: 100%; /* 부모 컨테이너 높이를 넘지 않도록 */
+		min-height: 0;
+		max-height: 100%;
 		overflow-y: auto;
 		overflow-x: hidden;
+		background: white;
 	}
 	
-	/* 로딩 상태일 때 tbody가 전체 높이를 사용하도록 */
-	tbody.loading-state {
+	/* 현대적인 테이블 행 */
+	.modern-tr {
+		display: table;
+		width: 100%;
+		table-layout: fixed;
+		border-bottom: 1px solid #f1f5f9;
+		background: white;
+		min-height: 52px;
+		position: relative;
+	}
+	
+	.modern-tr:hover {
+		transform: translateY(-1px);
+		box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.1);
+		border-bottom-color: transparent;
+		z-index: 5;
+	}
+	
+	.modern-tr:last-child {
+		border-bottom: none;
+	}
+	
+	/* 현대적인 테이블 데이터 셀 */
+	.modern-td {
+		padding: 16px 12px;
+		border: none;
+		box-sizing: border-box;
+		vertical-align: middle;
+		height: 52px;
+		position: relative;
+		background: inherit;
+	}
+	
+	/* 로딩 상태 스타일 */
+	.modern-tbody:has(.loading-state) {
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		overflow: hidden;
 	}
 	
-	/* 로딩 상태의 tr이 전체 높이를 사용하도록 */
-	tbody.loading-state tr {
-		display: flex;
-		width: 100%;
-		height: 100%;
-		align-items: center;
-		justify-content: center;
-	}
-	
-	/* 로딩 상태의 td가 전체 공간을 사용하도록 */
-	tbody.loading-state td {
+	.modern-tr.loading-state {
 		display: flex;
 		width: 100%;
 		height: 100%;
@@ -656,76 +805,43 @@
 		border: none;
 	}
 	
-	thead tr, tbody tr {
-		display: table;
+	.modern-tr.loading-state .modern-td {
+		display: flex;
 		width: 100%;
-		table-layout: fixed;
-	}
-	
-	/* 일반 tbody tr에 최소 높이 설정 */
-	tbody:not(.loading-state) tr {
-		min-height: 35px; /* 각 행의 최소 높이 보장 */
-	}
-	
-	th {
-		color: white;
-		background-color: #4B5563;
-		padding: 8px 4px;
-		font-weight: bold;
-		border-right: 1px solid #6B7280;
-		height: 40px;
-		box-sizing: border-box;
-	}
-	
-	th:last-child {
-		border-right: none;
-	}
-	
-	td {
-		padding: 6px 4px;
-		border-bottom: 1px solid #e5e7eb;
-		border-right: 1px solid #e5e7eb;
-		box-sizing: border-box;
-		vertical-align: middle;
-		height: 35px; /* 고정 높이로 일관성 유지 */
-	}
-	
-	td:last-child {
-		border-right: none;
-	}
-	
-	tbody tr:last-child td {
-		border-bottom: none;
+		height: 100%;
+		align-items: center;
+		justify-content: center;
+		border: none;
+		padding: 0;
 	}
 
-	/* 기본 배경색 */
-	tbody tr {
-		background-color: white;
-	}
-
-	/* 호버 효과 */
-	tbody tr:hover {
-		background-color: #f0f8ff;
-		cursor: pointer;
-	}
-
-	/* 스크롤바 스타일링 - +page.svelte와 동일하게 */
-	tbody::-webkit-scrollbar {
+	/* 스크롤바 현대적 스타일링 */
+	.modern-tbody::-webkit-scrollbar {
 		width: 8px;
+		background: transparent;
 	}
 
-	tbody::-webkit-scrollbar-track {
-		background: #f1f1f1;
+	.modern-tbody::-webkit-scrollbar-track {
+		background: #f8fafc;
 		border-radius: 4px;
+		margin: 4px;
 	}
 
-	tbody::-webkit-scrollbar-thumb {
-		background: #c1c1c1;
+	.modern-tbody::-webkit-scrollbar-thumb {
+		background: linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%);
 		border-radius: 4px;
+		border: 1px solid #e2e8f0;
 	}
 
-	tbody::-webkit-scrollbar-thumb:hover {
-		background: #a8a8a8;
+	.modern-tbody::-webkit-scrollbar-thumb:hover {
+		background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+		border-color: #cbd5e1;
+	}
+
+	/* Firefox 스크롤바 */
+	.modern-tbody {
+		scrollbar-width: thin;
+		scrollbar-color: #cbd5e1 #f8fafc;
 	}
 
 	/* 페이지네이션 버튼 호버 효과 강화 */
@@ -751,5 +867,97 @@
 
 	.bg-gray-50::-webkit-scrollbar-thumb:hover {
 		background: rgba(0, 0, 0, 0.4);
+	}
+
+	/* 반응형 텍스트 크기 */
+	@media (max-width: 768px) {
+		.modern-th {
+			padding: 12px 8px;
+			height: 48px;
+		}
+		
+		.modern-td {
+			padding: 12px 8px;
+			height: 48px;
+		}
+		
+		.modern-th .text-sm {
+			font-size: 0.75rem;
+		}
+	}
+
+	/* 애니메이션 효과 */
+	@keyframes fadeInUp {
+		from {
+			opacity: 0;
+			transform: translateY(10px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	.modern-tr {
+		animation: fadeInUp 0.3s ease-out;
+	}
+
+	/* 정렬 아이콘 애니메이션 */
+	.modern-th.cursor-pointer:hover .text-sm {
+		text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+	}
+
+	/* 탭 버튼 비활성화 스타일 */
+	button:disabled {
+		pointer-events: none;
+		user-select: none;
+	}
+
+	button:disabled:hover {
+		background-color: inherit !important;
+		border-color: inherit !important;
+		transform: none !important;
+		box-shadow: none !important;
+	}
+
+	/* 로딩 중 탭 버튼 스타일 */
+	.loading-tab {
+		position: relative;
+		overflow: hidden;
+	}
+
+	.loading-tab::before {
+		content: '';
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+		animation: shimmer 1.5s infinite;
+		z-index: 1;
+	}
+
+	@keyframes shimmer {
+		0% {
+			transform: translateX(-100%);
+		}
+		100% {
+			transform: translateX(100%);
+		}
+	}
+
+	/* 스피너 애니메이션 */
+	@keyframes spin {
+		from {
+			transform: rotate(0deg);
+		}
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+	.animate-spin {
+		animation: spin 1s linear infinite;
 	}
 </style>
