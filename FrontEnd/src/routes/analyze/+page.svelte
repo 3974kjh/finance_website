@@ -650,23 +650,23 @@
     <div class="flex-1 bg-white/95 backdrop-blur-lg rounded-2xl shadow-2xl overflow-hidden">
       <div class="tableWrap h-full">
         <table class="w-full h-full">
-          <thead class="bg-gradient-to-r from-gray-100 to-gray-200 border-b border-gray-300/50">
+          <thead class="bg-gradient-to-r from-slate-500 to-slate-600 border-b border-slate-400">
             <tr>
-              <th class="text-gray-700 font-semibold py-2 px-3 text-center" style="width: 5%;">Rank</th>
-              <th class="text-gray-700 font-semibold py-2 px-3 text-center" style="width: 10%;">코드</th>
-              <th class="text-gray-700 font-semibold py-2 px-3 text-left" style="width: 20%;">주식명</th>
-              <th class="text-gray-700 font-semibold py-2 px-3 text-right" style="width: 10%;">총점수</th>
-              <th class="text-gray-700 font-semibold py-2 px-3 text-right" style="width: 10%;">추세점수</th>
-              <th class="text-gray-700 font-semibold py-2 px-3 text-right" style="width: 10%;">규모점수</th>
-              <th class="text-gray-700 font-semibold py-2 px-3 text-right" style="width: 10%;">현재가</th>
-              <th class="text-gray-700 font-semibold py-2 px-3 text-right" style="width: 25%;">시가총액</th>
+              <th class="text-white font-semibold py-3 px-3 text-center text-shadow-light" style="width: 5%;">Rank</th>
+              <th class="text-white font-semibold py-3 px-3 text-center text-shadow-light" style="width: 10%;">코드</th>
+              <th class="text-white font-semibold py-3 px-3 text-left text-shadow-light" style="width: 20%;">주식명</th>
+              <th class="text-white font-semibold py-3 px-3 text-right text-shadow-light" style="width: 10%;">총점수</th>
+              <th class="text-white font-semibold py-3 px-3 text-right text-shadow-light" style="width: 10%;">추세점수</th>
+              <th class="text-white font-semibold py-3 px-3 text-right text-shadow-light" style="width: 10%;">규모점수</th>
+              <th class="text-white font-semibold py-3 px-3 text-right text-shadow-light" style="width: 10%;">현재가</th>
+              <th class="text-white font-semibold py-3 px-3 text-right text-shadow-light" style="width: 25%;">시가총액</th>
             </tr>
           </thead>
-          <tbody style="height: {innerHeight - 180}px" class="divide-y divide-gray-200/30">
+          <tbody style="height: {innerHeight - 180}px" class="divide-y divide-gray-200/30 bg-gradient-to-b from-white to-gray-50 elegant-scrollbar">
             {#if filteredCalcSignalScoreResultList.length > 0 && loadProgress === false}
               {#each filteredCalcSignalScoreResultList as calcSignalScoreResultInfo, index}
                 <tr
-                  class="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200 cursor-pointer group {index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}"
+                  class="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200 cursor-pointer group {index % 2 === 0 ? 'bg-white/90' : 'bg-gray-50/80'}"
                   on:click={() => {
                     singleChartInfo = {
                       title: calcSignalScoreResultInfo.name,
@@ -817,6 +817,61 @@
   tbody {
     scrollbar-width: thin;
     scrollbar-color: rgba(59, 130, 246, 0.6) rgba(0, 0, 0, 0.1);
+  }
+
+  /* 세련된 스크롤바 디자인 */
+  .elegant-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .elegant-scrollbar::-webkit-scrollbar-track {
+    background: rgba(148, 163, 184, 0.1);
+    border-radius: 12px;
+    margin: 4px 0;
+  }
+
+  .elegant-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, 
+      rgba(100, 116, 139, 0.4) 0%,
+      rgba(148, 163, 184, 0.6) 50%,
+      rgba(100, 116, 139, 0.4) 100%
+    );
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    transition: all 0.3s ease;
+  }
+
+  .elegant-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, 
+      rgba(59, 130, 246, 0.5) 0%,
+      rgba(99, 102, 241, 0.7) 50%,
+      rgba(139, 92, 246, 0.5) 100%
+    );
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: scaleX(1.2);
+  }
+
+  .elegant-scrollbar::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(135deg, 
+      rgba(59, 130, 246, 0.7) 0%,
+      rgba(99, 102, 241, 0.9) 50%,
+      rgba(139, 92, 246, 0.7) 100%
+    );
+  }
+
+  /* Firefox용 세련된 스크롤바 */
+  .elegant-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.6) rgba(148, 163, 184, 0.1);
+  }
+
+  /* 테이블 헤더 텍스트 그림자 */
+  .text-shadow {
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+
+  .text-shadow-light {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   }
 
   /* 애니메이션 */

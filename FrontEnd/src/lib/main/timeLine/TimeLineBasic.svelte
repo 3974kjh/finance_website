@@ -252,7 +252,7 @@
   <div class="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-r from-cyan-500/20 to-teal-500/20 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 animate-pulse"></div>
 
   <!-- Virtual Investment Section -->
-  <div class="flex flex-col w-[50%] h-full border-b border-slate-600/40 relative z-10 mr-4">
+  <div class="flex flex-col w-[50%] h-full relative z-10 mr-4">
     <div class="flex flex-row w-full items-center justify-between mb-4 bg-slate-800/60 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-2xl shadow-black/20 p-6">
       <div class="flex items-center space-x-4">
         <div class="w-12 h-12 bg-gradient-to-r from-violet-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/30">
@@ -319,7 +319,7 @@
   </div>
 
   <!-- Real Investment Section -->
-  <div class="flex flex-col w-[50%] h-full border-t border-slate-600/40 relative z-10">
+  <div class="flex flex-col w-[50%] h-full relative z-10">
     <div class="flex flex-row w-full items-center justify-between mb-4 bg-slate-800/60 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-2xl shadow-black/20 p-6">
       <div class="flex items-center space-x-4">
         <div class="w-12 h-12 bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
