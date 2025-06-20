@@ -75,6 +75,22 @@
   let kakaoAccessCode: string = '';
   let kakaoAccessToken: string = '';
 
+  // 페이지네이션 관련 변수
+  let currentPage: number = 0;
+  const itemsPerPage: number = 50; // 페이지당 50개 항목
+
+  // 페이지네이션 표시 여부에 따른 테이블 높이 계산
+  $: showPagination = filteredCalcSignalScoreResultList.length > itemsPerPage;
+  $: showSearchStatus = searchStockText.trim() !== '' && calcSignalScoreResultList.length > 0;
+  $: tableHeight = (() => {
+    // innerHeight가 0이거나 너무 작으면 기본값 사용
+    const windowHeight = innerHeight > 0 ? innerHeight : 800;
+    let baseHeight = windowHeight - 190; // 기본 높이 (헤더, 조건 영역 등)
+    if (showPagination) baseHeight -= 45; // 페이지네이션 영역 높이
+    if (showSearchStatus) baseHeight -= 45; // 검색 상태 표시 높이
+    return Math.max(400, baseHeight); // 최소 높이를 400px로 증가
+  })();
+
   // 실시간 검색 필터링
   $: filteredCalcSignalScoreResultList = searchStockText.trim() === '' 
     ? calcSignalScoreResultList
@@ -83,9 +99,41 @@
         item.code.toLowerCase().includes(searchStockText.toLowerCase())
       );
 
+  // 페이지네이션 데이터
+  $: paginatedData = filteredCalcSignalScoreResultList.slice(
+    currentPage * itemsPerPage,
+    (currentPage + 1) * itemsPerPage
+  );
+
+  // 페이지 수 계산
+  $: maxPage = Math.ceil(filteredCalcSignalScoreResultList.length / itemsPerPage);
+
+  // 검색 시 첫 페이지로 이동
+  $: if (searchStockText) {
+    currentPage = 0;
+  }
+
+  // 테이블 상단으로 스크롤
+  const scrollToTableTop = () => {
+    try {
+      const tbody = document.querySelector('.elegant-scrollbar');
+      if (tbody) {
+        tbody.scrollTop = 0;
+      }
+    } catch (error) {
+      console.error('스크롤 에러:', error);
+    }
+  }
+
   onMount(async () => {
     if (!!!sessionStorage) {
       return;
+    }
+
+    // innerHeight가 설정될 때까지 잠시 기다림
+    await tick();
+    if (innerHeight === 0) {
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
 
     count = -1;
@@ -176,11 +224,11 @@
         high: stockInfo?.High,
         low: stockInfo?.Low,
         volume: stockInfo?.Volume,
-        marcap: stockInfo?.Marcap,
-        amount: stockInfo?.Amount,
+        marcap: marcap,
+        amount: amount,
         trendScore: parseFloat(scoreResult.toFixed(2)),
-        marcapScore: stockInfo?.Marcap <= 0 ? 0 : parseFloat((selfNormalize(rank, 1, totalStockInfoList) * 50).toFixed(2)),
-        totalScore: stockInfo?.Marcap <= 0 ? scoreResult : scoreResult + parseFloat((selfNormalize(rank, 1, totalStockInfoList) * 50).toFixed(2))
+        marcapScore: marcap <= 0 ? 0 : parseFloat((selfNormalize(rank, 1, totalStockInfoList) * 50).toFixed(2)),
+        totalScore: marcap <= 0 ? scoreResult : scoreResult + parseFloat((selfNormalize(rank, 1, totalStockInfoList) * 50).toFixed(2))
       })
     }
 
@@ -257,9 +305,7 @@
       return 0;
     }
 
-    let nowValue = expectResult.data?.nowValue;
     let expectValue = expectResult.data?.expectValue;
-    let afterMonthExpectValue = expectResult.data?.afterMonthExpectValue;
     let bottomValue = expectResult.data?.bottomValue;
     let topValue = expectResult.data?.topValue;
     let expectRatioValue = expectResult.data?.expectRatioValue;
@@ -279,11 +325,6 @@
       }
       return movingAverages;
     };
-
-    // 각 이동평균 계산
-    const ma5 = calculateMA(financeDataResult, 5);
-    const ma20 = calculateMA(financeDataResult, 20);
-    const ma60 = calculateMA(financeDataResult, 60);
 
     // 해당 주가의 여러 요인들을 종합하여 각 요인별 점수를 계산하여 일반화한 값 가져오기
     let calcSignalScoreResult = calculateExpectFinanceScore(
@@ -326,7 +367,6 @@
    * 카카오톡으로 보낼 금일 통계 메세지 생성
   */
   const getFinanceResultTodayMessageText = () => {
-    const NaverFinanceUrl: string = 'https://finance.naver.com/item/main.naver?code=';
     let financeTodayResultMessageText: string = '';
 
     if (filteredCalcSignalScoreResultList.length < 1) {
@@ -566,6 +606,8 @@
             count = -1;
             totalStockInfoList = 0;
             calcSignalScoreResultList = [];
+            // 페이지 초기화
+            currentPage = 0;
 
             await tick();
 
@@ -640,17 +682,17 @@
     </div>
     <!-- 검색 상태 표시 -->
     {#if searchStockText.trim() !== '' && calcSignalScoreResultList.length > 0}
-      <div class="flex justify-center pb-2">
+      <div class="flex justify-center">
         <div class="px-4 py-2 bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 rounded-full text-sm text-blue-200 shadow-lg">
           🔍 '<span class="font-semibold text-white">{searchStockText}</span>' 검색 중 - <span class="font-semibold text-white">{filteredCalcSignalScoreResultList.length}</span>개 결과 / 전체 <span class="font-semibold text-white">{calcSignalScoreResultList.length}</span>개
         </div>
       </div>
     {/if}
     <!-- 데이터 테이블 -->
-    <div class="flex-1 bg-white/95 backdrop-blur-lg rounded-2xl shadow-2xl overflow-hidden">
-      <div class="tableWrap h-full">
+    <div class="flex-1 bg-white/95 backdrop-blur-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+      <div class="tableWrap flex-1 min-h-0">
         <table class="w-full h-full">
-          <thead class="bg-gradient-to-r from-slate-500 to-slate-600 border-b border-slate-400">
+          <thead class="bg-gradient-to-r from-slate-500 to-slate-600 border-b border-slate-400 flex-shrink-0">
             <tr>
               <th class="text-white font-semibold py-3 px-3 text-center text-shadow-light" style="width: 5%;">Rank</th>
               <th class="text-white font-semibold py-3 px-3 text-center text-shadow-light" style="width: 10%;">코드</th>
@@ -662,11 +704,11 @@
               <th class="text-white font-semibold py-3 px-3 text-right text-shadow-light" style="width: 25%;">시가총액</th>
             </tr>
           </thead>
-          <tbody style="height: {innerHeight - 180}px" class="divide-y divide-gray-200/30 bg-gradient-to-b from-white to-gray-50 elegant-scrollbar">
+          <tbody class="bg-white/95 backdrop-blur-lg elegant-scrollbar flex-1 overflow-y-auto" style="height: {tableHeight}px; max-height: {tableHeight}px; min-height: {tableHeight}px;">
             {#if filteredCalcSignalScoreResultList.length > 0 && loadProgress === false}
-              {#each filteredCalcSignalScoreResultList as calcSignalScoreResultInfo, index}
+              {#each paginatedData as calcSignalScoreResultInfo}
                 <tr
-                  class="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200 cursor-pointer group {index % 2 === 0 ? 'bg-white/90' : 'bg-gray-50/80'}"
+                  class="hover:bg-blue-100/80 hover:shadow-md transition-all duration-200 cursor-pointer group border-b border-gray-300/60"
                   on:click={() => {
                     singleChartInfo = {
                       title: calcSignalScoreResultInfo.name,
@@ -679,20 +721,20 @@
                     isSingleMode = true;
                   }}
                 >
-                  <td class="py-2 px-3 text-center text-gray-700 font-medium" style="width: 5%;">{calcSignalScoreResultInfo.rank}</td>
-                  <td class="py-2 px-3 text-center text-gray-700 font-mono text-sm" style="width: 10%;">{calcSignalScoreResultInfo.code}</td>
-                  <td class="py-2 px-3 text-left text-gray-800 font-semibold" style="width: 20%;">{calcSignalScoreResultInfo.name}</td>
-                  <td class="py-2 px-3 text-right text-gray-700 font-medium" style="width: 10%;">{calcSignalScoreResultInfo?.totalScore ?? '-'}</td>
-                  <td class="py-2 px-3 text-right text-gray-700 font-medium" style="width: 10%;">{calcSignalScoreResultInfo?.trendScore ?? '-'}</td>
-                  <td class="py-2 px-3 text-right text-gray-700 font-medium" style="width: 10%;">{calcSignalScoreResultInfo?.marcapScore ?? '-'}</td>
-                  <td class="py-2 px-3 text-right text-gray-700 font-medium" style="width: 10%;">{`${formatIncludeComma(calcSignalScoreResultInfo?.close) ?? '-'} ₩`}</td>
-                  <td class="py-2 px-3 text-right text-gray-700 font-medium" style="width: 25%;">{`${formatIncludeComma(calcSignalScoreResultInfo?.marcap) ?? '-'} ₩`}</td>
+                  <td class="py-2 px-3 text-center text-gray-600 font-medium" style="width: 5%;">{calcSignalScoreResultInfo.rank}</td>
+                  <td class="py-2 px-3 text-center text-gray-600 font-mono text-sm" style="width: 10%;">{calcSignalScoreResultInfo.code}</td>
+                  <td class="py-2 px-3 text-left text-gray-700 font-semibold" style="width: 20%;">{calcSignalScoreResultInfo.name}</td>
+                  <td class="py-2 px-3 text-right text-gray-600 font-medium" style="width: 10%;">{calcSignalScoreResultInfo?.totalScore ?? '-'}</td>
+                  <td class="py-2 px-3 text-right text-gray-600 font-medium" style="width: 10%;">{calcSignalScoreResultInfo?.trendScore ?? '-'}</td>
+                  <td class="py-2 px-3 text-right text-gray-600 font-medium" style="width: 10%;">{calcSignalScoreResultInfo?.marcapScore ?? '-'}</td>
+                  <td class="py-2 px-3 text-right text-gray-600 font-medium" style="width: 10%;">{`${formatIncludeComma(calcSignalScoreResultInfo?.close) ?? '-'} ₩`}</td>
+                  <td class="py-2 px-3 text-right text-gray-600 font-medium" style="width: 25%;">{`${formatIncludeComma(calcSignalScoreResultInfo?.marcap) ?? '-'} ₩`}</td>
                 </tr>
               {/each}
             {:else if loadProgress}
-              <tr>
-                <td colspan="8" class="relative" style="height: {innerHeight - 180}px;">
-                  <div class="absolute inset-0 flex justify-center items-center">
+              <tr class="h-full">
+                <td colspan="8" class="p-0 relative h-full align-top">
+                  <div class="w-full h-full flex justify-center items-center" style="min-height: {tableHeight}px;">
                     {#if count < 0}
                       <ProgressCircle
                         size={100}
@@ -714,9 +756,9 @@
                 </td>
               </tr>
             {:else if searchStockText.trim() !== '' && calcSignalScoreResultList.length > 0}
-              <tr class="relative">
-                <td colspan="8" class="relative" style="height: {innerHeight - 180}px;">
-                  <div class="absolute inset-0 flex flex-col justify-center items-center space-y-4">
+              <tr class="h-full">
+                <td colspan="8" class="p-0 relative h-full align-top">
+                  <div class="w-full h-full flex flex-col justify-center items-center space-y-4" style="min-height: {tableHeight}px;">
                     <div class="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
                       <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
@@ -730,9 +772,9 @@
                 </td>
               </tr>
             {:else}
-              <tr class="relative">
-                <td colspan="8" class="relative" style="height: {innerHeight - 180}px;">
-                  <div class="absolute inset-0 flex flex-col justify-center items-center space-y-4">
+              <tr class="h-full">
+                <td colspan="8" class="p-0 relative h-full align-top">
+                  <div class="w-full h-full flex flex-col justify-center items-center space-y-4" style="min-height: {tableHeight}px;">
                     <div class="w-16 h-16 bg-gray-300 rounded-2xl flex items-center justify-center">
                       <svg class="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
@@ -747,6 +789,56 @@
         </table>
       </div>
     </div>
+    
+    <!-- 페이지네이션 -->
+    {#if filteredCalcSignalScoreResultList.length > itemsPerPage}
+      <div class="flex justify-center items-center space-x-3 px-4">
+        <button 
+          class="group relative w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold transition-all duration-300 transform {currentPage === 0 ? 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-500 to-blue-600 border-blue-500 text-white hover:from-blue-600 hover:to-blue-700 hover:scale-110 hover:shadow-lg active:scale-95'}"
+          disabled={currentPage === 0}
+          on:click={() => {
+            currentPage = Math.max(0, currentPage - 1);
+            requestAnimationFrame(() => scrollToTableTop());
+          }}
+          title="이전 페이지"
+        >
+          <svg class="w-3 h-3 transition-transform duration-200 group-hover:-translate-x-0.5" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+          </svg>
+        </button>
+        
+        <div class="flex items-center space-x-2">
+          <span class="px-3 py-1 text-xs font-semibold bg-white/90 backdrop-blur-sm rounded-full border-2 border-white/30 shadow-sm">
+            <span class="text-blue-600">{currentPage + 1}</span>
+            <span class="text-gray-400 mx-1">/</span>
+            <span class="text-gray-800">{maxPage}</span>
+          </span>
+          {#if searchStockText.trim() !== ''}
+            <span class="text-xs px-2 py-0.5 bg-blue-500/20 text-blue-200 rounded-full border border-blue-400/30">
+              검색: {filteredCalcSignalScoreResultList.length}/{calcSignalScoreResultList.length}
+            </span>
+          {:else}
+            <span class="text-xs px-2 py-0.5 bg-gray-800/80 text-white rounded-full border border-gray-600/50 shadow-sm">
+              총 {filteredCalcSignalScoreResultList.length}개
+            </span>
+          {/if}
+        </div>
+        
+        <button 
+          class="group relative w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold transition-all duration-300 transform {currentPage >= maxPage - 1 ? 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-500 to-blue-600 border-blue-500 text-white hover:from-blue-600 hover:to-blue-700 hover:scale-110 hover:shadow-lg active:scale-95'}"
+          disabled={currentPage >= maxPage - 1}
+          on:click={() => {
+            currentPage = Math.min(maxPage - 1, currentPage + 1);
+            requestAnimationFrame(() => scrollToTableTop());
+          }}
+          title="다음 페이지"
+        >
+          <svg class="w-3 h-3 transition-transform duration-200 group-hover:translate-x-0.5" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+          </svg>
+        </button>
+      </div>
+    {/if}
   </div>
   
   {#if isSingleMode && singleChartInfo}
@@ -785,12 +877,30 @@
 		display: block;
 		overflow-y: auto;
 		overflow-x: hidden;
+		box-sizing: border-box;
+		padding-bottom: 0;
+		margin-bottom: 0;
+		flex: 1;
+		min-height: 0;
 	}
 	
 	tr {
 		display: table;
 		width: 100%;
 		table-layout: fixed;
+		box-sizing: border-box;
+	}
+
+	/* 데이터 행에만 고정 높이 적용 */
+	tr:not(.h-full) {
+		height: 50px;
+		min-height: 50px;
+	}
+
+	/* 빈 상태 메시지 행은 전체 높이 사용 */
+	tr.h-full {
+		height: 100%;
+		min-height: 100%;
 	}
 
   /* 현대적인 스크롤바 */
