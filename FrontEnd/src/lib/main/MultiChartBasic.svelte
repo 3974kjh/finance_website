@@ -149,12 +149,16 @@
 
             keys.forEach(key => localStorage.removeItem(key));
             localStorage.setItem(`${todayDate}chartModeObject`, JSON.stringify(chartModeObject));
+
+            refreshFlag = !refreshFlag;
           }}>{chartModeObject[chartMode].name}
             <button class="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 border-0 rounded-full w-[16px] h-[16px] flex items-center justify-center text-white text-xs transition-all duration-200 shadow-md hover:shadow-lg"
               on:click|capture|preventDefault|stopPropagation={() => {
                 delete chartModeObject[chartMode];
 
                 chartModeObject = chartModeObject;
+
+                refreshFlag = !refreshFlag;
               }}
             >
               <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -173,6 +177,8 @@
 
             keys.forEach(key => localStorage.removeItem(key));
             localStorage.setItem(`${todayDate}chartModeObject`, JSON.stringify(chartModeObject));
+
+            refreshFlag = !refreshFlag;
           }}>{chartModeObject[chartMode].name}
           </button>
         {/if}
@@ -335,21 +341,93 @@
 		opacity: 0.5;
 	}
 
-  /* Firefox용 */
+  /* 현대적이고 세련된 스크롤바 스타일 */
   .scrollbar-thin-custom {
-    scrollbar-width: thin;           /* 얇은 스크롤바 */
-    scrollbar-color: #000000 transparent; /* 썸 색상, 트랙은 투명 */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.6) transparent;
   }
-  /* Webkit(크롬, 사파리 등)용 */
+
+  /* Webkit 브라우저용 스크롤바 */
   .scrollbar-thin-custom::-webkit-scrollbar {
-    height: 6px;                     /* 가로 스크롤바 두께 */
-    background: transparent;         /* 트랙(배경) 투명 */
+    width: 8px;
+    height: 8px;
+    background: transparent;
   }
+
+  .scrollbar-thin-custom::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    margin: 4px;
+  }
+
   .scrollbar-thin-custom::-webkit-scrollbar-thumb {
-    background: #000000;                /* 썸(움직이는 부분) 색상 */
-    border-radius: 4px;              /* 둥근 모서리 */
+    background: linear-gradient(135deg, 
+      rgba(99, 102, 241, 0.8) 0%, 
+      rgba(139, 92, 246, 0.8) 50%, 
+      rgba(168, 85, 247, 0.8) 100%);
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   }
+
   .scrollbar-thin-custom::-webkit-scrollbar-thumb:hover {
-    background: #555;                /* 썸 호버 시 색상 */
+    background: linear-gradient(135deg, 
+      rgba(79, 70, 229, 0.9) 0%, 
+      rgba(124, 58, 237, 0.9) 50%, 
+      rgba(147, 51, 234, 0.9) 100%);
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  }
+
+  .scrollbar-thin-custom::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(135deg, 
+      rgba(67, 56, 202, 1) 0%, 
+      rgba(109, 40, 217, 1) 50%, 
+      rgba(126, 34, 206, 1) 100%);
+    transform: scale(0.95);
+  }
+
+  .scrollbar-thin-custom::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* 호버 시 트랙 강조 효과 */
+  .scrollbar-thin-custom:hover::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(4px);
+  }
+
+  /* 부드러운 페이드 인/아웃 효과 */
+  .scrollbar-thin-custom::-webkit-scrollbar-thumb {
+    opacity: 0.7;
+  }
+
+  .scrollbar-thin-custom:hover::-webkit-scrollbar-thumb {
+    opacity: 1;
+  }
+
+  /* 다크모드 대응 */
+  @media (prefers-color-scheme: dark) {
+    .scrollbar-thin-custom::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    
+    .scrollbar-thin-custom:hover::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.3);
+    }
+  }
+
+  /* 모바일 터치 디바이스용 최적화 */
+  @media (pointer: coarse) {
+    .scrollbar-thin-custom::-webkit-scrollbar {
+      width: 12px;
+      height: 12px;
+    }
+    
+    .scrollbar-thin-custom::-webkit-scrollbar-thumb {
+      border: 3px solid transparent;
+    }
   }
 </style>
