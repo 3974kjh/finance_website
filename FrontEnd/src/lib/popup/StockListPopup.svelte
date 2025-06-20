@@ -258,7 +258,7 @@
   // 테이블 상단으로 스크롤
   const scrollToTableTop = () => {
     try {
-      const tbody = document.querySelector('.tableWrap tbody');
+      const tbody = document.querySelector('.modern-tbody');
       if (tbody) {
         tbody.scrollTop = 0;
       }

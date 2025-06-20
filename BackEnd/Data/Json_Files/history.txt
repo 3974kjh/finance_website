@@ -3,7 +3,7 @@
     "204270": {
       "name": "제이앤티씨",
       "code": "204270",
-      "todayAmount": 20650,
+      "todayAmount": 19550,
       "totalShares": 50,
       "haveAmount": 1032500,
       "data": [
@@ -23,7 +23,7 @@
     "307950": {
       "name": "현대오토에버",
       "code": "307950",
-      "todayAmount": 147200,
+      "todayAmount": 168400,
       "totalShares": 10,
       "haveAmount": 1451000,
       "data": [
@@ -43,7 +43,7 @@
     "030200": {
       "name": "KT",
       "code": "030200",
-      "todayAmount": 53000,
+      "todayAmount": 52200,
       "totalShares": 10,
       "haveAmount": 509000,
       "data": [
@@ -61,5 +61,106 @@
       ]
     }
   },
-  "realInvestItemObject": {}
+  "realInvestItemObject": {
+    "005380": {
+      "name": "현대차",
+      "code": "005380",
+      "todayAmount": 210000,
+      "totalShares": "5",
+      "haveAmount": 1050000,
+      "data": [
+        {
+          "name": "현대차",
+          "code": "005380",
+          "buyYn": "Y",
+          "date": "2025.06.20 15:15",
+          "todayAmount": 210000,
+          "todayShares": "5",
+          "totalShares": "5",
+          "buyAmount": 1050000,
+          "buyReason": "저점매수"
+        }
+      ]
+    },
+    "000270": {
+      "name": "기아",
+      "code": "000270",
+      "todayAmount": 98900,
+      "totalShares": "11",
+      "haveAmount": 1086250,
+      "data": [
+        {
+          "name": "기아",
+          "code": "000270",
+          "buyYn": "Y",
+          "date": "2025.06.20 15:15",
+          "todayAmount": 98750,
+          "todayShares": "11",
+          "totalShares": "11",
+          "buyAmount": 1086250,
+          "buyReason": "저점매수"
+        }
+      ]
+    },
+    "035420": {
+      "name": "NAVER",
+      "code": "035420",
+      "todayAmount": 268500,
+      "totalShares": "3",
+      "haveAmount": 804000,
+      "data": [
+        {
+          "name": "NAVER",
+          "code": "035420",
+          "buyYn": "Y",
+          "date": "2025.06.20 15:16",
+          "todayAmount": 268000,
+          "todayShares": "3",
+          "totalShares": "3",
+          "buyAmount": 804000,
+          "buyReason": "40만 네이버 가즈아"
+        }
+      ]
+    },
+    "064400": {
+      "name": "LG씨엔에스",
+      "code": "064400",
+      "todayAmount": 89300,
+      "totalShares": "9",
+      "haveAmount": 803700,
+      "data": [
+        {
+          "name": "LG씨엔에스",
+          "code": "064400",
+          "buyYn": "Y",
+          "date": "2025.06.20 15:17",
+          "todayAmount": "89300",
+          "todayShares": "9",
+          "totalShares": "9",
+          "buyAmount": 803700,
+          "buyReason": "12만 가즈아"
+        }
+      ]
+    },
+    "035720": {
+      "name": "카카오",
+      "code": "035720",
+      "todayAmount": 66000,
+      "totalShares": "15",
+      "haveAmount": 1032000,
+      "data": [
+        {
+          "name": "카카오",
+          "code": "035720",
+          "buyYn": "Y",
+          "date": "2025.06.20 15:25",
+          "todayAmount": 66000,
+          "todayShares": "15",
+          "totalShares": "15",
+          "buyAmount": 1032000,
+          "buyReason": "10만 카카오 가즈아"
+        }
+      ]
+    }
+  }
 }

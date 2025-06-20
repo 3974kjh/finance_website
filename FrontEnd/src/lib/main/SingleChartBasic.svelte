@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, tick, createEventDispatcher } from 'svelte';
   import { LineChart, ProgressCircle, NewsInfoListComponent } from '$lib/component';
-  import { getExpectStockValue } from '$lib/api-connector/FinanceApi';
+  import { getExpectStockValue, getFinanceStockList } from '$lib/api-connector/FinanceApi';
   import { getSearchResultByNaverApi } from '$lib/api-connector/NaverApi';
   import { 
     getFinanceDataListByChartMode, 
@@ -214,6 +214,87 @@
 
   $: console.log(clientHeight);
 
+  /**
+   * 데이터 새로고침 함수
+   */
+  const refreshData = async () => {
+    if (!!!singleChartInfo) {
+      return;
+    }
+
+    isProgress = true;
+
+    try {
+      const selectedDuration = getSelectedDurationModeValue(durationModeList);
+      
+      // 차트 데이터 새로고침
+      dataList = await setSingleChartDataList(selectedDuration);
+      
+      // 뉴스 정보 새로고침
+      newInfoList = await getNewInfoList(singleChartInfo.title, 20, 1);
+      
+      // 종목 정보 새로고침 - 현재 종목의 시장 정보를 기반으로 종목 목록을 가져와서 해당 종목 찾기
+      const stockMode = getStockModeFromCode(singleChartInfo.chartKey);
+      if (stockMode) {
+        const stockListResult = await getFinanceStockList({symbol: stockMode});
+        
+        if (stockListResult?.data && stockListResult.data.length > 0) {
+          // 현재 종목 코드와 일치하는 종목 정보 찾기
+          const updatedStockInfo = stockListResult.data.find((stock: any) => 
+            (stock.Code === singleChartInfo.chartKey || stock.Symbol === singleChartInfo.chartKey)
+          );
+          
+          if (updatedStockInfo) {
+            // 기존 detailInfo 구조에 맞게 업데이트
+            singleChartInfo = {
+              ...singleChartInfo,
+              detailInfo: {
+                ...singleChartInfo.detailInfo,
+                name: updatedStockInfo.Name,
+                code: updatedStockInfo.Code || updatedStockInfo.Symbol,
+                close: updatedStockInfo.Close,
+                chagesRatio: updatedStockInfo.ChagesRatio,
+                open: updatedStockInfo.Open,
+                high: updatedStockInfo.High,
+                low: updatedStockInfo.Low,
+                volume: updatedStockInfo.Volume,
+                marcap: updatedStockInfo.Marcap,
+                amount: updatedStockInfo.Amount,
+                // 기존 점수 정보는 유지
+                trendScore: singleChartInfo.detailInfo?.trendScore,
+                marcapScore: singleChartInfo.detailInfo?.marcapScore,
+                totalScore: singleChartInfo.detailInfo?.totalScore,
+                rank: singleChartInfo.detailInfo?.rank
+              }
+            };
+          }
+        }
+      }
+    } catch (error) {
+      console.error('데이터 새로고침 중 오류:', error);
+    } finally {
+      isProgress = false;
+    }
+  }
+
+  /**
+   * 종목 코드를 기반으로 시장 구분 반환
+   */
+  const getStockModeFromCode = (code: string) => {
+    if (!code) return null;
+    
+    // 한국 주식 (6자리 숫자)
+    if (/^\d{6}$/.test(code)) {
+      return 'KRX';
+    }
+    // 미국 주식 (알파벳 포함)
+    else if (/^[A-Z]+$/.test(code)) {
+      return 'NASDAQ'; // 기본적으로 NASDAQ으로 시도, 실패하면 S&P500도 시도할 수 있음
+    }
+    
+    return 'KRX'; // 기본값
+  }
+
 </script>
 
 <div class="flex flex-col w-full h-full bg-gradient-to-br from-slate-50 to-gray-100 absolute p-3 space-y-3 z-10" style="top: 0px; left: 0px" bind:clientHeight={clientHeight}>
@@ -230,9 +311,24 @@
         </svg>
       </button>
       <div class="flex grow justify-center">
-        <h1 class="text-xl font-bold text-gray-800 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-          {singleChartInfo?.title ?? '-'}
-        </h1>
+        <button 
+          class="group flex items-center space-x-2 px-4 py-2 rounded-xl hover:bg-white/10 transition-all duration-200 cursor-pointer"
+          on:click={refreshData}
+          disabled={isProgress}
+          title="클릭하여 데이터 새로고침"
+        >
+          <h1 class="text-xl font-bold text-gray-800 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            {singleChartInfo?.title ?? '-'}
+          </h1>
+          <svg 
+            class="w-5 h-5 text-blue-600 group-hover:text-purple-600 transition-all duration-200 {isProgress ? 'animate-spin' : 'group-hover:rotate-180'}" 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+          </svg>
+        </button>
       </div>
       <div class="flex justify-end space-x-2">
         <a 
@@ -350,6 +446,9 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
                 </svg>
                 <p class="font-semibold text-emerald-800">예측 정보</p>
+                {#if isProgress}
+                  <div class="animate-spin w-3 h-3 border border-emerald-600 border-t-transparent rounded-full"></div>
+                {/if}
               </div>
               <svg class="w-4 h-4 text-emerald-600 transition-transform duration-200 {sectionStates.prediction ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
@@ -357,40 +456,53 @@
             </button>
             {#if sectionStates.prediction}
               <div class="px-3 pb-3 space-y-2">
-                <div class="flex flex-col h-auto w-full space-y-2">
-                  <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
-                    <span class="text-sm font-medium text-gray-700">현재 가</span>
-                    <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(formatCostValue(dataList[dataList.length - 1]?.Close)) ?? '-'} ₩`}</span>
+                {#if isProgress}
+                  <div class="flex flex-col space-y-2">
+                    {#each Array(5) as _, i}
+                      <div class="bg-white/60 rounded-lg p-2 animate-pulse">
+                        <div class="flex items-center justify-between">
+                          <div class="h-3 bg-gray-300 rounded w-16"></div>
+                          <div class="h-3 bg-gray-300 rounded w-20"></div>
+                        </div>
+                      </div>
+                    {/each}
                   </div>
-                  <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
-                    <span class="text-sm font-medium text-gray-700">현재 예측가</span>
-                    <div class="flex items-center space-x-1">
-                      <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(expectValue) ?? '-'} ₩`}</span>
-                      {@html setUpDownRatioTag(formatCostValue(dataList[dataList.length - 1]?.Close) ?? 0, expectValue ?? 0)}
+                {:else}
+                  <div class="flex flex-col h-auto w-full space-y-2">
+                    <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
+                      <span class="text-sm font-medium text-gray-700">현재 가</span>
+                      <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(formatCostValue(dataList[dataList.length - 1]?.Close)) ?? '-'} ₩`}</span>
+                    </div>
+                    <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
+                      <span class="text-sm font-medium text-gray-700">현재 예측가</span>
+                      <div class="flex items-center space-x-1">
+                        <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(expectValue) ?? '-'} ₩`}</span>
+                        {@html setUpDownRatioTag(formatCostValue(dataList[dataList.length - 1]?.Close) ?? 0, expectValue ?? 0)}
+                      </div>
+                    </div>
+                    <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
+                      <span class="text-sm font-medium text-gray-700">한달뒤 예측가</span>
+                      <div class="flex items-center space-x-1">
+                        <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(afterMonthExpectValue) ?? '-'} ₩`}</span>
+                        {@html setUpDownRatioTag(formatCostValue(dataList[dataList.length - 1]?.Close) ?? 0, afterMonthExpectValue ?? 0)}
+                      </div>
+                    </div>
+                    <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
+                      <span class="text-sm font-medium text-gray-700">지지평균값</span>
+                      <div class="flex items-center space-x-1">
+                        <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(bottomValue) ?? '-'} ₩`}</span>
+                        {@html setUpDownRatioTag(formatCostValue(dataList[dataList.length - 1]?.Close) ?? 0, bottomValue ?? 0)}
+                      </div>
+                    </div>
+                    <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
+                      <span class="text-sm font-medium text-gray-700">저항평균값</span>
+                      <div class="flex items-center space-x-1">
+                        <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(topValue) ?? '-'} ₩`}</span>
+                        {@html setUpDownRatioTag(formatCostValue(dataList[dataList.length - 1]?.Close) ?? 0, topValue ?? 0)}
+                      </div>
                     </div>
                   </div>
-                  <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
-                    <span class="text-sm font-medium text-gray-700">한달뒤 예측가</span>
-                    <div class="flex items-center space-x-1">
-                      <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(afterMonthExpectValue) ?? '-'} ₩`}</span>
-                      {@html setUpDownRatioTag(formatCostValue(dataList[dataList.length - 1]?.Close) ?? 0, afterMonthExpectValue ?? 0)}
-                    </div>
-                  </div>
-                  <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
-                    <span class="text-sm font-medium text-gray-700">지지평균값</span>
-                    <div class="flex items-center space-x-1">
-                      <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(bottomValue) ?? '-'} ₩`}</span>
-                      {@html setUpDownRatioTag(formatCostValue(dataList[dataList.length - 1]?.Close) ?? 0, bottomValue ?? 0)}
-                    </div>
-                  </div>
-                  <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
-                    <span class="text-sm font-medium text-gray-700">저항평균값</span>
-                    <div class="flex items-center space-x-1">
-                      <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(topValue) ?? '-'} ₩`}</span>
-                      {@html setUpDownRatioTag(formatCostValue(dataList[dataList.length - 1]?.Close) ?? 0, topValue ?? 0)}
-                    </div>
-                  </div>
-                </div>
+                {/if}
               </div>
             {/if}
           </div>
@@ -406,6 +518,9 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>
                 </svg>
                 <p class="font-semibold text-purple-800">이동평균선</p>
+                {#if isProgress}
+                  <div class="animate-spin w-3 h-3 border border-purple-600 border-t-transparent rounded-full"></div>
+                {/if}
               </div>
               <svg class="w-4 h-4 text-purple-600 transition-transform duration-200 {sectionStates.movingAverage ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
@@ -413,38 +528,54 @@
             </button>
             {#if sectionStates.movingAverage}
               <div class="px-3 pb-3 space-y-2">
-                <div class="flex flex-col h-auto w-full space-y-2">
-                  <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
-                    <div class="flex items-center space-x-2">
-                      <span class="text-sm font-medium text-gray-700">5일 이평선</span>
-                      <span class="text-xs text-purple-600 bg-purple-100 px-1 rounded">단기</span>
+                {#if isProgress}
+                  <div class="flex flex-col space-y-2">
+                    {#each Array(3) as _, i}
+                      <div class="bg-white/60 rounded-lg p-2 animate-pulse">
+                        <div class="flex items-center justify-between">
+                          <div class="flex items-center space-x-2">
+                            <div class="h-3 bg-gray-300 rounded w-16"></div>
+                            <div class="h-2 bg-gray-200 rounded w-8"></div>
+                          </div>
+                          <div class="h-3 bg-gray-300 rounded w-20"></div>
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                {:else}
+                  <div class="flex flex-col h-auto w-full space-y-2">
+                    <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
+                      <div class="flex items-center space-x-2">
+                        <span class="text-sm font-medium text-gray-700">5일 이평선</span>
+                        <span class="text-xs text-purple-600 bg-purple-100 px-1 rounded">단기</span>
+                      </div>
+                      <div class="flex items-center space-x-1">
+                        <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(dataList[dataList.length - 1]?.ma5) ?? '-'} ₩`}</span>
+                        {@html setUpDownRatioTag(dataList[dataList.length - 1]?.ma5 ?? 0, nowValue ?? 0)}
+                      </div>
                     </div>
-                    <div class="flex items-center space-x-1">
-                      <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(dataList[dataList.length - 1]?.ma5) ?? '-'} ₩`}</span>
-                      {@html setUpDownRatioTag(dataList[dataList.length - 1]?.ma5 ?? 0, nowValue ?? 0)}
+                    <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
+                      <div class="flex items-center space-x-2">
+                        <span class="text-sm font-medium text-gray-700">20일 이평선</span>
+                        <span class="text-xs text-blue-600 bg-blue-100 px-1 rounded">중기</span>
+                      </div>
+                      <div class="flex items-center space-x-1">
+                        <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(dataList[dataList.length - 1]?.ma20) ?? '-'} ₩`}</span>
+                        {@html setUpDownRatioTag(dataList[dataList.length - 1]?.ma20 ?? 0, dataList[dataList.length - 1]?.ma5 ?? 0)}
+                      </div>
+                    </div>
+                    <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
+                      <div class="flex items-center space-x-2">
+                        <span class="text-sm font-medium text-gray-700">60일 이평선</span>
+                        <span class="text-xs text-emerald-600 bg-emerald-100 px-1 rounded">장기</span>
+                      </div>
+                      <div class="flex items-center space-x-1">
+                        <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(dataList[dataList.length - 1]?.ma60) ?? '-'} ₩`}</span>
+                        {@html setUpDownRatioTag(dataList[dataList.length - 1]?.ma60 ?? 0, dataList[dataList.length - 1]?.ma20 ?? 0)}
+                      </div>
                     </div>
                   </div>
-                  <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
-                    <div class="flex items-center space-x-2">
-                      <span class="text-sm font-medium text-gray-700">20일 이평선</span>
-                      <span class="text-xs text-blue-600 bg-blue-100 px-1 rounded">중기</span>
-                    </div>
-                    <div class="flex items-center space-x-1">
-                      <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(dataList[dataList.length - 1]?.ma20) ?? '-'} ₩`}</span>
-                      {@html setUpDownRatioTag(dataList[dataList.length - 1]?.ma20 ?? 0, dataList[dataList.length - 1]?.ma5 ?? 0)}
-                    </div>
-                  </div>
-                  <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
-                    <div class="flex items-center space-x-2">
-                      <span class="text-sm font-medium text-gray-700">60일 이평선</span>
-                      <span class="text-xs text-emerald-600 bg-emerald-100 px-1 rounded">장기</span>
-                    </div>
-                    <div class="flex items-center space-x-1">
-                      <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(dataList[dataList.length - 1]?.ma60) ?? '-'} ₩`}</span>
-                      {@html setUpDownRatioTag(dataList[dataList.length - 1]?.ma60 ?? 0, dataList[dataList.length - 1]?.ma20 ?? 0)}
-                    </div>
-                  </div>
-                </div>
+                {/if}
               </div>
             {/if}
           </div>
@@ -461,6 +592,9 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                   </svg>
                   <p class="font-semibold text-orange-800">종목 정보</p>
+                  {#if isProgress}
+                    <div class="animate-spin w-3 h-3 border border-orange-600 border-t-transparent rounded-full"></div>
+                  {/if}
                 </div>
                 <svg class="w-4 h-4 text-orange-600 transition-transform duration-200 {sectionStates.stockInfo ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
@@ -468,66 +602,79 @@
               </button>
               {#if sectionStates.stockInfo}
                 <div class="px-3 pb-3 space-y-2">
-                  <div class="grid grid-cols-1 gap-2">
-                    <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
-                      <span class="text-sm font-medium text-gray-700">종목명</span>
-                      <span class="text-sm font-semibold text-gray-900">{singleChartInfo.detailInfo?.name ?? '-'}</span>
+                  {#if isProgress}
+                    <div class="grid grid-cols-1 gap-2">
+                      {#each Array(11) as _, i}
+                        <div class="bg-white/60 rounded-lg p-2 animate-pulse">
+                          <div class="flex items-center justify-between">
+                            <div class="h-3 bg-gray-300 rounded w-16"></div>
+                            <div class="h-3 bg-gray-300 rounded w-24"></div>
+                          </div>
+                        </div>
+                      {/each}
                     </div>
-                    <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
-                      <span class="text-sm font-medium text-gray-700">종목코드</span>
-                      <span class="text-sm font-mono text-gray-900">{singleChartInfo.detailInfo?.code ?? '-'}</span>
-                    </div>
-                    <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
-                      <span class="text-sm font-medium text-gray-700">현재가</span>
-                      <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(formatCostValue(dataList[dataList.length - 1]?.Close)) ?? '-'} ₩`}</span>
-                    </div>
-                    <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
-                      <span class="text-sm font-medium text-gray-700">전일대비</span>
-                      <span class="text-sm font-semibold" style="color: {setUpDownColor(singleChartInfo.detailInfo?.chagesRatio)}">
-                        {`${setUpDownIcon(singleChartInfo.detailInfo?.chagesRatio)}${singleChartInfo.detailInfo?.chagesRatio ?? '-'}%`}
-                      </span>
-                    </div>
-                    <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
-                      <span class="text-sm font-medium text-gray-700">시초가</span>
-                      <div class="flex items-center space-x-1">
-                        <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(formatCostValue(dataList[dataList.length - 1]?.Open)) ?? '-'} ₩`}</span>
-                        {@html setUpDownRatioTag(nowValue ?? 0, dataList[dataList.length - 1]?.Open ?? 0)}
+                  {:else}
+                    <div class="grid grid-cols-1 gap-2">
+                      <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
+                        <span class="text-sm font-medium text-gray-700">종목명</span>
+                        <span class="text-sm font-semibold text-gray-900">{singleChartInfo.detailInfo?.name ?? '-'}</span>
+                      </div>
+                      <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
+                        <span class="text-sm font-medium text-gray-700">종목코드</span>
+                        <span class="text-sm font-mono text-gray-900">{singleChartInfo.detailInfo?.code ?? '-'}</span>
+                      </div>
+                      <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
+                        <span class="text-sm font-medium text-gray-700">현재가</span>
+                        <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(formatCostValue(dataList[dataList.length - 1]?.Close)) ?? '-'} ₩`}</span>
+                      </div>
+                      <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
+                        <span class="text-sm font-medium text-gray-700">전일대비</span>
+                        <span class="text-sm font-semibold" style="color: {setUpDownColor(singleChartInfo.detailInfo?.chagesRatio)}">
+                          {`${setUpDownIcon(singleChartInfo.detailInfo?.chagesRatio)}${singleChartInfo.detailInfo?.chagesRatio ?? '-'}%`}
+                        </span>
+                      </div>
+                      <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
+                        <span class="text-sm font-medium text-gray-700">시초가</span>
+                        <div class="flex items-center space-x-1">
+                          <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(formatCostValue(dataList[dataList.length - 1]?.Open)) ?? '-'} ₩`}</span>
+                          {@html setUpDownRatioTag(nowValue ?? 0, dataList[dataList.length - 1]?.Open ?? 0)}
+                        </div>
+                      </div>
+                      <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
+                        <span class="text-sm font-medium text-gray-700">최고가</span>
+                        <div class="flex items-center space-x-1">
+                          <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(formatCostValue(dataList[dataList.length - 1]?.High)) ?? '-'} ₩`}</span>
+                          {@html setUpDownRatioTag(nowValue ?? 0, dataList[dataList.length - 1]?.High ?? 0)}
+                        </div>
+                      </div>
+                      <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
+                        <span class="text-sm font-medium text-gray-700">최저가</span>
+                        <div class="flex items-center space-x-1">
+                          <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(formatCostValue(dataList[dataList.length - 1]?.Low)) ?? '-'} ₩`}</span>
+                          {@html setUpDownRatioTag(nowValue ?? 0, dataList[dataList.length - 1]?.Low ?? 0)}
+                        </div>
+                      </div>
+                      <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
+                        <span class="text-sm font-medium text-gray-700">거래량</span>
+                        <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(dataList[dataList.length - 1]?.Volume) ?? '-'} 주`}</span>
+                      </div>
+                      <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
+                        <span class="text-sm font-medium text-gray-700">시가총액</span>
+                        <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(singleChartInfo.detailInfo?.marcap) ?? '-'} ₩`}</span>
+                      </div>
+                      <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
+                        <span class="text-sm font-medium text-gray-700">거래대금</span>
+                        <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(singleChartInfo.detailInfo?.amount) ?? '-'} ₩`}</span>
+                      </div>
+                      <div class="flex flex-col bg-white/60 rounded-lg p-2 space-y-1">
+                        <span class="text-sm font-medium text-gray-700">거래 유동성</span>
+                        <div class="flex items-center justify-between">
+                          <span class="text-sm font-semibold text-gray-900">{`${calculateRatio(singleChartInfo.detailInfo?.marcap, singleChartInfo.detailInfo?.amount) ?? '-'}%`}</span>
+                          <span class="text-xs text-gray-500">1%이상 좋음, 5%이상 매우좋음</span>
+                        </div>
                       </div>
                     </div>
-                    <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
-                      <span class="text-sm font-medium text-gray-700">최고가</span>
-                      <div class="flex items-center space-x-1">
-                        <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(formatCostValue(dataList[dataList.length - 1]?.High)) ?? '-'} ₩`}</span>
-                        {@html setUpDownRatioTag(nowValue ?? 0, dataList[dataList.length - 1]?.High ?? 0)}
-                      </div>
-                    </div>
-                    <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
-                      <span class="text-sm font-medium text-gray-700">최저가</span>
-                      <div class="flex items-center space-x-1">
-                        <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(formatCostValue(dataList[dataList.length - 1]?.Low)) ?? '-'} ₩`}</span>
-                        {@html setUpDownRatioTag(nowValue ?? 0, dataList[dataList.length - 1]?.Low ?? 0)}
-                      </div>
-                    </div>
-                    <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
-                      <span class="text-sm font-medium text-gray-700">거래량</span>
-                      <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(dataList[dataList.length - 1]?.Volume) ?? '-'} 주`}</span>
-                    </div>
-                    <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
-                      <span class="text-sm font-medium text-gray-700">시가총액</span>
-                      <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(singleChartInfo.detailInfo?.marcap) ?? '-'} ₩`}</span>
-                    </div>
-                    <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
-                      <span class="text-sm font-medium text-gray-700">거래대금</span>
-                      <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(singleChartInfo.detailInfo?.amount) ?? '-'} ₩`}</span>
-                    </div>
-                    <div class="flex flex-col bg-white/60 rounded-lg p-2 space-y-1">
-                      <span class="text-sm font-medium text-gray-700">거래 유동성</span>
-                      <div class="flex items-center justify-between">
-                        <span class="text-sm font-semibold text-gray-900">{`${calculateRatio(singleChartInfo.detailInfo?.marcap, singleChartInfo.detailInfo?.amount) ?? '-'}%`}</span>
-                        <span class="text-xs text-gray-500">1%이상 좋음, 5%이상 매우좋음</span>
-                      </div>
-                    </div>
-                  </div>
+                  {/if}
                 </div>
               {/if}
             </div>
@@ -692,6 +839,9 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path>
                 </svg>
                 <p class="font-semibold text-gray-800">관련 뉴스</p>
+                {#if isProgress}
+                  <div class="animate-spin w-3 h-3 border border-gray-600 border-t-transparent rounded-full"></div>
+                {/if}
               </div>
               <svg class="w-4 h-4 text-gray-600 transition-transform duration-200 {sectionStates.news ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
@@ -699,9 +849,23 @@
             </button>
             {#if sectionStates.news}
               <div class="p-2 max-h-80 overflow-y-auto scrollbar-thin-custom">
-                <NewsInfoListComponent
-                  bind:newInfoList
-                />
+                {#if isProgress}
+                  <div class="space-y-2">
+                    {#each Array(5) as _, i}
+                      <div class="bg-white/60 rounded-lg p-3 animate-pulse">
+                        <div class="space-y-2">
+                          <div class="h-3 bg-gray-300 rounded w-full"></div>
+                          <div class="h-2 bg-gray-200 rounded w-3/4"></div>
+                          <div class="h-2 bg-gray-200 rounded w-1/2"></div>
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                {:else}
+                  <NewsInfoListComponent
+                    bind:newInfoList
+                  />
+                {/if}
               </div>
             {/if}
           </div>
@@ -712,21 +876,93 @@
 </div>
 
 <style>
-  /* Firefox용 */
+  /* 현대적이고 세련된 스크롤바 스타일 */
   .scrollbar-thin-custom {
-    scrollbar-width: thin;           /* 얇은 스크롤바 */
-    scrollbar-color: #000000 transparent; /* 썸 색상, 트랙은 투명 */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.6) transparent;
   }
-  /* Webkit(크롬, 사파리 등)용 */
+
+  /* Webkit 브라우저용 스크롤바 */
   .scrollbar-thin-custom::-webkit-scrollbar {
-    height: 6px;                     /* 가로 스크롤바 두께 */
-    background: transparent;         /* 트랙(배경) 투명 */
+    width: 8px;
+    height: 8px;
+    background: transparent;
   }
+
+  .scrollbar-thin-custom::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    margin: 4px;
+  }
+
   .scrollbar-thin-custom::-webkit-scrollbar-thumb {
-    background: #000000;                /* 썸(움직이는 부분) 색상 */
-    border-radius: 4px;              /* 둥근 모서리 */
+    background: linear-gradient(135deg, 
+      rgba(99, 102, 241, 0.8) 0%, 
+      rgba(139, 92, 246, 0.8) 50%, 
+      rgba(168, 85, 247, 0.8) 100%);
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   }
+
   .scrollbar-thin-custom::-webkit-scrollbar-thumb:hover {
-    background: #555;                /* 썸 호버 시 색상 */
+    background: linear-gradient(135deg, 
+      rgba(79, 70, 229, 0.9) 0%, 
+      rgba(124, 58, 237, 0.9) 50%, 
+      rgba(147, 51, 234, 0.9) 100%);
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  }
+
+  .scrollbar-thin-custom::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(135deg, 
+      rgba(67, 56, 202, 1) 0%, 
+      rgba(109, 40, 217, 1) 50%, 
+      rgba(126, 34, 206, 1) 100%);
+    transform: scale(0.95);
+  }
+
+  .scrollbar-thin-custom::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* 호버 시 트랙 강조 효과 */
+  .scrollbar-thin-custom:hover::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(4px);
+  }
+
+  /* 부드러운 페이드 인/아웃 효과 */
+  .scrollbar-thin-custom::-webkit-scrollbar-thumb {
+    opacity: 0.7;
+  }
+
+  .scrollbar-thin-custom:hover::-webkit-scrollbar-thumb {
+    opacity: 1;
+  }
+
+  /* 다크모드 대응 */
+  @media (prefers-color-scheme: dark) {
+    .scrollbar-thin-custom::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    
+    .scrollbar-thin-custom:hover::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.3);
+    }
+  }
+
+  /* 모바일 터치 디바이스용 최적화 */
+  @media (pointer: coarse) {
+    .scrollbar-thin-custom::-webkit-scrollbar {
+      width: 12px;
+      height: 12px;
+    }
+    
+    .scrollbar-thin-custom::-webkit-scrollbar-thumb {
+      border: 3px solid transparent;
+    }
   }
 </style>
