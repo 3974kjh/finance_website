@@ -25,6 +25,8 @@
 
   let tradeInfo: TradeInfoType = initTradeInfo();
 
+  let todayAmount: number = 0;
+
   /**
 	 * 팝업 창 종료
 	 *
@@ -54,7 +56,7 @@
       return;
     }
 
-    closePopup(tradeInfo);
+    closePopup({...tradeInfo, todayAmount: todayAmount});
   }
 
   const getStockInfo = async () => {
@@ -76,6 +78,8 @@
     tradeInfo.name = popupResult.choiceStockInfoList[0].name;
     tradeInfo.code = popupResult.choiceStockInfoList[0].code;
     tradeInfo.todayAmount = parseInt(popupResult.choiceStockInfoList[0].close);
+    tradeInfo.buyAmount = parseInt(popupResult.choiceStockInfoList[0].close);
+    todayAmount = parseInt(popupResult.choiceStockInfoList[0].close);
   }
 </script>
 
@@ -144,7 +148,7 @@
             max={10000000000}
             min={0}
             on:keyup={() => {
-              if (tradeInfo.todayAmount === null) {
+              if (tradeInfo.buyAmount === null) {
                 tradeInfo.buyAmount = 0;
               } else {
                 tradeInfo.buyAmount = tradeInfo.todayShares * tradeInfo.todayAmount;

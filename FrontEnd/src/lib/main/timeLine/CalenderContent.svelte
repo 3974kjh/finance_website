@@ -216,7 +216,7 @@
       
       {#if !!investItemInfo?.data && investItemInfo?.data.length > 0}
         {#each investItemInfo.data as detailInvestItemInfo, index}
-          {@const profitLossAmount = (investItemInfo.todayAmount - detailInvestItemInfo.todayAmount) * detailInvestItemInfo.todayShares}
+          {@const profitLossAmount = (investItemInfo.todayAmount - (detailInvestItemInfo.buyAmount / detailInvestItemInfo.totalShares)) * detailInvestItemInfo.todayShares}
           {@const isProfit = profitLossAmount >= 0}
           {@const isBuy = detailInvestItemInfo.buyYn === 'Y'}
           <div class="flex flex-col h-full relative flex-shrink-0">
@@ -246,7 +246,7 @@
                   </div>
                   <span class="font-bold text-slate-700 text-xs">{detailInvestItemInfo.date.split(' ')[1]}</span>
                 </div>
-                <span class="font-bold text-slate-600 text-xs">{`${formatIncludeComma(detailInvestItemInfo.todayAmount) ?? '-'} ₩`}</span>
+                <span class="font-bold text-slate-600 text-xs">{`${formatIncludeComma((detailInvestItemInfo.buyAmount / detailInvestItemInfo.totalShares)) ?? '-'} ₩`}</span>
               </div>
               
               <!-- 카드 내용 -->
@@ -267,7 +267,7 @@
                     <span class="font-bold text-xs" style="color: {setUpDownColor(profitLossAmount)}">{`${formatIncludeComma(profitLossAmount) ?? '-'} ₩`}</span>
                     <span class="text-slate-500 text-xs">
                       <span>{'('}</span>
-                      {@html setUpDownRatioTag(detailInvestItemInfo.todayAmount, investItemInfo.todayAmount)}
+                      {@html setUpDownRatioTag((detailInvestItemInfo.buyAmount / detailInvestItemInfo.totalShares), investItemInfo.todayAmount)}
                       <span>{')'}</span>
                     </span>
                   </div>
