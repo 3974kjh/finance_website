@@ -4,6 +4,7 @@
 	import { base } from '$app/paths';
 	import { page } from "$app/stores";
 	import { Toaster } from 'svelte-french-toast';
+	import { onMount, onDestroy } from 'svelte';
 
 	// toast 간격 설정
 	const toastGutter: number = 10;
@@ -100,59 +101,158 @@
 	let expandTimeout: NodeJS.Timeout | null = null;
 	let collapseTimeout: NodeJS.Timeout | null = null;
 	let isHovering = false; // 실제 마우스 호버 상태 추적
+	let forceCloseTimeout: NodeJS.Timeout | null = null; // 강제 닫기 타이머
+
+	// 마우스 위치 추적을 위한 변수
+	let mouseX = 0;
+	let mouseY = 0;
+	let sidebarElement: HTMLDivElement;
+
+	// 마우스 위치 업데이트 함수
+	const updateMousePosition = (event: MouseEvent) => {
+		mouseX = event.clientX;
+		mouseY = event.clientY;
+		
+		// 사이드바 영역 밖에 있으면 강제로 닫기
+		if (sidebarElement && isExpanded) {
+			try {
+				const rect = sidebarElement.getBoundingClientRect();
+				// 확장된 상태일 때는 280px 너비를 고려
+				const expandedWidth = 280;
+				const isOutside = mouseX < rect.left || mouseX > rect.left + expandedWidth || mouseY < rect.top || mouseY > rect.bottom;
+				
+				if (isOutside) {
+					// 마우스가 확장된 사이드바 영역을 완전히 벗어났으면 즉시 닫기
+					clearAllTimeouts();
+					isHovering = false;
+					isExpanded = false;
+				}
+			} catch (error) {
+				// DOM 요소에 접근할 수 없는 경우 안전하게 처리
+				console.warn('Sidebar element access error:', error);
+			}
+		}
+	};
+
+	// 모든 타이머 정리 함수
+	const clearAllTimeouts = () => {
+		try {
+			if (expandTimeout) {
+				clearTimeout(expandTimeout);
+				expandTimeout = null;
+			}
+			if (collapseTimeout) {
+				clearTimeout(collapseTimeout);
+				collapseTimeout = null;
+			}
+			if (forceCloseTimeout) {
+				clearTimeout(forceCloseTimeout);
+				forceCloseTimeout = null;
+			}
+		} catch (error) {
+			console.warn('Timer cleanup error:', error);
+		}
+	};
 
 	// 사이드바 확장 함수 (지연 시간 포함)
 	const handleMouseEnter = () => {
-		isHovering = true;
-		
-		// 축소 타이머가 있다면 즉시 취소
-		if (collapseTimeout) {
-			clearTimeout(collapseTimeout);
-			collapseTimeout = null;
-		}
-		
-		// 이미 확장된 상태라면 즉시 반환
-		if (isExpanded) {
-			return;
-		}
-		
-		// 확장 타이머가 있다면 취소하고 새로 시작
-		if (expandTimeout) {
-			clearTimeout(expandTimeout);
-		}
-		
-		// 짧은 지연 후 확장 (너무 빠른 마우스 이동 필터링)
-		expandTimeout = setTimeout(() => {
-			if (isHovering) { // 여전히 호버 중인지 확인
-				isExpanded = true;
+		try {
+			isHovering = true;
+			
+			// 모든 타이머 정리
+			clearAllTimeouts();
+			
+			// 이미 확장된 상태라면 즉시 반환
+			if (isExpanded) {
+				return;
 			}
-			expandTimeout = null;
-		}, 100); // 150ms에서 100ms로 단축
+			
+			// 짧은 지연 후 확장
+			expandTimeout = setTimeout(() => {
+				if (isHovering) {
+					isExpanded = true;
+					
+					// 안전장치: 3초 후 강제로 닫기 (비정상적인 상황 방지)
+					forceCloseTimeout = setTimeout(() => {
+						if (isExpanded && !isHovering) {
+							isExpanded = false;
+						}
+					}, 3000);
+				}
+				expandTimeout = null;
+			}, 100);
+		} catch (error) {
+			console.warn('Mouse enter handler error:', error);
+		}
 	};
 
 	// 사이드바 축소 함수 (지연 시간 포함)
 	const handleMouseLeave = () => {
-		isHovering = false;
-		
-		// 확장 타이머가 있다면 즉시 취소
-		if (expandTimeout) {
-			clearTimeout(expandTimeout);
-			expandTimeout = null;
-		}
-		
-		// 축소 타이머가 있다면 취소하고 새로 시작
-		if (collapseTimeout) {
-			clearTimeout(collapseTimeout);
-		}
-		
-		// 짧은 지연 후 축소
-		collapseTimeout = setTimeout(() => {
-			if (!isHovering) { // 여전히 호버 중이 아닌지 확인
-				isExpanded = false;
+		try {
+			isHovering = false;
+			
+			// 확장 타이머 즉시 취소
+			if (expandTimeout) {
+				clearTimeout(expandTimeout);
+				expandTimeout = null;
 			}
-			collapseTimeout = null;
-		}, 150); // 200ms에서 150ms로 단축
+			
+			// 강제 닫기 타이머 취소
+			if (forceCloseTimeout) {
+				clearTimeout(forceCloseTimeout);
+				forceCloseTimeout = null;
+			}
+			
+			// 축소 타이머 설정
+			if (collapseTimeout) {
+				clearTimeout(collapseTimeout);
+			}
+			
+			collapseTimeout = setTimeout(() => {
+				if (!isHovering) {
+					isExpanded = false;
+				}
+				collapseTimeout = null;
+			}, 150);
+		} catch (error) {
+			console.warn('Mouse leave handler error:', error);
+		}
 	};
+
+	// 이벤트 리스너 추가 여부 추적
+	let listenersAdded = false;
+
+	// 컴포넌트 마운트 시 전역 마우스 이벤트 리스너 추가
+	onMount(() => {
+		try {
+			if (!listenersAdded) {
+				document.addEventListener('mousemove', updateMousePosition);
+				
+				// 페이지를 벗어날 때 사이드바 닫기
+				document.addEventListener('mouseleave', () => {
+					clearAllTimeouts();
+					isHovering = false;
+					isExpanded = false;
+				});
+				
+				listenersAdded = true;
+			}
+		} catch (error) {
+			console.error('Event listener setup error:', error);
+		}
+	});
+
+	onDestroy(() => {
+		try {
+			if (listenersAdded) {
+				document.removeEventListener('mousemove', updateMousePosition);
+				listenersAdded = false;
+			}
+			clearAllTimeouts();
+		} catch (error) {
+			console.warn('Cleanup error:', error);
+		}
+	});
 </script>
 
 <Toaster gutter={toastGutter} reverseOrder={toastReverseOrder} position={toastPosition} {toastOptions} />
@@ -165,7 +265,9 @@
 	<div class="absolute top-1/2 left-1/2 w-64 h-64 bg-gradient-to-r from-violet-500/15 to-pink-500/15 rounded-full blur-2xl -translate-x-1/2 -translate-y-1/2"></div>
 	
 	<!-- 확장 가능한 사이드바 -->
+	<!-- svelte-ignore a11y-no-static-element-interactions -->
 	<div 
+		bind:this={sidebarElement}
 		class="sidebar-container relative z-30"
 		on:mouseenter={handleMouseEnter}
 		on:mouseleave={handleMouseLeave}
