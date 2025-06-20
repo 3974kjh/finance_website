@@ -146,21 +146,21 @@
         visible: true,
       },
       customizeLabel: (e: any) => {
-        const setBackGroundColor = (seriesName: string) => {
-          let color: string = '#000000';
+        const setTextColor = (seriesName: string) => {
+          let color: string = '#1e293b'; // slate-800
 
           if (seriesName === '종가') {
-            color = '#000000';
+            color = '#1e293b'; // slate-800
           } else if (seriesName === '저항평균선') {
-            color = '#FF0000';
+            color = '#dc2626'; // red-600
           } else if (seriesName === '지지평균선') {
-            color = '#0000FF';
+            color = '#2563eb'; // blue-600
           } else if (seriesName === '5일이평선') {
-            color = '#1E90FF';
+            color = '#0284c7'; // sky-600
           } else if (seriesName === '20일이평선') {
-            color = '#FFA500';
+            color = '#ea580c'; // orange-600
           } else if (seriesName === '60일이평선') {
-            color = '#32CD32';
+            color = '#16a34a'; // green-600
           }
 
           return color;
@@ -200,28 +200,39 @@
 
         return {
           visible: setVisible(e?.seriesName, e.data.Date),
-          backgroundColor: setBackGroundColor(e?.seriesName),
+          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+          border: {
+            color: setTextColor(e?.seriesName),
+            width: 1
+          },
+          cornerRadius: 6,
+          horizontalOffset: 0,
           verticalOffset: setOffsetPadding(e?.seriesName),
+          font: {
+            size: 13,
+            weight: 600,
+            color: setTextColor(e?.seriesName)
+          },
           customizeText() {
             let title: string = e?.seriesName ?? '미정';
             let value: number = 0;
 
             if (isMultiLine) {
               if (e.seriesName === '종가') {
-                value = typeof e.data.Close === 'string' ? Math.round(parseInt(e.data.Close) * 100) / 100 : Math.round(e.data.Close * 100) / 100;
+                value = typeof e.data.Close === 'string' ? Math.round(parseInt(e.data.Close) * 10) / 10 : Math.round(e.data.Close * 10) / 10;
               } else if (e.seriesName === '저항평균선') {
-                value = typeof e.data.topValue === 'string' ? Math.round(parseFloat(e.data.topValue) * 100) / 100 : Math.round(e.data.topValue * 100) / 100;
+                value = typeof e.data.topValue === 'string' ? Math.round(parseFloat(e.data.topValue) * 10) / 10 : Math.round(e.data.topValue * 10) / 10;
               } else if (e.seriesName === '지지평균선') {
-                value = typeof e.data.bottomValue === 'string' ? Math.round(parseFloat(e.data.bottomValue) * 100) / 100 : Math.round(e.data.bottomValue * 100) / 100;
+                value = typeof e.data.bottomValue === 'string' ? Math.round(parseFloat(e.data.bottomValue) * 10) / 10 : Math.round(e.data.bottomValue * 10) / 10;
               } else if (e.seriesName === '5일이평선') {
-                value = typeof e.data?.ma5 === 'string' ? Math.round(parseFloat(e.data?.ma5) * 100) / 100 : Math.round(e.data?.ma5 * 100) / 100;
+                value = typeof e.data?.ma5 === 'string' ? Math.round(parseFloat(e.data?.ma5) * 10) / 10 : Math.round(e.data?.ma5 * 10) / 10;
               } else if (e.seriesName === '20일이평선') {
-                value = typeof e.data?.ma20 === 'string' ? Math.round(parseFloat(e.data?.ma20) * 100) / 100 : Math.round(e.data?.ma20 * 100) / 100;
+                value = typeof e.data?.ma20 === 'string' ? Math.round(parseFloat(e.data?.ma20) * 10) / 10 : Math.round(e.data?.ma20 * 10) / 10;
               } else if (e.seriesName === '60일이평선') {
-                value = typeof e.data?.ma60 === 'string' ? Math.round(parseFloat(e.data?.ma60) * 100) / 100 : Math.round(e.data?.ma60 * 100) / 100;
+                value = typeof e.data?.ma60 === 'string' ? Math.round(parseFloat(e.data?.ma60) * 10) / 10 : Math.round(e.data?.ma60 * 10) / 10;
               }
             } else {
-              value = typeof e.data.Close === 'string' ? Math.round(parseInt(e.data.Close) * 100) / 100 : Math.round(e.data.Close * 100) / 100;
+              value = typeof e.data.Close === 'string' ? Math.round(parseInt(e.data.Close) * 10) / 10 : Math.round(e.data.Close * 10) / 10;
             }
 
             return `${title}: ${formatIncludeComma(value)}`;
@@ -312,33 +323,33 @@
               
               if (data.Close !== undefined && data.Close !== null && data.Close !== 0) {
                 const closeValue = typeof data.Close === 'string' ? parseFloat(data.Close) : data.Close;
-                parts.push(`종가: ${formatIncludeComma(Math.round(closeValue * 100) / 100)}`);
+                parts.push(`종가: ${formatIncludeComma(Math.round(closeValue * 10) / 10)}`);
               }
               
               if (data.topValue !== undefined && data.topValue !== null && data.topValue !== 0) {
                 const topValue = typeof data.topValue === 'string' ? parseFloat(data.topValue) : data.topValue;
-                parts.push(`저항평균: ${formatIncludeComma(Math.round(topValue * 100) / 100)}`);
+                parts.push(`저항평균: ${formatIncludeComma(Math.round(topValue * 10) / 10)}`);
               }
               
               if (data.bottomValue !== undefined && data.bottomValue !== null && data.bottomValue !== 0) {
                 const bottomValue = typeof data.bottomValue === 'string' ? parseFloat(data.bottomValue) : data.bottomValue;
-                parts.push(`지지평균: ${formatIncludeComma(Math.round(bottomValue * 100) / 100)}`);
+                parts.push(`지지평균: ${formatIncludeComma(Math.round(bottomValue * 10) / 10)}`);
               }
 
               if (isDetailMode) {
                 if (data.ma5 !== undefined && data.ma5 !== null && data.ma5 !== 0) {
                   const ma5Value = typeof data.ma5 === 'string' ? parseFloat(data.ma5) : data.ma5;
-                  parts.push(`5일이평: ${formatIncludeComma(Math.round(ma5Value * 100) / 100)}`);
+                  parts.push(`5일이평: ${formatIncludeComma(Math.round(ma5Value * 10) / 10)}`);
                 }
                 
                 if (data.ma20 !== undefined && data.ma20 !== null && data.ma20 !== 0) {
                   const ma20Value = typeof data.ma20 === 'string' ? parseFloat(data.ma20) : data.ma20;
-                  parts.push(`20일이평: ${formatIncludeComma(Math.round(ma20Value * 100) / 100)}`);
+                  parts.push(`20일이평: ${formatIncludeComma(Math.round(ma20Value * 10) / 10)}`);
                 }
                 
                 if (data.ma60 !== undefined && data.ma60 !== null && data.ma60 !== 0) {
                   const ma60Value = typeof data.ma60 === 'string' ? parseFloat(data.ma60) : data.ma60;
-                  parts.push(`60일이평: ${formatIncludeComma(Math.round(ma60Value * 100) / 100)}`);
+                  parts.push(`60일이평: ${formatIncludeComma(Math.round(ma60Value * 10) / 10)}`);
                 }
               }
               
@@ -348,7 +359,7 @@
             // 단일 라인 모드인 경우
             if (arg.point && arg.point.data && arg.point.data.Close !== undefined) {
               const closeValue = typeof arg.point.data.Close === 'string' ? parseFloat(arg.point.data.Close) : arg.point.data.Close;
-              toolTipText = `날짜: ${arg.argument} | 지수: ${formatIncludeComma(Math.round(closeValue * 100) / 100)}`;
+              toolTipText = `날짜: ${arg.argument} | 지수: ${formatIncludeComma(Math.round(closeValue * 10) / 10)}`;
             }
           }
 
