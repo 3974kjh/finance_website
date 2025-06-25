@@ -116,8 +116,10 @@
 
     if (Object.keys(investItemObject).includes(popupResult.code)) {
       investItemObject[popupResult.code].todayAmount = popupResult.todayAmount;
-      investItemObject[popupResult.code].totalShares += (popupResult.buyYn === 'Y' ? popupResult.todayShares : -popupResult.todayShares);
-      investItemObject[popupResult.code].haveAmount += (popupResult.buyYn === 'Y' ? popupResult.buyAmount : -popupResult.buyAmount);
+      investItemObject[popupResult.code].totalShares = popupResult.buyYn === 'Y' ? 
+        (parseInt(investItemObject[popupResult.code].totalShares) + parseInt(popupResult.todayShares)) : (parseInt(investItemObject[popupResult.code].totalShares) - parseInt(popupResult.todayShares));
+      investItemObject[popupResult.code].haveAmount = popupResult.buyYn === 'Y' ? 
+        (parseInt(investItemObject[popupResult.code].haveAmount) + parseInt(popupResult.buyAmount)) : (parseInt(investItemObject[popupResult.code].haveAmount) - parseInt(popupResult.buyAmount));
       investItemObject[popupResult.code].data = [
         {
           ...popupResult,

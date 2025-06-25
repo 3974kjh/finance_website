@@ -114,21 +114,73 @@
     count = 0;
     isProgress = true;
 
-    for (let chartMode of chartModeList) {
-      count += 1;
-      chartModeObject[chartMode].dataList = await getFinanceDataListByChartMode(chartModeObject[chartMode].key, month, true, axiosController);
-      chartModeObject[chartMode].newsInfoList = await getNewInfoList(chartMode+'지수', 20, 1);
+    // 🚀 배치 처리로 최적화 - 동시에 최대 4개씩만 요청
+    const batchSize = 4;
+    const batches = [];
+    
+    for (let i = 0; i < chartModeList.length; i += batchSize) {
+      batches.push(chartModeList.slice(i, i + batchSize));
+    }
+
+    for (const batch of batches) {
+      // 배치 내 요청들을 병렬로 처리
+      const batchPromises = batch.map(async (chartMode: string) => {
+        try {
+          // 주가 데이터와 뉴스 데이터를 병렬로 가져오기
+          const [financeData, newsData] = await Promise.all([
+            getFinanceDataListByChartMode(chartModeObject[chartMode].key, month, true, axiosController),
+            getNewInfoList(chartMode+'지수', 20, 1)
+          ]);
+          
+          chartModeObject[chartMode].dataList = financeData;
+          chartModeObject[chartMode].newsInfoList = newsData;
+          
+          count += 1;
+          console.log(`🎯 Loaded data for: ${chartMode}`);
+        } catch (error) {
+          console.error(`❌ Failed to load data for ${chartMode}:`, error);
+        }
+      });
+      
+      // 배치 내 모든 요청 완료 대기
+      await Promise.all(batchPromises);
+      
+      // 배치 간 간격 (ngrok 제한 고려)
+      if (batches.indexOf(batch) < batches.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 300)); // 300ms 대기
+      }
     }
 
     refreshFlag = !refreshFlag;
-
     isProgress = false;
 
+    // 캐시 저장 최적화
     const todayDate = new Date().toISOString().slice(0, 10);
     const keys = Object.keys(window.localStorage).filter((key) => key.includes('chartModeObject'));
 
-    keys.forEach(key => localStorage.removeItem(key));
-    localStorage.setItem(`${todayDate}chartModeObject`, JSON.stringify(chartModeObject));
+    // 기존 캐시 정리 (메모리 절약)
+    keys.forEach(key => {
+      if (!key.includes(todayDate)) {
+        localStorage.removeItem(key);
+      }
+    });
+    
+    // 새 데이터 저장
+    try {
+      localStorage.setItem(`${todayDate}chartModeObject`, JSON.stringify(chartModeObject));
+      console.log(`💾 Chart data cached for: ${todayDate}`);
+    } catch (error) {
+      console.error('캐시 저장 실패:', error);
+      // 용량 부족 시 가장 오래된 캐시 삭제 후 재시도
+      if (keys.length > 0) {
+        localStorage.removeItem(keys[0]);
+        try {
+          localStorage.setItem(`${todayDate}chartModeObject`, JSON.stringify(chartModeObject));
+        } catch (retryError) {
+          console.error('캐시 재시도 실패:', retryError);
+        }
+      }
+    }
   }
 
 </script>

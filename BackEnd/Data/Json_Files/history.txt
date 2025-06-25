@@ -1,114 +1,85 @@
 {
   "virtualInvestItemObject": {
-    "204270": {
-      "name": "제이앤티씨",
-      "code": "204270",
-      "todayAmount": 19550,
-      "totalShares": 50,
-      "haveAmount": 1032500,
+    "460940": {
+      "name": "피앤에스미캐닉스",
+      "code": "460940",
+      "todayAmount": 16590,
+      "totalShares": "1",
+      "haveAmount": 16830,
       "data": [
         {
-          "name": "제이앤티씨",
-          "code": "204270",
+          "name": "피앤에스미캐닉스",
+          "code": "460940",
           "buyYn": "Y",
-          "date": "2025.06.17 16:37",
-          "todayAmount": 20650,
-          "todayShares": 50,
-          "totalShares": 50,
-          "buyAmount": 1032500,
-          "buyReason": "매수하기 좋은 자리, 하반기 기대감"
+          "date": "2025.06.24 10:57",
+          "todayAmount": 16830,
+          "todayShares": "1",
+          "totalShares": "1",
+          "buyAmount": 16830,
+          "buyReason": ""
         }
       ]
     },
-    "307950": {
-      "name": "현대오토에버",
-      "code": "307950",
-      "todayAmount": 168400,
-      "totalShares": 10,
-      "haveAmount": 1451000,
+    "023590": {
+      "name": "다우기술",
+      "code": "023590",
+      "todayAmount": 35400,
+      "totalShares": "1",
+      "haveAmount": 35400,
       "data": [
         {
-          "name": "현대오토에버",
-          "code": "307950",
+          "name": "다우기술",
+          "code": "023590",
           "buyYn": "Y",
-          "date": "2025.05.28 09:31",
-          "todayAmount": 145100,
-          "todayShares": 10,
-          "totalShares": 10,
-          "buyAmount": 1451000,
-          "buyReason": "매수 저점 신호"
+          "date": "2025.06.24 13:09",
+          "todayAmount": 35400,
+          "todayShares": "1",
+          "totalShares": "1",
+          "buyAmount": 35400,
+          "buyReason": ""
         }
       ]
     },
-    "030200": {
-      "name": "KT",
-      "code": "030200",
-      "todayAmount": 52200,
-      "totalShares": 10,
-      "haveAmount": 509000,
+    "032190": {
+      "name": "다우데이타",
+      "code": "032190",
+      "todayAmount": 17900,
+      "totalShares": "1",
+      "haveAmount": 17900,
       "data": [
         {
-          "name": "KT",
-          "code": "030200",
+          "name": "다우데이타",
+          "code": "032190",
           "buyYn": "Y",
-          "date": "2025.05.28 09:30",
-          "todayAmount": 50900,
-          "todayShares": 10,
-          "totalShares": 10,
-          "buyAmount": 509000,
+          "date": "2025.06.24 13:09",
+          "todayAmount": 17900,
+          "todayShares": "1",
+          "totalShares": "1",
+          "buyAmount": 17900,
           "buyReason": ""
         }
       ]
     }
   },
   "realInvestItemObject": {
-    "005380": {
-      "name": "현대차",
-      "code": "005380",
-      "todayAmount": 210000,
-      "totalShares": "5",
-      "haveAmount": 1050000,
-      "data": [
-        {
-          "name": "현대차",
-          "code": "005380",
-          "buyYn": "Y",
-          "date": "2025.06.20 15:15",
-          "todayAmount": 210000,
-          "todayShares": "5",
-          "totalShares": "5",
-          "buyAmount": 1050000,
-          "buyReason": "저점매수"
-        }
-      ]
-    },
-    "000270": {
-      "name": "기아",
-      "code": "000270",
-      "todayAmount": 98900,
-      "totalShares": "11",
-      "haveAmount": 1086250,
-      "data": [
-        {
-          "name": "기아",
-          "code": "000270",
-          "buyYn": "Y",
-          "date": "2025.06.20 15:15",
-          "todayAmount": 98750,
-          "todayShares": "11",
-          "totalShares": "11",
-          "buyAmount": 1086250,
-          "buyReason": "저점매수"
-        }
-      ]
-    },
     "035420": {
       "name": "NAVER",
       "code": "035420",
-      "todayAmount": 268500,
-      "totalShares": "3",
-      "haveAmount": 804000,
+      "todayAmount": 286250,
+      "totalShares": "4",
+      "haveAmount": 1082000,
       "data": [
+        {
+          "name": "NAVER",
+          "code": "035420",
+          "buyYn": "Y",
+          "date": "2025.06.23 10:25",
+          "todayAmount": 279500,
+          "todayShares": "1",
+          "totalShares": "4",
+          "buyAmount": 278000,
+          "buyReason": "추격매수 드가자"
+        },
         {
           "name": "NAVER",
           "code": "035420",
@@ -122,30 +93,10 @@
         }
       ]
     },
-    "064400": {
-      "name": "LG씨엔에스",
-      "code": "064400",
-      "todayAmount": 89300,
-      "totalShares": "9",
-      "haveAmount": 803700,
-      "data": [
-        {
-          "name": "LG씨엔에스",
-          "code": "064400",
-          "buyYn": "Y",
-          "date": "2025.06.20 15:17",
-          "todayAmount": "89300",
-          "todayShares": "9",
-          "totalShares": "9",
-          "buyAmount": 803700,
-          "buyReason": "12만 가즈아"
-        }
-      ]
-    },
     "035720": {
       "name": "카카오",
       "code": "035720",
-      "todayAmount": 66000,
+      "todayAmount": 71500,
       "totalShares": "15",
       "haveAmount": 1032000,
       "data": [
@@ -159,6 +110,26 @@
           "totalShares": "15",
           "buyAmount": 1032000,
           "buyReason": "10만 카카오 가즈아"
+        }
+      ]
+    },
+    "003230": {
+      "name": "삼양식품",
+      "code": "003230",
+      "todayAmount": 1307000,
+      "totalShares": "1",
+      "haveAmount": 1322000,
+      "data": [
+        {
+          "name": "삼양식품",
+          "code": "003230",
+          "buyYn": "Y",
+          "date": "2025.06.23 10:17",
+          "todayAmount": 1328000,
+          "todayShares": "1",
+          "totalShares": "1",
+          "buyAmount": 1322000,
+          "buyReason": "15만가즈아"
         }
       ]
     }

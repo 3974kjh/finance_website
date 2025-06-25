@@ -545,13 +545,13 @@
                   </tr>
                 {/each}
               {:else}
-                <tr class="modern-tr">
-                  <td colspan="6" class="modern-td text-center py-8">
+                <tr class="modern-tr empty-state-row">
+                  <td colspan="6" class="modern-td empty-state-cell">
                     <div class="flex flex-col items-center space-y-2">
                       <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.291-1.004-5.824-2.412M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
                       </svg>
-                      <span class="text-gray-500 font-medium">'{searchStockText}' 검색 결과가 없습니다.</span>
+                      <span class="font-medium text-gray-500">목록이 없습니다.</span>
                     </div>
                   </td>
                 </tr>
@@ -567,13 +567,13 @@
                 </td>
               </tr>
             {:else}
-              <tr class="modern-tr">
-                <td colspan="6" class="modern-td text-center py-8">
+              <tr class="modern-tr empty-state-row">
+                <td colspan="6" class="modern-td empty-state-cell">
                   <div class="flex flex-col items-center space-y-2">
                     <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.291-1.004-5.824-2.412M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
                     </svg>
-                    <span class="font-medium text-gray-500">목록이 없습니다.</span>
+                    <span class="text-gray-500 font-medium">'{searchStockText}' 검색 결과가 없습니다.</span>
                   </div>
                 </td>
               </tr>
@@ -788,6 +788,22 @@
 		background: inherit;
 	}
 	
+	/* 빈 상태 메시지를 위한 특별한 스타일 */
+	.modern-tr:has(.text-center) {
+		height: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	
+	.modern-tr:has(.text-center) .modern-td {
+		height: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0;
+	}
+	
 	/* 로딩 상태 스타일 */
 	.modern-tbody:has(.loading-state) {
 		display: flex;
@@ -959,5 +975,32 @@
 
 	.animate-spin {
 		animation: spin 1s linear infinite;
+	}
+	
+	/* 빈 상태 행을 위한 특별한 스타일 */
+	.empty-state-row {
+		height: 100% !important;
+		display: flex !important;
+		align-items: center !important;
+		justify-content: center !important;
+		border: none !important;
+		animation: none !important;
+	}
+	
+	.empty-state-cell {
+		height: 100% !important;
+		display: flex !important;
+		align-items: center !important;
+		justify-content: center !important;
+		padding: 32px !important;
+		text-align: center !important;
+		vertical-align: middle !important;
+	}
+	
+	/* 빈 상태가 있는 tbody의 높이 조정 */
+	.modern-tbody:has(.empty-state-row) {
+		display: flex;
+		align-items: center;
+		justify-content: center;
 	}
 </style>

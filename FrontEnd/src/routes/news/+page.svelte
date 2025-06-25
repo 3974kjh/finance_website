@@ -4,6 +4,7 @@
 	import { getSearchResultByNaverApi } from '$lib/api-connector/NaverApi';
 	import { browser } from '$app/environment';
 	import { DownLoadProgressBar } from '$lib/component';
+	import toast from 'svelte-french-toast';
 
 	// 타입 정의
 	interface NewsItem {
@@ -49,14 +50,22 @@
 
 	// 검색 기록 전체 삭제
 	const clearAllSearchHistory = () => {
-		searchHistory = [];
-		// localStorage에서도 삭제
-		if (typeof localStorage !== 'undefined') {
-			try {
-				localStorage.removeItem('newsSearchHistory');
-			} catch (error) {
-				console.error('검색 기록 삭제 실패:', error);
+		try {
+			searchHistory = [];
+			// localStorage에서도 삭제
+			if (typeof localStorage !== 'undefined') {
+				try {
+					localStorage.removeItem('newsSearchHistory');
+					console.log('🗑️ 검색 기록 전체 삭제 완료');
+					toast.success('검색 기록이 모두 삭제되었습니다.');
+				} catch (error) {
+					console.error('❌ 검색 기록 삭제 실패:', error);
+					toast.error('검색 기록 삭제에 실패했습니다.');
+				}
 			}
+		} catch (error) {
+			console.error('❌ 검색 기록 정리 중 오류:', error);
+			toast.error('검색 기록 정리 중 오류가 발생했습니다.');
 		}
 	};
 
@@ -91,12 +100,24 @@
 								expanded: false
 							}));
 							
+							console.log(`🎯 캐시된 실시간 검색어 데이터 로드 완료: ${searchTerms.length}개`);
 							return true; // 캐시된 데이터 사용
+						} else {
+							console.log('⏰ 캐시된 데이터가 24시간을 초과하여 새로 조회합니다.');
 						}
+					} else {
+						console.warn('⚠️ 저장된 데이터 형식이 올바르지 않습니다.');
 					}
 				}
 			} catch (error) {
-				console.error('실시간 검색어 데이터 로드 실패:', error);
+				console.error('❌ 실시간 검색어 데이터 로드 실패:', error);
+				toast.error('저장된 검색어 데이터를 불러오는데 실패했습니다.');
+				// 오류 발생 시 localStorage 정리
+				try {
+					localStorage.removeItem('realtimeSearchData');
+				} catch (cleanupError) {
+					console.error('localStorage 정리 실패:', cleanupError);
+				}
 			}
 		}
 		return false; // 캐시된 데이터 없음
@@ -112,8 +133,14 @@
 					timestamp: new Date().toISOString()
 				};
 				localStorage.setItem('realtimeSearchData', JSON.stringify(dataToSave));
+				console.log(`💾 실시간 검색어 데이터 저장 완료: ${searchTerms.length}개`);
 			} catch (error) {
-				console.error('실시간 검색어 데이터 저장 실패:', error);
+				console.error('❌ 실시간 검색어 데이터 저장 실패:', error);
+				if (error instanceof Error && error.name === 'QuotaExceededError') {
+					toast.error('저장 공간이 부족합니다. 브라우저 저장소를 정리해주세요.');
+				} else {
+					toast.error('검색어 데이터 저장에 실패했습니다.');
+				}
 			}
 		}
 	};
@@ -128,6 +155,7 @@
 			// 로딩 시작 시 날짜 정보도 초기화
 			dateInfo = '';
 			
+			console.log('🔄 실시간 검색어 API 호출 시작');
 			const response = await getRealtimeSearchTerms();
 			
 			if (response && response.search_terms) {
@@ -144,14 +172,33 @@
 				
 				// localStorage에 저장 (새로고침 시에만)
 				saveRealtimeSearchData();
+				
+				console.log(`✅ 실시간 검색어 로드 완료: ${searchTerms.length}개`);
+				toast.success(`실시간 검색어 ${searchTerms.length}개를 불러왔습니다.`);
 			} else {
-				error = '실시간 검색어를 가져올 수 없습니다.';
+				const errorMsg = '실시간 검색어를 가져올 수 없습니다.';
+				error = errorMsg;
 				dateInfo = ''; // 에러 시에도 날짜 정보 초기화
+				console.error('❌ API 응답 데이터 없음:', response);
+				toast.error(errorMsg);
 			}
 		} catch (err) {
-			console.error('실시간 검색어 가져오기 실패:', err);
-			error = '실시간 검색어를 가져오는 중 오류가 발생했습니다.';
+			console.error('❌ 실시간 검색어 가져오기 실패:', err);
+			const errorMsg = '실시간 검색어를 가져오는 중 오류가 발생했습니다.';
+			error = errorMsg;
 			dateInfo = ''; // 에러 시에도 날짜 정보 초기화
+			
+			if (err instanceof Error) {
+				if (err.name === 'AbortError') {
+					toast.error('요청이 취소되었습니다.');
+				} else if (err.message.includes('network')) {
+					toast.error('네트워크 연결을 확인해주세요.');
+				} else {
+					toast.error(errorMsg);
+				}
+			} else {
+				toast.error(errorMsg);
+			}
 		} finally {
 			loading = false;
 		}
@@ -159,18 +206,31 @@
 
 	// 초기 데이터 로드 (페이지 진입 시)
 	const initializeData = async () => {
-		// 먼저 localStorage에서 캐시된 데이터 시도
-		const hasCachedData = loadRealtimeSearchData();
-		
-		if (!hasCachedData) {
-			// 캐시된 데이터가 없으면 API 호출
-			await fetchRealtimeSearchTerms();
+		try {
+			console.log('🚀 뉴스 페이지 초기화 시작');
+			
+			// 먼저 localStorage에서 캐시된 데이터 시도
+			const hasCachedData = loadRealtimeSearchData();
+			
+			if (!hasCachedData) {
+				// 캐시된 데이터가 없으면 API 호출
+				console.log('📡 캐시된 데이터 없음 - API 호출');
+				await fetchRealtimeSearchTerms();
+			} else {
+				console.log('🎯 캐시된 데이터 사용');
+			}
+		} catch (error) {
+			console.error('❌ 페이지 초기화 실패:', error);
+			toast.error('페이지를 불러오는 중 오류가 발생했습니다.');
 		}
 	};
 
 	// 모든 검색어의 뉴스를 한번에 가져오기
 	const fetchAllNews = async () => {
-		if (searchTermsData.length === 0) return;
+		if (searchTermsData.length === 0) {
+			toast.error('로드할 검색어가 없습니다.');
+			return;
+		}
 		
 		try {
 			isProgress = true;
@@ -178,37 +238,85 @@
 			totalNewsToLoad = searchTermsData.length;
 			selectedTermIndex = -1; // 선택 초기화
 			
-			// 모든 검색어에 대해 순차적으로 뉴스 로드
-			for (let i = 0; i < searchTermsData.length; i++) {
-				loadingCount = i + 1;
-				
-				try {
-					const response = await getSearchResultByNaverApi('news', {
-						query: searchTermsData[i].term,
-						display: 10,
-						start: 1,
-						sort: 'date',
-						filter: 'all'
-					});
+			console.log(`🚀 전체 뉴스 로드 시작: ${totalNewsToLoad}개 검색어`);
+			
+			// 🚀 배치 처리로 최적화 - 동시에 최대 3개씩만 요청
+			const batchSize = 3;
+			const batches: SearchTermData[][] = [];
+			
+			for (let i = 0; i < searchTermsData.length; i += batchSize) {
+				batches.push(searchTermsData.slice(i, i + batchSize));
+			}
+			
+			let successCount = 0;
+			let errorCount = 0;
+			
+			for (const batch of batches) {
+				// 배치 내 요청들을 병렬로 처리
+				const batchPromises = batch.map(async (termData, batchIndex) => {
+					const globalIndex = batches.findIndex(b => b.includes(termData)) * batchSize + batchIndex;
 					
-					if (response && response.items) {
-						searchTermsData[i].news = response.items;
+					try {
+						const response = await getSearchResultByNaverApi('news', {
+							query: termData.term,
+							display: 10,
+							start: 1,
+							sort: 'date',
+							filter: 'all'
+						});
+						
+						if (response && response.items) {
+							searchTermsData[globalIndex].news = response.items;
+							successCount++;
+							console.log(`✅ 뉴스 로드 성공: ${termData.term} (${response.items.length}개)`);
+						} else {
+							console.warn(`⚠️ 뉴스 데이터 없음: ${termData.term}`);
+							errorCount++;
+						}
+						
+						loadingCount = globalIndex + 1;
+					} catch (err) {
+						console.error(`❌ ${termData.term} 뉴스 가져오기 실패:`, err);
+						errorCount++;
+						loadingCount = globalIndex + 1;
 					}
-				} catch (err) {
-					console.error(`${searchTermsData[i].term} 뉴스 가져오기 실패:`, err);
+				});
+				
+				// 배치 내 모든 요청 완료 대기
+				await Promise.all(batchPromises);
+				
+				// 배치 간 간격 (ngrok 제한 고려)
+				if (batches.indexOf(batch) < batches.length - 1) {
+					await new Promise(resolve => setTimeout(resolve, 500)); // 500ms 대기
 				}
 			}
 			
+			// 결과 요약
+			console.log(`📊 전체 뉴스 로드 완료: 성공 ${successCount}개, 실패 ${errorCount}개`);
+			
+			if (successCount > 0) {
+				toast.success(`뉴스 로드 완료: ${successCount}개 성공${errorCount > 0 ? `, ${errorCount}개 실패` : ''}`);
+			} else {
+				toast.error('모든 뉴스 로드에 실패했습니다.');
+			}
+			
 		} catch (err) {
-			console.error('전체 뉴스 가져오기 실패:', err);
+			console.error('❌ 전체 뉴스 가져오기 실패:', err);
+			toast.error('뉴스를 가져오는 중 오류가 발생했습니다.');
 		} finally {
 			isProgress = false;
 			loadingCount = -1;
 		}
 	};
 
-	// 특정 검색어의 뉴스 가져오기 (개별 클릭용)
+	// 특정 검색어의 뉴스 가져오기 (개별 클릭용) - 중복 요청 방지
 	const fetchNewsForTerm = async (index: number) => {
+		if (index < 0 || index >= searchTermsData.length) {
+			console.error('❌ 잘못된 검색어 인덱스:', index);
+			toast.error('잘못된 검색어입니다.');
+			return;
+		}
+		
 		selectedTermIndex = index; // 선택된 항목 설정
 		
 		// 뉴스 결과 영역을 최상단으로 스크롤
@@ -221,13 +329,21 @@
 		
 		const termData = searchTermsData[index];
 		if (termData.news.length > 0) {
-			// 이미 뉴스가 있으면 바로 표시
+			// 이미 뉴스가 있으면 바로 표시 (API 호출 생략)
+			console.log(`🎯 캐시된 뉴스 사용: ${termData.term} (${termData.news.length}개)`);
+			return;
+		}
+
+		// 이미 로딩 중이면 중복 요청 방지
+		if (termData.loading) {
+			console.log(`⏳ 이미 로딩 중: ${termData.term}`);
 			return;
 		}
 
 		try {
 			searchTermsData[index].loading = true;
 			
+			console.log(`🔄 개별 뉴스 API 호출: ${termData.term}`);
 			const response = await getSearchResultByNaverApi('news', {
 				query: termData.term,
 				display: 10,
@@ -236,16 +352,25 @@
 				filter: 'all'
 			});
 			
-			console.log('네이버 API 응답:', response); // 디버깅용 로그 추가
-			
 			// items만 체크하도록 조건 간소화
 			if (response && response.items) {
 				searchTermsData[index].news = response.items;
+				console.log(`✅ 개별 뉴스 로드 성공: ${termData.term} (${response.items.length}개)`);
 			} else {
-				console.error('뉴스 데이터 가져오기 실패:', response);
+				console.error('❌ 뉴스 데이터 가져오기 실패:', response);
+				toast.error(`'${termData.term}' 뉴스를 가져올 수 없습니다.`);
 			}
 		} catch (err) {
-			console.error('뉴스 가져오기 실패:', err);
+			console.error('❌ 개별 뉴스 가져오기 실패:', err);
+			if (err instanceof Error) {
+				if (err.name === 'AbortError') {
+					console.log('요청이 취소되었습니다.');
+				} else {
+					toast.error(`'${termData.term}' 뉴스 로드 중 오류가 발생했습니다.`);
+				}
+			} else {
+				toast.error(`'${termData.term}' 뉴스 로드 중 오류가 발생했습니다.`);
+			}
 		} finally {
 			searchTermsData[index].loading = false;
 		}
@@ -287,15 +412,24 @@
 						searchHistory = parsedHistory.filter(item => 
 							typeof item === 'string' && item.trim().length > 0
 						).slice(0, maxHistoryItems); // 최대 개수 제한
+						console.log(`🎯 검색 기록 로드 완료: ${searchHistory.length}개`);
 					} else {
+						console.warn('⚠️ 검색 기록 데이터 형식이 올바르지 않습니다.');
 						searchHistory = [];
 					}
 				} else {
 					searchHistory = [];
 				}
 			} catch (error) {
-				console.error('검색 기록 로드 실패:', error);
+				console.error('❌ 검색 기록 로드 실패:', error);
+				toast.error('검색 기록을 불러오는데 실패했습니다.');
 				searchHistory = [];
+				// 오류 발생 시 localStorage 정리
+				try {
+					localStorage.removeItem('newsSearchHistory');
+				} catch (cleanupError) {
+					console.error('검색 기록 정리 실패:', cleanupError);
+				}
 			}
 		} else {
 			searchHistory = [];
@@ -342,11 +476,12 @@
 		saveSearchHistory();
 	};
 
-	// 검색 기록 항목 클릭
+	// 검색 기록 항목 클릭 (순서 변경하지 않음)
 	const selectFromHistory = (keyword: string) => {
 		searchKeyword = keyword;
 		showSearchHistory = false;
-		searchKeywordNews();
+		// 검색 기록에 추가하지 않고 바로 검색 실행
+		searchKeywordNewsFromHistory();
 	};
 
 	// 검색 모드 전환
@@ -362,20 +497,26 @@
 		searchKeyword = '';
 	};
 
-	// 키워드 검색 함수
+	// 키워드 검색 함수 (검색 기록에 추가)
 	const searchKeywordNews = async () => {
-		if (!searchKeyword.trim()) return;
+		if (!searchKeyword.trim()) {
+			toast.error('검색어를 입력해주세요.');
+			return;
+		}
 		
 		try {
 			isSearching = true;
 			selectedTermIndex = -1; // 실시간 검색어 선택 해제
 			searchMode = 'custom'; // 직접 검색 모드로 전환
 			
-			// 검색 기록에 추가
-			addToSearchHistory(searchKeyword.trim());
+			const trimmedKeyword = searchKeyword.trim();
+			console.log(`🔍 키워드 검색 시작: "${trimmedKeyword}"`);
+			
+			// 키워드 검색 시에만 검색 기록에 추가
+			addToSearchHistory(trimmedKeyword);
 			
 			const response = await getSearchResultByNaverApi('news', {
-				query: searchKeyword.trim(),
+				query: trimmedKeyword,
 				display: 20, // 키워드 검색은 더 많은 결과 표시
 				start: 1,
 				sort: 'date',
@@ -384,27 +525,113 @@
 			
 			if (response && response.items) {
 				customSearchData = {
-					term: searchKeyword.trim(),
+					term: trimmedKeyword,
 					news: response.items,
 					loading: false,
 					expanded: false
 				};
+				console.log(`✅ 키워드 검색 완료: "${trimmedKeyword}" (${response.items.length}개)`);
+				toast.success(`'${trimmedKeyword}' 검색 완료: ${response.items.length}개 결과`);
 			} else {
 				customSearchData = {
-					term: searchKeyword.trim(),
+					term: trimmedKeyword,
 					news: [],
 					loading: false,
 					expanded: false
 				};
+				console.warn(`⚠️ 검색 결과 없음: "${trimmedKeyword}"`);
+				toast.error(`'${trimmedKeyword}' 검색 결과가 없습니다.`);
 			}
 		} catch (err) {
-			console.error('키워드 검색 실패:', err);
+			console.error('❌ 키워드 검색 실패:', err);
+			const trimmedKeyword = searchKeyword.trim();
 			customSearchData = {
-				term: searchKeyword.trim(),
+				term: trimmedKeyword,
 				news: [],
 				loading: false,
 				expanded: false
 			};
+			
+			if (err instanceof Error) {
+				if (err.name === 'AbortError') {
+					toast.error('검색이 취소되었습니다.');
+				} else if (err.message.includes('network')) {
+					toast.error('네트워크 연결을 확인해주세요.');
+				} else {
+					toast.error(`'${trimmedKeyword}' 검색 중 오류가 발생했습니다.`);
+				}
+			} else {
+				toast.error(`'${trimmedKeyword}' 검색 중 오류가 발생했습니다.`);
+			}
+		} finally {
+			isSearching = false;
+		}
+	};
+
+	// 검색 기록에서 선택한 검색 함수 (검색 기록에 추가하지 않음)
+	const searchKeywordNewsFromHistory = async () => {
+		if (!searchKeyword.trim()) {
+			toast.error('검색어를 입력해주세요.');
+			return;
+		}
+		
+		try {
+			isSearching = true;
+			selectedTermIndex = -1; // 실시간 검색어 선택 해제
+			searchMode = 'custom'; // 직접 검색 모드로 전환
+			
+			const trimmedKeyword = searchKeyword.trim();
+			console.log(`🔍 기록에서 검색: "${trimmedKeyword}"`);
+			
+			// 검색 기록에서 선택한 경우 기록에 추가하지 않음
+			
+			const response = await getSearchResultByNaverApi('news', {
+				query: trimmedKeyword,
+				display: 20, // 키워드 검색은 더 많은 결과 표시
+				start: 1,
+				sort: 'date',
+				filter: 'all'
+			});
+			
+			if (response && response.items) {
+				customSearchData = {
+					term: trimmedKeyword,
+					news: response.items,
+					loading: false,
+					expanded: false
+				};
+				console.log(`✅ 기록 검색 완료: "${trimmedKeyword}" (${response.items.length}개)`);
+			} else {
+				customSearchData = {
+					term: trimmedKeyword,
+					news: [],
+					loading: false,
+					expanded: false
+				};
+				console.warn(`⚠️ 기록 검색 결과 없음: "${trimmedKeyword}"`);
+				toast.error(`'${trimmedKeyword}' 검색 결과가 없습니다.`);
+			}
+		} catch (err) {
+			console.error('❌ 기록 검색 실패:', err);
+			const trimmedKeyword = searchKeyword.trim();
+			customSearchData = {
+				term: trimmedKeyword,
+				news: [],
+				loading: false,
+				expanded: false
+			};
+			
+			if (err instanceof Error) {
+				if (err.name === 'AbortError') {
+					toast.error('검색이 취소되었습니다.');
+				} else if (err.message.includes('network')) {
+					toast.error('네트워크 연결을 확인해주세요.');
+				} else {
+					toast.error(`'${trimmedKeyword}' 검색 중 오류가 발생했습니다.`);
+				}
+			} else {
+				toast.error(`'${trimmedKeyword}' 검색 중 오류가 발생했습니다.`);
+			}
 		} finally {
 			isSearching = false;
 		}
@@ -425,8 +652,13 @@
 	// 컴포넌트 마운트시 실시간 검색어 로드
 	onMount(() => {
 		if (browser) {
-			loadSearchHistory(); // 검색 기록 로드
-			initializeData();
+			try {
+				loadSearchHistory(); // 검색 기록 로드
+				initializeData();
+			} catch (error) {
+				console.error('❌ 컴포넌트 초기화 실패:', error);
+				toast.error('페이지 초기화 중 오류가 발생했습니다.');
+			}
 		}
 	});
 </script>
@@ -571,20 +803,6 @@
 
 	<!-- 메인 컨텐츠 -->
 	<div class="flex-1 overflow-hidden p-8">
-		{#if error}
-			<div class="bg-gradient-to-r from-red-50 to-pink-50 border border-red-200/50 text-red-800 px-8 py-6 rounded-3xl mb-8 flex items-center space-x-4 shadow-xl shadow-red-500/10">
-				<div class="flex-shrink-0 w-12 h-12 bg-red-500 rounded-2xl flex items-center justify-center">
-					<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-					</svg>
-				</div>
-				<div>
-					<h3 class="font-bold text-lg mb-1">오류가 발생했습니다</h3>
-					<span class="text-red-700">{error}</span>
-				</div>
-			</div>
-		{/if}
-
 		{#if loading}
 			<div class="flex items-center justify-center h-full">
 				<div class="text-center space-y-8">
@@ -687,10 +905,10 @@
 						<div class="flex-1 overflow-y-auto min-h-0">
 							{#if searchMode === 'custom'}
 								<!-- 직접 검색 모드 -->
-								<div class="p-4 space-y-4">
+								<div class="p-4 space-y-4 h-full flex flex-col">
 									{#if customSearchData}
 										<!-- 현재 검색 결과 -->
-										<div class="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200/50 rounded-2xl p-4">
+										<div class="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200/50 rounded-2xl p-4 flex-shrink-0">
 											<div class="flex items-center space-x-3">
 												<div class="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
 													<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -707,8 +925,8 @@
 									
 									{#if searchHistory.length > 0}
 										<!-- 검색 기록 -->
-										<div class="space-y-2">
-											<div class="flex items-center justify-between">
+										<div class="flex-1 flex flex-col min-h-0">
+											<div class="flex items-center justify-between mb-2 flex-shrink-0">
 												<h3 class="text-sm font-bold text-gray-800 flex items-center">
 													<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -722,7 +940,7 @@
 													전체 삭제
 												</button>
 											</div>
-											<div class="space-y-1 max-h-96 overflow-y-auto">
+											<div class="flex-1 overflow-y-auto min-h-0 space-y-1">
 												{#each searchHistory as historyItem, index}
 													<div class="flex items-center justify-between hover:bg-gray-50/80 px-3 py-2 rounded-xl group transition-colors duration-200">
 														<button
@@ -749,14 +967,16 @@
 										</div>
 									{:else}
 										<!-- 검색 기록이 없을 때 -->
-										<div class="text-center py-8">
-											<div class="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-												<svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-												</svg>
+										<div class="flex-1 flex items-center justify-center">
+											<div class="text-center py-8">
+												<div class="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+													<svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+													</svg>
+												</div>
+												<h3 class="text-lg font-bold text-gray-600 mb-2">검색 기록이 없습니다</h3>
+												<p class="text-sm text-gray-500">상단 검색창에서 키워드를 검색해보세요</p>
 											</div>
-											<h3 class="text-lg font-bold text-gray-600 mb-2">검색 기록이 없습니다</h3>
-											<p class="text-sm text-gray-500">상단 검색창에서 키워드를 검색해보세요</p>
 										</div>
 									{/if}
 								</div>
@@ -1189,21 +1409,23 @@
 		background: rgba(0, 0, 0, 0.3);
 	}
 
-	/* 검색 기록 영역 스크롤바 */
-	.max-h-96::-webkit-scrollbar {
-		width: 4px;
+	/* 검색 기록 영역 스크롤바 개선 */
+	.flex-1.overflow-y-auto::-webkit-scrollbar {
+		width: 6px;
 	}
 
-	.max-h-96::-webkit-scrollbar-track {
+	.flex-1.overflow-y-auto::-webkit-scrollbar-track {
 		background: rgba(0, 0, 0, 0.05);
+		border-radius: 3px;
 	}
 
-	.max-h-96::-webkit-scrollbar-thumb {
-		background: rgba(0, 0, 0, 0.2);
-		border-radius: 2px;
+	.flex-1.overflow-y-auto::-webkit-scrollbar-thumb {
+		background: linear-gradient(45deg, rgba(156, 163, 175, 0.6), rgba(107, 114, 128, 0.6));
+		border-radius: 3px;
+		border: 1px solid rgba(255, 255, 255, 0.1);
 	}
 
-	.max-h-96::-webkit-scrollbar-thumb:hover {
-		background: rgba(0, 0, 0, 0.3);
+	.flex-1.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+		background: linear-gradient(45deg, rgba(156, 163, 175, 0.8), rgba(107, 114, 128, 0.8));
 	}
 </style> 

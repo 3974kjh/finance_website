@@ -6,7 +6,7 @@ import axios from 'axios';
  */
 export const localAxiosInstance = () => {
 	return axios.create({
-		// baseURL: 'https://1ea0-112-223-52-250.ngrok-free.app',
+		// baseURL: 'https://fe9b-112-223-52-250.ngrok-free.app',
 		baseURL: 'http://localhost:8250',
 		headers: {
 			'Content-Type': 'application/json'
