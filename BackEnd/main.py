@@ -16,6 +16,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 로그인 요청/응답 모델
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+class LoginResponse(BaseModel):
+    success: bool
+    message: str
+    user: dict = None
+
 # 요청 / 응답
 class StockRequest(BaseModel):
     symbol: str = "US500",  # S&P500의 기본 심볼
@@ -78,6 +88,40 @@ class RealtimeSearchResponse(BaseModel):
     search_terms: List[str]
     date_info: str
     total_count: int
+
+@app.post("/login/", response_model=LoginResponse)
+async def login(request: LoginRequest):
+    try:
+        # 정해진 아이디와 비밀번호
+        CORRECT_USERNAME = "jukim"
+        CORRECT_PASSWORD = "jukim123$"
+        
+        # 입력받은 값과 비교
+        if request.username == CORRECT_USERNAME and request.password == CORRECT_PASSWORD:
+            # 로그인 성공
+            user_info = {
+                "id": "1",
+                "username": "jukim",
+                "name": "김준형",
+                "email": "jukim@example.com"
+            }
+            return LoginResponse(
+                success=True,
+                message="로그인 성공",
+                user=user_info
+            )
+        else:
+            # 로그인 실패
+            return LoginResponse(
+                success=False,
+                message="아이디 또는 비밀번호가 일치하지 않습니다."
+            )
+            
+    except Exception as e:
+        return LoginResponse(
+            success=False,
+            message=f"로그인 처리 중 오류가 발생했습니다: {str(e)}"
+        )
 
 @app.post("/stock_data/", response_model=StockResponse)
 async def get_stock_data(request: StockRequest):

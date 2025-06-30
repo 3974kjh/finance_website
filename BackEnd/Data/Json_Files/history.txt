@@ -1,29 +1,9 @@
 {
   "virtualInvestItemObject": {
-    "460940": {
-      "name": "피앤에스미캐닉스",
-      "code": "460940",
-      "todayAmount": 16590,
-      "totalShares": "1",
-      "haveAmount": 16830,
-      "data": [
-        {
-          "name": "피앤에스미캐닉스",
-          "code": "460940",
-          "buyYn": "Y",
-          "date": "2025.06.24 10:57",
-          "todayAmount": 16830,
-          "todayShares": "1",
-          "totalShares": "1",
-          "buyAmount": 16830,
-          "buyReason": ""
-        }
-      ]
-    },
     "023590": {
       "name": "다우기술",
       "code": "023590",
-      "todayAmount": 35400,
+      "todayAmount": 34450,
       "totalShares": "1",
       "haveAmount": 35400,
       "data": [
@@ -43,7 +23,7 @@
     "032190": {
       "name": "다우데이타",
       "code": "032190",
-      "todayAmount": 17900,
+      "todayAmount": 17090,
       "totalShares": "1",
       "haveAmount": 17900,
       "data": [
@@ -65,7 +45,7 @@
     "035420": {
       "name": "NAVER",
       "code": "035420",
-      "todayAmount": 286250,
+      "todayAmount": 259000,
       "totalShares": "4",
       "haveAmount": 1082000,
       "data": [
@@ -96,7 +76,7 @@
     "035720": {
       "name": "카카오",
       "code": "035720",
-      "todayAmount": 71500,
+      "todayAmount": 60500,
       "totalShares": "15",
       "haveAmount": 1032000,
       "data": [
@@ -116,7 +96,7 @@
     "003230": {
       "name": "삼양식품",
       "code": "003230",
-      "todayAmount": 1307000,
+      "todayAmount": 1408000,
       "totalShares": "1",
       "haveAmount": 1322000,
       "data": [

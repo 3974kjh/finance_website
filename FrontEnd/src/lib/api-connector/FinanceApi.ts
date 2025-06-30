@@ -2,6 +2,31 @@ import { localAxiosInstance } from "../axios-provider/AxiosProvider";
 import { stockDataCache, stockListCache, analysisCache, cachedApiCall, generateTimeBasedKey, generateDateBasedKey } from "../utils/CacheManager";
 
 /**
+ * 로그인 요청
+ */
+export const loginUser = async (requestData: {username: string, password: string}, cancelController?: AbortController) => {
+	try {
+		const newAxiosInstance = localAxiosInstance();
+
+		if (!!cancelController) {
+			newAxiosInstance.defaults.signal = cancelController.signal;
+		}
+
+		const response = await newAxiosInstance.post(
+			'/login/',
+			requestData
+		);
+
+		return response.data;
+	} catch (error) {
+		if (error) {
+			console.error('로그인 에러 발생 : ' + error);
+			return { success: false, message: 'fail-network' };
+		}
+	}
+}
+
+/**
  * 주가 데이터 가져오기 (캐시 적용)
  */
 export const getFinanceDataList = async (requestData: {symbol: string, duration: number, isMonth: boolean}, cancelController?: AbortController) => {

@@ -3,7 +3,9 @@
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
 	import { page } from "$app/stores";
+	import { auth } from '$lib/stores/auth';
 	import { Toaster } from 'svelte-french-toast';
+	import { toast } from 'svelte-french-toast';
 	import { onMount, onDestroy } from 'svelte';
 
 	// toast 간격 설정
@@ -96,6 +98,10 @@
 		}
 	];
 
+	// 로그인 상태 관리
+	let isAuthenticated = false;
+	let currentUser: any = null;
+
 	// 사이드바 확장 상태
 	let isExpanded = false;
 	let expandTimeout: NodeJS.Timeout | null = null;
@@ -107,6 +113,13 @@
 	let mouseX = 0;
 	let mouseY = 0;
 	let sidebarElement: HTMLDivElement;
+
+	// 로그아웃 처리 함수
+	const handleLogout = () => {
+		auth.logout();
+		toast.success('로그아웃되었습니다.');
+		goto(`${base}/login`);
+	};
 
 	// 마우스 위치 업데이트 함수
 	const updateMousePosition = (event: MouseEvent) => {
@@ -156,6 +169,8 @@
 
 	// 사이드바 확장 함수 (지연 시간 포함)
 	const handleMouseEnter = () => {
+		if (!isAuthenticated) return; // 로그인되지 않으면 확장하지 않음
+		
 		try {
 			isHovering = true;
 			
@@ -225,6 +240,15 @@
 	// 컴포넌트 마운트 시 전역 마우스 이벤트 리스너 추가
 	onMount(() => {
 		try {
+			// auth store 초기화
+			auth.initialize();
+
+			// 로그인 상태 구독
+			const unsubscribe = auth.subscribe((authState) => {
+				isAuthenticated = authState.isAuthenticated;
+				currentUser = authState.user;
+			});
+
 			if (!listenersAdded) {
 				document.addEventListener('mousemove', updateMousePosition);
 				
@@ -237,6 +261,8 @@
 				
 				listenersAdded = true;
 			}
+
+			return unsubscribe;
 		} catch (error) {
 			console.error('Event listener setup error:', error);
 		}
@@ -264,6 +290,8 @@
 	<div class="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-r from-cyan-500/20 to-teal-500/20 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 animate-pulse"></div>
 	<div class="absolute top-1/2 left-1/2 w-64 h-64 bg-gradient-to-r from-violet-500/15 to-pink-500/15 rounded-full blur-2xl -translate-x-1/2 -translate-y-1/2"></div>
 	
+	<!-- 로그인된 사용자에게 사이드바 표시 (단, 로그인 페이지가 아닐 때만) -->
+	{#if isAuthenticated && !$page.url.pathname.includes('/login')}
 	<!-- 확장 가능한 사이드바 -->
 	<!-- svelte-ignore a11y-no-static-element-interactions -->
 	<div 
@@ -327,15 +355,16 @@
 				{/each}
 			</nav>
 
-			<!-- 하단 시스템 상태 -->
+			<!-- 하단 로그아웃 버튼 -->
 			<div class="mt-auto pt-4 border-t border-slate-600/40">
-				<div class="flex items-center justify-center p-3 bg-gradient-to-r from-slate-700/80 to-slate-600/80 backdrop-blur-sm rounded-2xl border border-slate-500/30 shadow-lg transition-all duration-200 hover:shadow-xl hover:shadow-emerald-500/20">
-					<div class="w-6 h-6 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-lg flex items-center justify-center shadow-lg shadow-emerald-400/30">
-						<svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-						</svg>
-					</div>
-				</div>
+				<button 
+					class="w-full flex items-center justify-center p-3 bg-gradient-to-r from-red-500/80 to-red-600/80 hover:from-red-500 hover:to-red-600 rounded-2xl border border-red-500/30 shadow-lg transition-all duration-200 hover:shadow-xl hover:shadow-red-500/20 hover:scale-105"
+					on:click={handleLogout}
+				>
+					<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+					</svg>
+				</button>
 			</div>
 		</div>
 
@@ -372,6 +401,23 @@
 					<p class="text-sm text-slate-300 font-medium">Analytics Dashboard</p>
 				</div>
 			</div>
+
+			<!-- 사용자 정보 -->
+			{#if currentUser}
+			<div class="px-6 mb-6">
+				<div class="bg-gradient-to-r from-slate-700/80 to-slate-600/80 backdrop-blur-sm rounded-2xl p-4 border border-slate-500/30 shadow-lg transition-all duration-200 {isExpanded ? 'opacity-100 translate-x-0 delay-100' : 'opacity-0 translate-x-4'}">
+					<div class="flex items-center space-x-3">
+						<div class="w-10 h-10 bg-gradient-to-r from-blue-400 to-purple-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-400/30">
+							<span class="text-white font-bold text-sm">{currentUser.name?.charAt(0).toUpperCase() || 'U'}</span>
+						</div>
+						<div class="flex-1 min-w-0">
+							<p class="text-sm font-bold text-slate-100 truncate">{currentUser.name || '사용자'}</p>
+							<p class="text-xs text-slate-300 truncate">{currentUser.username || ''}</p>
+						</div>
+					</div>
+				</div>
+			</div>
+			{/if}
 
 			<!-- 확장된 네비게이션 메뉴 -->
 			<nav class="flex-1 space-y-2 px-4">
@@ -411,30 +457,24 @@
 				{/each}
 			</nav>
 
-			<!-- 확장된 하단 정보 -->
+			<!-- 확장된 로그아웃 버튼 -->
 			<div class="mt-auto pt-6 border-t border-slate-600/40 p-4">
-				<div class="bg-gradient-to-r from-slate-700/80 to-slate-600/80 backdrop-blur-sm rounded-2xl p-4 border border-slate-500/30 shadow-lg hover:shadow-emerald-500/20 transition-all duration-200 {isExpanded ? 'opacity-100 translate-x-0 delay-150' : 'opacity-0 translate-x-4'}">
-					<div class="flex items-center space-x-3">
-						<div class="w-8 h-8 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-400/30">
-							<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-							</svg>
-						</div>
-						<div class="transition-all duration-200 {isExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4'}">
-							<p class="text-sm font-bold text-slate-100">System Status</p>
-							<p class="text-xs text-emerald-300 font-medium flex items-center mt-1">
-								<span class="w-2 h-2 bg-emerald-400 rounded-full mr-2 animate-pulse shadow-sm shadow-emerald-400/50"></span>
-								All systems operational
-							</p>
-						</div>
-					</div>
-				</div>
+				<button 
+					class="w-full flex items-center space-x-3 px-4 py-3 bg-gradient-to-r from-red-500/80 to-red-600/80 hover:from-red-500 hover:to-red-600 rounded-2xl border border-red-500/30 shadow-lg transition-all duration-200 hover:shadow-xl hover:shadow-red-500/20 hover:scale-105 {isExpanded ? 'opacity-100 translate-x-0 delay-150' : 'opacity-0 translate-x-4'}"
+					on:click={handleLogout}
+				>
+					<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+					</svg>
+					<span class="text-white font-medium">로그아웃</span>
+				</button>
 			</div>
 		</div>
 	</div>
+	{/if}
 
 	<!-- 메인 컨텐츠 영역 -->
-	<div class="flex w-[calc(100%_-_100px)] h-full">
+	<div class="flex {isAuthenticated && !$page.url.pathname.includes('/login') ? 'w-[calc(100%_-_100px)]' : 'w-full'} h-full">
 		<slot />
 	</div>
 </div>
