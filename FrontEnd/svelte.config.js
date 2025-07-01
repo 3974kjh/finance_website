@@ -11,8 +11,8 @@ const config = {
 		// CloudFlare Pages adapter with Functions support
 		adapter: adapter({
 			routes: {
-				include: ['/*'],
-				exclude: ['<all>']
+				include: ['/api/*'],  // API 라우트만 서버 함수로 처리
+				exclude: ['<build>', '<prerendered>']  // 빌드된 정적 파일들은 제외
 			}
 		}),
 		csrf: {

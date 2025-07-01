@@ -2,18 +2,32 @@ import axios from 'axios';
 import { newsCache, cachedApiCall, generateTimeBasedKey } from "../utils/CacheManager";
 import { browser } from '$app/environment';
 
+// CloudFlare Pages 배포 확인용 고유 식별자
+const DEPLOYMENT_ID = 'CF_DEPLOY_2025_01_15_16_10';
+
+// 강력한 브라우저 환경 체크
+const isBrowserEnvironment = () => {
+	return typeof window !== 'undefined' && 
+	       typeof document !== 'undefined' && 
+	       browser === true;
+};
+
 // 환경 변수에서 백엔드 URL 가져오기
 const getBackendUrl = () => {
-  const backendUrl = browser 
+  const backendUrl = isBrowserEnvironment()
     ? (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8250')
     : (process.env.VITE_BACKEND_URL || 'http://localhost:8250');
   
-  console.log('🔍 환경 정보:', {
+  const envInfo = {
     browser,
-    viteBackendUrl: browser ? import.meta.env.VITE_BACKEND_URL : process.env.VITE_BACKEND_URL,
+    isBrowserEnv: isBrowserEnvironment(),
+    viteBackendUrl: isBrowserEnvironment() ? import.meta.env.VITE_BACKEND_URL : process.env.VITE_BACKEND_URL,
     finalBackendUrl: backendUrl,
-    allEnvVars: browser ? import.meta.env : 'SSR환경'
-  });
+    deploymentId: DEPLOYMENT_ID,
+    locationHref: isBrowserEnvironment() ? window.location.href : 'SSR'
+  };
+  
+  console.log('🔍 환경 정보:', envInfo);
   
   return backendUrl;
 };
@@ -32,10 +46,17 @@ export const getSearchResultByNaverApi = async (
     filter: 'all' | 'large' | 'medium' | 'small'
   }) => {
 	
-	// ⚡ 배포 환경에서 새 코드 실행 확인용 - 임시 alert
-	if (typeof window !== 'undefined' && !(window as any).__naverApiNewCodeConfirmed) {
+	// ⚡ CloudFlare Pages 배포 확인용 - 브라우저에서만 실행
+	if (isBrowserEnvironment() && !(window as any).__naverApiNewCodeConfirmed) {
 		(window as any).__naverApiNewCodeConfirmed = true;
-		alert('✅ 새로운 네이버 API 코드가 실행되었습니다! (빌드: 2025-01-15 16:05)');
+		alert(`✅ CloudFlare Pages 새 배포 확인! ${DEPLOYMENT_ID}`);
+		
+		// 윈도우 객체에 배포 정보 저장
+		(window as any).cfDeploymentInfo = {
+			id: DEPLOYMENT_ID,
+			timestamp: Date.now(),
+			deployed: true
+		};
 	}
 	
 	// === 디버깅을 위해 현재 시간과 함수 호출 확인 ===
@@ -45,13 +66,16 @@ export const getSearchResultByNaverApi = async (
 		query: requestData.query,
 		requestData,
 		timestamp: Date.now(),
+		deploymentId: DEPLOYMENT_ID,
 		env: {
 			browser,
+			isBrowserEnv: isBrowserEnvironment(),
 			windowExists: typeof window !== 'undefined',
-			locationHref: typeof window !== 'undefined' ? window.location.href : 'N/A'
+			locationHref: isBrowserEnvironment() ? window.location.href : 'SSR'
 		}
 	};
 	
+	// 다양한 콘솔 출력으로 확실히 보이도록
 	console.log('🚀🚀🚀 네이버 API 함수 시작 [' + functionStartTime + ']:', startData);
 	console.warn('🚀🚀🚀 네이버 API 함수 시작 [' + functionStartTime + ']:', startData);
 	console.error('🚀🚀🚀 네이버 API 함수 시작 [' + functionStartTime + ']:', startData);
