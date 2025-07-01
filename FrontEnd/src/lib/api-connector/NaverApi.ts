@@ -32,14 +32,29 @@ export const getSearchResultByNaverApi = async (
     filter: 'all' | 'large' | 'medium' | 'small'
   }) => {
 	
+	// ⚡ 배포 환경에서 새 코드 실행 확인용 - 임시 alert
+	if (typeof window !== 'undefined' && !(window as any).__naverApiNewCodeConfirmed) {
+		(window as any).__naverApiNewCodeConfirmed = true;
+		alert('✅ 새로운 네이버 API 코드가 실행되었습니다! (빌드: 2025-01-15 16:05)');
+	}
+	
 	// === 디버깅을 위해 현재 시간과 함수 호출 확인 ===
 	const functionStartTime = new Date().toISOString();
-	console.log('🚀🚀🚀 네이버 API 함수 시작 [' + functionStartTime + ']:', {
+	const startData = {
 		serviceId,
 		query: requestData.query,
 		requestData,
-		timestamp: Date.now()
-	});
+		timestamp: Date.now(),
+		env: {
+			browser,
+			windowExists: typeof window !== 'undefined',
+			locationHref: typeof window !== 'undefined' ? window.location.href : 'N/A'
+		}
+	};
+	
+	console.log('🚀🚀🚀 네이버 API 함수 시작 [' + functionStartTime + ']:', startData);
+	console.warn('🚀🚀🚀 네이버 API 함수 시작 [' + functionStartTime + ']:', startData);
+	console.error('🚀🚀🚀 네이버 API 함수 시작 [' + functionStartTime + ']:', startData);
 
 	// 캐시 키 생성 (서비스ID, 쿼리, 정렬방식을 조합)
 	// 뉴스는 빠르게 변하므로 15분 간격으로 캐시
