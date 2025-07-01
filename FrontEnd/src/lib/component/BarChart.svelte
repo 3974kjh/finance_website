@@ -1,7 +1,7 @@
 <script lang="ts">
-  import Chart from 'devextreme/viz/chart';
   import { onMount, tick, createEventDispatcher } from 'svelte';
   import { selfNormalize } from '$lib/main/MainCore';
+  import { browser } from '$app/environment';
 
   export let barDataList: any = [];
 
@@ -12,9 +12,9 @@
   // 이벤트 디스패처 생성
   const dispatch = createEventDispatcher();
 
-/**
- * bar Chart 영역
- */
+  /**
+   * bar Chart 영역
+   */
   let barChart: HTMLDivElement;
 
   // 이전 데이터 해시값으로 변경 감지 최적화
@@ -46,10 +46,22 @@
     }
   };
 
+  let Chart: any;
+
   onMount(async () => {
-    await tick();
-    if (barDataList && barDataList.length > 0) {
-      createCountBarChart();
+    if (!browser) return;
+
+    // 동적으로 devextreme import
+    try {
+      const module = await import('devextreme/viz/chart');
+      Chart = module.default;
+      
+      await tick();
+      if (barDataList && barDataList.length > 0) {
+        createCountBarChart();
+      }
+    } catch (error) {
+      console.error('Failed to load chart library:', error);
     }
   })
 

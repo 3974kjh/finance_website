@@ -1,8 +1,8 @@
 <script lang="ts">
-  import Chart from 'devextreme/viz/chart';
   import { onMount, tick } from 'svelte'; 
   import { formatIncludeComma } from '$lib/utils/CommonHelper';
   import _ from 'lodash';
+  import { browser } from '$app/environment';
 
   export let lineDataList: any = [];
   export let isMultiLine: boolean = false;
@@ -19,6 +19,7 @@
   let startDate: string;
   let lastDate: string;
   let upDownGradient: boolean | null = null;
+  let Chart: any;
 
   /**
    * line Chart 영역
@@ -26,15 +27,24 @@
   let lineChart: HTMLDivElement;
 
   onMount(async () => {
+    if (!browser) return;
+
     startDate = lineDataList[0]?.Date;
 
     const lastData = getLastData(lineDataList);
     lastDate = lastData.date;
     upDownGradient = getUpDownGradient(lineDataList[0]?.Close, lastData?.value);
 
-    await tick();
-
-    createMonthLineChart();
+    // 동적으로 devextreme import
+    try {
+      const module = await import('devextreme/viz/chart');
+      Chart = module.default;
+      
+      await tick();
+      createMonthLineChart();
+    } catch (error) {
+      console.error('Failed to load chart library:', error);
+    }
   })
 
   const setMainLineColor = (upDown: boolean | null) => {

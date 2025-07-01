@@ -1,4 +1,4 @@
-import adapter from '@sveltejs/adapter-auto';
+import adapter from '@sveltejs/adapter-cloudflare';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
 /** @type {import('@sveltejs/kit').Config} */
@@ -8,10 +8,14 @@ const config = {
 	preprocess: vitePreprocess(),
 
 	kit: {
-		// adapter-auto only supports some environments, see https://kit.svelte.dev/docs/adapter-auto for a list.
-		// If your environment is not supported, or you settled on a specific environment, switch out the adapter.
-		// See https://kit.svelte.dev/docs/adapters for more information about adapters.
-		adapter: adapter(),
+		// CloudFlare Pages adapter for deployment
+		adapter: adapter({
+			// CloudFlare Pages에서 Edge Runtime을 사용하지 않는 경우
+			routes: {
+				include: ['/*'],
+				exclude: ['<all>']
+			}
+		}),
 		csrf: {
 			checkOrigin: false
 		}
