@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 import FinanceDataReader as fdr
 import pandas as pd
 import CalculateLogic, XmlDataBase, JsonDataBase, WebCrawling
+import requests
+import os
 
 app = FastAPI()
 app.add_middleware(
@@ -16,6 +18,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 네이버 API 설정
+NAVER_CLIENT_ID = os.getenv('NAVER_CLIENT_ID', 'dqMtE_iRIgA_8e9aB_dV')
+NAVER_CLIENT_SECRET = os.getenv('NAVER_CLIENT_SECRET', 'bg7d_nO_xJ')
+NAVER_API_BASE_URL = "https://openapi.naver.com/v1/search"
+
 # 로그인 요청/응답 모델
 class LoginRequest(BaseModel):
     username: str
@@ -25,6 +32,21 @@ class LoginResponse(BaseModel):
     success: bool
     message: str
     user: dict = None
+
+# 네이버 API 요청/응답 모델
+class NaverSearchRequest(BaseModel):
+    query: str
+    display: int = 10
+    start: int = 1
+    sort: str = 'sim'
+    filter: str = 'all'
+
+class NaverSearchResponse(BaseModel):
+    lastBuildDate: str = ""
+    total: int = 0
+    start: int = 0
+    display: int = 0
+    items: List[dict] = []
 
 # 요청 / 응답
 class StockRequest(BaseModel):
@@ -247,3 +269,61 @@ async def getRealtimeSearch(request: RealtimeSearchRequest):
         raise  # HTTPException은 그대로 다시 발생
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"서버 오류: {str(e)}")
+
+# 네이버 API 프록시 엔드포인트들
+@app.post("/api/naver/{service_id}")
+async def naver_search_proxy(service_id: str, request: NaverSearchRequest):
+    """
+    네이버 검색 API 프록시 엔드포인트
+    service_id: blog, news, book, encyc, cafearticle, kin, webkr, image, shop, doc
+    """
+    try:
+        # 지원하는 서비스 목록
+        valid_services = ['blog', 'news', 'book', 'encyc', 'cafearticle', 'kin', 'webkr', 'image', 'shop', 'doc']
+        
+        if service_id not in valid_services:
+            raise HTTPException(status_code=400, detail=f"지원하지 않는 서비스입니다. 사용 가능한 서비스: {', '.join(valid_services)}")
+        
+        # 네이버 API 요청 헤더
+        headers = {
+            'X-Naver-Client-Id': NAVER_CLIENT_ID,
+            'X-Naver-Client-Secret': NAVER_CLIENT_SECRET,
+            'Content-Type': 'application/json'
+        }
+        
+        # 네이버 API 요청 파라미터
+        params = {
+            'query': request.query,
+            'display': min(request.display, 100),  # 최대 100개로 제한
+            'start': max(request.start, 1),        # 최소 1로 제한
+            'sort': request.sort
+        }
+        
+        # 이미지 서비스인 경우 filter 파라미터 추가
+        if service_id == 'image':
+            params['filter'] = request.filter
+        
+        # 네이버 API 호출
+        naver_url = f"{NAVER_API_BASE_URL}/{service_id}"
+        response = requests.get(naver_url, headers=headers, params=params, timeout=10)
+        
+        # 응답 처리
+        if response.status_code == 200:
+            result_data = response.json()
+            return {
+                "isSuccess": True,
+                "data": result_data
+            }
+        else:
+            raise HTTPException(status_code=response.status_code, detail=f"네이버 API 오류: {response.text}")
+            
+    except requests.exceptions.Timeout:
+        raise HTTPException(status_code=504, detail="네이버 API 요청 시간 초과")
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"네이버 API 요청 실패: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"서버 오류: {str(e)}")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

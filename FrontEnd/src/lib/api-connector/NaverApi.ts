@@ -1,8 +1,18 @@
 import axios from 'axios';
 import { newsCache, cachedApiCall, generateTimeBasedKey } from "../utils/CacheManager";
+import { browser } from '$app/environment';
+
+// 환경 변수에서 백엔드 URL 가져오기
+const getBackendUrl = () => {
+  if (browser) {
+    return import.meta.env.VITE_BACKEND_URL || 'http://localhost:8250';
+  }
+  return process.env.VITE_BACKEND_URL || 'http://localhost:8250';
+};
 
 /**
  * 네이버 api를 통해 검색 결과 가져오기 (캐시 적용)
+ * CloudFlare Pages 호환성을 위해 백엔드 서버로 프록시
  */
 export const getSearchResultByNaverApi = async (
   serviceId: 'blog' | 'news' | 'book' | 'encyc' | 'cafearticle' | 'kin' | 'webkr' | 'image' | 'shop' | 'doc', // 블로그-> blog, 뉴스-> news, 책-> book, 백과사전->encyc, 카페글->cafearticle, 지식인->kin, 웹문서->webkr, 이미지->image, 쇼핑->shop, 전문자료->doc, 성인검색어 판별->adult, 오타변환->errata
@@ -25,21 +35,36 @@ export const getSearchResultByNaverApi = async (
 		cacheKey,
 		async () => {
 			try {
-				const body = {
-					service: 'getSearchByNaver',
-					serviceId: serviceId,
-					data: requestData
-				}
-
-				const formData = new FormData();
-				formData.append('body', JSON.stringify(body));
-
-				const response = await axios.post(`/api/naver`, formData);
+				const backendUrl = getBackendUrl();
+				
+				// 백엔드 서버의 네이버 API 엔드포인트로 요청
+				const response = await axios.post(`${backendUrl}/api/naver/${serviceId}`, {
+					query: requestData.query,
+					display: requestData.display,
+					start: requestData.start,
+					sort: requestData.sort,
+					filter: requestData.filter
+				});
 
 				return response.data;
 			} catch (error) {
-				if (error) {
-					console.error('에러 발생 : ' + error);
+				console.error('네이버 API 호출 에러:', error);
+				
+				// 백엔드 서버가 실행되지 않은 경우 폴백으로 프론트엔드 API 시도
+				try {
+					const body = {
+						service: 'getSearchByNaver',
+						serviceId: serviceId,
+						data: requestData
+					}
+
+					const formData = new FormData();
+					formData.append('body', JSON.stringify(body));
+
+					const fallbackResponse = await axios.post(`/api/naver`, formData);
+					return fallbackResponse.data;
+				} catch (fallbackError) {
+					console.error('폴백 API도 실패:', fallbackError);
 					return { isSuccess: false, data: 'fail-network' };
 				}
 			}
