@@ -1,4 +1,4 @@
-import adapter from '@sveltejs/adapter-cloudflare';
+import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
 /** @type {import('@sveltejs/kit').Config} */
@@ -8,16 +8,13 @@ const config = {
 	preprocess: vitePreprocess(),
 
 	kit: {
-		// CloudFlare Pages adapter with optimized Functions support
+		// Static adapter for CloudFlare Pages (정적 사이트)
 		adapter: adapter({
-			routes: {
-				include: ['/api/*'],  // API 라우트만 서버 함수로 처리
-				exclude: ['<build>', '<prerendered>']  // 빌드된 정적 파일들은 제외
-			},
-			platformProxy: {
-				configPath: 'wrangler.toml',
-				experimentalJsonConfig: true
-			}
+			pages: 'build',
+			assets: 'build',
+			fallback: 'index.html',  // SPA fallback
+			precompress: false,
+			strict: true
 		}),
 		csrf: {
 			checkOrigin: false
