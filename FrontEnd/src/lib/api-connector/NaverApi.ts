@@ -4,10 +4,18 @@ import { browser } from '$app/environment';
 
 // 환경 변수에서 백엔드 URL 가져오기
 const getBackendUrl = () => {
-  if (browser) {
-    return import.meta.env.VITE_BACKEND_URL || 'http://localhost:8250';
-  }
-  return process.env.VITE_BACKEND_URL || 'http://localhost:8250';
+  const backendUrl = browser 
+    ? (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8250')
+    : (process.env.VITE_BACKEND_URL || 'http://localhost:8250');
+  
+  console.log('🔍 환경 정보:', {
+    browser,
+    viteBackendUrl: browser ? import.meta.env.VITE_BACKEND_URL : process.env.VITE_BACKEND_URL,
+    finalBackendUrl: backendUrl,
+    allEnvVars: browser ? import.meta.env : 'SSR환경'
+  });
+  
+  return backendUrl;
 };
 
 /**
@@ -24,6 +32,12 @@ export const getSearchResultByNaverApi = async (
     filter: 'all' | 'large' | 'medium' | 'small'
   }) => {
 	
+	console.log('🚀 네이버 API 함수 시작:', {
+		serviceId,
+		query: requestData.query,
+		requestData
+	});
+
 	// 캐시 키 생성 (서비스ID, 쿼리, 정렬방식을 조합)
 	// 뉴스는 빠르게 변하므로 15분 간격으로 캐시
 	const cacheKey = generateTimeBasedKey(
@@ -31,9 +45,13 @@ export const getSearchResultByNaverApi = async (
 		15
 	);
 	
+	console.log('💾 캐시 키 생성:', cacheKey);
+	
 	return cachedApiCall(
 		cacheKey,
 		async () => {
+			console.log('🎯 캐시되지 않은 새로운 API 호출 시작');
+			
 			// 먼저 백엔드 서버 시도
 			try {
 				const backendUrl = getBackendUrl();
@@ -61,6 +79,7 @@ export const getSearchResultByNaverApi = async (
 			} catch (backendError) {
 				const errorMessage = backendError instanceof Error ? backendError.message : String(backendError);
 				console.warn(`⚠️ 백엔드 API 실패, SSR로 폴백: ${errorMessage}`);
+				console.warn('⚠️ 백엔드 에러 상세:', backendError);
 				
 				// 백엔드 실패시 SSR API로 폴백
 				try {
@@ -81,6 +100,7 @@ export const getSearchResultByNaverApi = async (
 				} catch (ssrError) {
 					const ssrErrorMessage = ssrError instanceof Error ? ssrError.message : String(ssrError);
 					console.error(`❌ SSR API도 실패: ${ssrErrorMessage}`);
+					console.error('❌ SSR 에러 상세:', ssrError);
 					return { isSuccess: false, data: 'fail-network' };
 				}
 			}

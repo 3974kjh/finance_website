@@ -2,7 +2,6 @@
   import { onMount, tick, createEventDispatcher } from 'svelte';
   import { LineChart, ProgressCircle, NewsInfoListComponent } from '$lib/component';
   import { getExpectStockValue, getFinanceStockList } from '$lib/api-connector/FinanceApi';
-  import { getSearchResultByNaverApi } from '$lib/api-connector/NaverApi';
   import { 
     getFinanceDataListByChartMode, 
     setUpDownRatioTag, setUpDownIcon, setUpDownColor, 
