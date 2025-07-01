@@ -481,6 +481,9 @@
   }
 </script>
 
+<svelte:head>
+	<title>데이터 분석 - FinanceChart</title>
+</svelte:head>
 <svelte:window bind:innerHeight/>
 <div class="flex w-full h-full relative bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 overflow-hidden">
   <!-- 배경 데코레이션 -->

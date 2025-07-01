@@ -40,8 +40,10 @@
 	});
 </script>
 
+<svelte:head>
+	<title>대시보드 홈 - FinanceChart</title>
+</svelte:head>
 <svelte:window bind:innerHeight bind:innerWidth/>
-
 {#if isLoading}
 	<!-- 로딩 화면 -->
 	<div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900">

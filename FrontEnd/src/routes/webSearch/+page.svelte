@@ -20,6 +20,9 @@
   })
 </script>
 
+<svelte:head>
+	<title>투자 리서치 - FinanceChart</title>
+</svelte:head>
 <!-- 메인 컨텐츠 -->
 <div class="flex flex-row w-full h-[calc(100%)] p-2 space-x-2">
   <!-- 좌측 패널 -->

@@ -367,6 +367,9 @@
   }
 </script>
 
+<svelte:head>
+	<title>통계 정보 - FinanceChart</title>
+</svelte:head>
 <svelte:window bind:innerHeight/>
 <div class="flex w-full h-full bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 relative overflow-hidden">
   <!-- 배경 데코레이션 -->

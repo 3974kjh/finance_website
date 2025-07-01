@@ -157,6 +157,9 @@
   }
 </script>
 
+<svelte:head>
+	<title>모의 투자 - FinanceChart</title>
+</svelte:head>
 <div class="flex w-full h-full bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 relative overflow-hidden">
   <!-- 배경 데코레이션 -->
   <div class="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,_rgba(59,130,246,0.1)_1px,_transparent_0)] bg-[size:32px_32px] pointer-events-none"></div>
