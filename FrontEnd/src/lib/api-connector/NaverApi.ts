@@ -32,10 +32,13 @@ export const getSearchResultByNaverApi = async (
     filter: 'all' | 'large' | 'medium' | 'small'
   }) => {
 	
-	console.log('🚀 네이버 API 함수 시작:', {
+	// === 디버깅을 위해 현재 시간과 함수 호출 확인 ===
+	const functionStartTime = new Date().toISOString();
+	console.log('🚀🚀🚀 네이버 API 함수 시작 [' + functionStartTime + ']:', {
 		serviceId,
 		query: requestData.query,
-		requestData
+		requestData,
+		timestamp: Date.now()
 	});
 
 	// 캐시 키 생성 (서비스ID, 쿼리, 정렬방식을 조합)
@@ -47,10 +50,18 @@ export const getSearchResultByNaverApi = async (
 	
 	console.log('💾 캐시 키 생성:', cacheKey);
 	
+	// === 디버깅을 위해 캐시 상태 확인 ===
+	const cachedData = newsCache.get(cacheKey);
+	if (cachedData) {
+		console.warn('⚠️⚠️⚠️ 캐시 데이터 발견! 새로운 API 호출 없이 캐시 반환:', cachedData);
+		console.log('🧹 디버깅을 위해 캐시 강제 삭제');
+		newsCache.clear(); // 캐시 강제 삭제
+	}
+	
 	return cachedApiCall(
 		cacheKey,
 		async () => {
-			console.log('🎯 캐시되지 않은 새로운 API 호출 시작');
+			console.log('🎯🎯🎯 캐시되지 않은 새로운 API 호출 시작 [' + new Date().toISOString() + ']');
 			
 			// 먼저 백엔드 서버 시도
 			try {
@@ -83,7 +94,7 @@ export const getSearchResultByNaverApi = async (
 				
 				// 백엔드 실패시 SSR API로 폴백
 				try {
-					console.log('🔄 SSR API 폴백 시도');
+					console.log('🔄🔄🔄 SSR API 폴백 시도 [' + new Date().toISOString() + ']');
 					const body = {
 						service: 'getSearchByNaver',
 						serviceId: serviceId,
