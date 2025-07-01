@@ -12,7 +12,7 @@ const getBackendUrl = () => {
 
 /**
  * 네이버 api를 통해 검색 결과 가져오기 (캐시 적용)
- * CloudFlare Pages 호환성을 위해 백엔드 서버로 프록시
+ * 모든 환경에서 백엔드 우선, 실패시 SSR 폴백
  */
 export const getSearchResultByNaverApi = async (
   serviceId: 'blog' | 'news' | 'book' | 'encyc' | 'cafearticle' | 'kin' | 'webkr' | 'image' | 'shop' | 'doc', // 블로그-> blog, 뉴스-> news, 책-> book, 백과사전->encyc, 카페글->cafearticle, 지식인->kin, 웹문서->webkr, 이미지->image, 쇼핑->shop, 전문자료->doc, 성인검색어 판별->adult, 오타변환->errata
@@ -34,33 +34,37 @@ export const getSearchResultByNaverApi = async (
 	return cachedApiCall(
 		cacheKey,
 		async () => {
+			// 먼저 백엔드 서버 시도
 			try {
 				const backendUrl = getBackendUrl();
+				console.log(`🔄 백엔드 API 호출 시도: ${backendUrl}/api/naver/${serviceId}`);
 				
-				// 백엔드 서버의 네이버 API 엔드포인트로 요청
 				const response = await axios.post(`${backendUrl}/api/naver/${serviceId}`, {
 					query: requestData.query,
 					display: requestData.display,
 					start: requestData.start,
 					sort: requestData.sort,
 					filter: requestData.filter
+				}, {
+					timeout: 5000  // 5초 타임아웃 설정
 				});
 
-				console.log('백엔드 응답:', response.data); // 디버깅용
+				console.log('✅ 백엔드 응답 성공:', response.data);
 
 				// 백엔드 응답 구조 처리
 				if (response.data && response.data.isSuccess && response.data.data) {
-					// 네이버 API 형식으로 직접 반환
 					return response.data.data;
 				} else {
-					console.error('백엔드 응답 형식 오류:', response.data);
-					return { isSuccess: false, data: 'invalid-response' };
+					console.error('❌ 백엔드 응답 형식 오류:', response.data);
+					throw new Error('Invalid backend response format');
 				}
-			} catch (error) {
-				console.error('네이버 API 호출 에러:', error);
+			} catch (backendError) {
+				const errorMessage = backendError instanceof Error ? backendError.message : String(backendError);
+				console.warn(`⚠️ 백엔드 API 실패, SSR로 폴백: ${errorMessage}`);
 				
-				// 백엔드 서버가 실행되지 않은 경우 폴백으로 프론트엔드 API 시도
+				// 백엔드 실패시 SSR API로 폴백
 				try {
+					console.log('🔄 SSR API 폴백 시도');
 					const body = {
 						service: 'getSearchByNaver',
 						serviceId: serviceId,
@@ -70,12 +74,13 @@ export const getSearchResultByNaverApi = async (
 					const formData = new FormData();
 					formData.append('body', JSON.stringify(body));
 
-					const fallbackResponse = await axios.post(`/api/naver`, formData);
+					const ssrResponse = await axios.post(`/api/naver`, formData);
 					
-					console.log('폴백 응답:', fallbackResponse.data); // 디버깅용
-					return fallbackResponse.data;
-				} catch (fallbackError) {
-					console.error('폴백 API도 실패:', fallbackError);
+					console.log('✅ SSR API 응답 성공:', ssrResponse.data);
+					return ssrResponse.data;
+				} catch (ssrError) {
+					const ssrErrorMessage = ssrError instanceof Error ? ssrError.message : String(ssrError);
+					console.error(`❌ SSR API도 실패: ${ssrErrorMessage}`);
 					return { isSuccess: false, data: 'fail-network' };
 				}
 			}
