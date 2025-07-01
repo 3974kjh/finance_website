@@ -26,7 +26,7 @@ NAVER_API_BASE_URL = "https://openapi.naver.com/v1/search"
 
 # 카카오 API 설정
 KAKAO_REST_API_KEY = os.getenv('KAKAO_REST_API_KEY', os.getenv('PUBLIC_API_KEY', '3efc0a804d4103ba9fd00387adc2f8ca'))
-KAKAO_REDIRECT_URI = os.getenv('KAKAO_REDIRECT_URI', os.getenv('PUBLIC_REDIRECT_URI', 'http://localhost:7150/oauth'))
+KAKAO_REDIRECT_URI = os.getenv('KAKAO_REDIRECT_URI', os.getenv('PUBLIC_REDIRECT_URI', 'http://finance-website-687.pages.dev/oauth'))
 KAKAO_AUTH_URL = "https://kauth.kakao.com/oauth/token"
 KAKAO_API_URL = "https://kapi.kakao.com/v2/api/talk/memo/default/send"
 

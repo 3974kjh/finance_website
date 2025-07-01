@@ -8,8 +8,8 @@ const isBrowserEnvironment = () => {
 // 환경 변수에서 백엔드 URL 가져오기
 const getBackendUrl = () => {
   const backendUrl = isBrowserEnvironment()
-    ? (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8250')
-    : (process.env.VITE_BACKEND_URL || 'http://localhost:8250');
+    ? (import.meta.env.VITE_BACKEND_URL || 'https://ba9c-112-223-52-250.ngrok-free.app')
+    : (process.env.VITE_BACKEND_URL || 'https://ba9c-112-223-52-250.ngrok-free.app');
   
   return backendUrl;
 };
@@ -19,12 +19,12 @@ const getKakaoConfig = () => {
   if (isBrowserEnvironment()) {
     return {
       apiKey: import.meta.env.VITE_KAKAO_API_KEY || import.meta.env.PUBLIC_API_KEY || '',
-      redirectUri: import.meta.env.VITE_KAKAO_REDIRECT_URI || import.meta.env.PUBLIC_REDIRECT_URI || 'http://localhost:7150/oauth'
+      redirectUri: import.meta.env.VITE_KAKAO_REDIRECT_URI || import.meta.env.PUBLIC_REDIRECT_URI || 'http://finance-website-687.pages.dev/oauth'
     };
   } else {
     return {
       apiKey: process.env.VITE_KAKAO_API_KEY || process.env.PUBLIC_API_KEY || '',
-      redirectUri: process.env.VITE_KAKAO_REDIRECT_URI || process.env.PUBLIC_REDIRECT_URI || 'http://localhost:7150/oauth'
+      redirectUri: process.env.VITE_KAKAO_REDIRECT_URI || process.env.PUBLIC_REDIRECT_URI || 'http://finance-website-687.pages.dev/oauth'
     };
   }
 };

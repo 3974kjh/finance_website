@@ -15,8 +15,8 @@ const isBrowserEnvironment = () => {
 // 환경 변수에서 백엔드 URL 가져오기
 const getBackendUrl = () => {
   const backendUrl = isBrowserEnvironment()
-    ? (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8250')
-    : (process.env.VITE_BACKEND_URL || 'http://localhost:8250');
+    ? (import.meta.env.VITE_BACKEND_URL || 'https://ba9c-112-223-52-250.ngrok-free.app')
+    : (process.env.VITE_BACKEND_URL || 'https://ba9c-112-223-52-250.ngrok-free.app');
   
   return backendUrl;
 };
