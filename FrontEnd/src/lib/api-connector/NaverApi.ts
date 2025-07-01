@@ -46,7 +46,16 @@ export const getSearchResultByNaverApi = async (
 					filter: requestData.filter
 				});
 
-				return response.data;
+				console.log('백엔드 응답:', response.data); // 디버깅용
+
+				// 백엔드 응답 구조 처리
+				if (response.data && response.data.isSuccess && response.data.data) {
+					// 네이버 API 형식으로 직접 반환
+					return response.data.data;
+				} else {
+					console.error('백엔드 응답 형식 오류:', response.data);
+					return { isSuccess: false, data: 'invalid-response' };
+				}
 			} catch (error) {
 				console.error('네이버 API 호출 에러:', error);
 				
@@ -62,6 +71,8 @@ export const getSearchResultByNaverApi = async (
 					formData.append('body', JSON.stringify(body));
 
 					const fallbackResponse = await axios.post(`/api/naver`, formData);
+					
+					console.log('폴백 응답:', fallbackResponse.data); // 디버깅용
 					return fallbackResponse.data;
 				} catch (fallbackError) {
 					console.error('폴백 API도 실패:', fallbackError);
