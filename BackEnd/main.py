@@ -8,6 +8,7 @@ import pandas as pd
 import CalculateLogic, XmlDataBase, JsonDataBase, WebCrawling
 import requests
 import os
+import json
 
 app = FastAPI()
 app.add_middleware(
@@ -22,6 +23,12 @@ app.add_middleware(
 NAVER_CLIENT_ID = os.getenv('NAVER_CLIENT_ID', 'dqMtE_iRIgA_8e9aB_dV')
 NAVER_CLIENT_SECRET = os.getenv('NAVER_CLIENT_SECRET', 'bg7d_nO_xJ')
 NAVER_API_BASE_URL = "https://openapi.naver.com/v1/search"
+
+# 카카오 API 설정
+KAKAO_REST_API_KEY = os.getenv('KAKAO_REST_API_KEY', os.getenv('PUBLIC_API_KEY', '3efc0a804d4103ba9fd00387adc2f8ca'))
+KAKAO_REDIRECT_URI = os.getenv('KAKAO_REDIRECT_URI', os.getenv('PUBLIC_REDIRECT_URI', 'http://localhost:7150/oauth'))
+KAKAO_AUTH_URL = "https://kauth.kakao.com/oauth/token"
+KAKAO_API_URL = "https://kapi.kakao.com/v2/api/talk/memo/default/send"
 
 # 로그인 요청/응답 모델
 class LoginRequest(BaseModel):
@@ -110,6 +117,23 @@ class RealtimeSearchResponse(BaseModel):
     search_terms: List[str]
     date_info: str
     total_count: int
+
+# 카카오 API 요청/응답 모델
+class KakaoTokenRequest(BaseModel):
+    accessCode: str
+    redirectUri: str = None
+
+class KakaoMessageRequest(BaseModel):
+    accessCode: str = ""
+    accessToken: str = ""
+    redirectUri: str = None
+    link: dict = {}
+    data: dict = {}
+
+class KakaoResponse(BaseModel):
+    isFail: bool = False
+    token: str = ""
+    message: str = ""
 
 @app.post("/login/", response_model=LoginResponse)
 async def login(request: LoginRequest):
@@ -323,6 +347,175 @@ async def naver_search_proxy(service_id: str, request: NaverSearchRequest):
         raise HTTPException(status_code=500, detail=f"네이버 API 요청 실패: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"서버 오류: {str(e)}")
+
+# 카카오 API 프록시 엔드포인트들
+@app.post("/api/kakao/token", response_model=KakaoResponse)
+async def get_kakao_access_token(request: KakaoTokenRequest):
+    """
+    카카오 OAuth 인증 코드로 액세스 토큰 받기
+    """
+    try:
+        print(f"🎯 카카오 토큰 요청 시작:")
+        print(f"   - accessCode: {request.accessCode[:10]}..." if request.accessCode else "   - accessCode: None")
+        print(f"   - redirectUri: {request.redirectUri}")
+        print(f"   - KAKAO_REST_API_KEY: {KAKAO_REST_API_KEY[:10]}..." if KAKAO_REST_API_KEY else "   - KAKAO_REST_API_KEY: None")
+        print(f"   - KAKAO_REDIRECT_URI: {KAKAO_REDIRECT_URI}")
+        
+        # API 키 검증
+        if not KAKAO_REST_API_KEY or KAKAO_REST_API_KEY == '':
+            return KakaoResponse(
+                isFail=True,
+                token="",
+                message="카카오 API 키가 설정되지 않았습니다. 환경 변수 KAKAO_REST_API_KEY 또는 PUBLIC_API_KEY를 확인해주세요."
+            )
+        
+        headers = {
+            'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8'
+        }
+        
+        redirect_uri = request.redirectUri or KAKAO_REDIRECT_URI
+        
+        data = {
+            'grant_type': 'authorization_code',
+            'client_id': KAKAO_REST_API_KEY,
+            'redirect_uri': redirect_uri,
+            'code': request.accessCode
+        }
+        
+        print(f"🔄 카카오 토큰 API 호출: {KAKAO_AUTH_URL}")
+        print(f"   - grant_type: {data['grant_type']}")
+        print(f"   - client_id: {data['client_id'][:10]}...")
+        print(f"   - redirect_uri: {data['redirect_uri']}")
+        print(f"   - code: {data['code'][:10]}..." if data['code'] else "   - code: None")
+        
+        response = requests.post(KAKAO_AUTH_URL, headers=headers, data=data, timeout=10)
+        
+        print(f"📥 카카오 응답 수신:")
+        print(f"   - status_code: {response.status_code}")
+        print(f"   - response: {response.text}")
+        
+        if response.status_code == 200:
+            result = response.json()
+            access_token = result.get('access_token', '')
+            
+            if access_token:
+                print(f"✅ 토큰 발급 성공: {access_token[:10]}...")
+                return KakaoResponse(
+                    isFail=False,
+                    token=access_token,
+                    message="토큰 발급 성공"
+                )
+            else:
+                print(f"❌ 토큰 없음: {result}")
+                return KakaoResponse(
+                    isFail=True,
+                    token="",
+                    message=f"액세스 토큰을 받지 못했습니다. 응답: {result}"
+                )
+        else:
+            error_detail = response.text
+            print(f"❌ 카카오 API 오류: {response.status_code} - {error_detail}")
+            return KakaoResponse(
+                isFail=True,
+                token="",
+                message=f"카카오 인증 실패 ({response.status_code}): {error_detail}"
+            )
+            
+    except requests.exceptions.Timeout:
+        print("❌ 카카오 API 요청 시간 초과")
+        return KakaoResponse(
+            isFail=True,
+            token="",
+            message="카카오 API 요청 시간 초과"
+        )
+    except Exception as e:
+        print(f"❌ 예상치 못한 오류: {str(e)}")
+        return KakaoResponse(
+            isFail=True,
+            token="",
+            message=f"서버 오류: {str(e)}"
+        )
+
+@app.post("/api/kakao/send", response_model=KakaoResponse)
+async def send_kakao_message(request: KakaoMessageRequest):
+    """
+    카카오톡 메시지 전송
+    """
+    try:
+        # 액세스 토큰이 없으면 인증 코드로 토큰 발급 시도
+        access_token = request.accessToken
+        
+        if not access_token and request.accessCode:
+            token_request = KakaoTokenRequest(
+                accessCode=request.accessCode,
+                redirectUri=request.redirectUri
+            )
+            token_result = await get_kakao_access_token(token_request)
+            
+            if token_result.isFail:
+                return KakaoResponse(
+                    isFail=True,
+                    token="",
+                    message="액세스 토큰 발급 실패"
+                )
+            
+            access_token = token_result.token
+        
+        if not access_token:
+            return KakaoResponse(
+                isFail=True,
+                token="",
+                message="액세스 토큰이 필요합니다"
+            )
+        
+        # 카카오톡 메시지 전송
+        headers = {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Authorization': f'Bearer {access_token}'
+        }
+        
+        # 메시지 템플릿 구성
+        template_object = {
+            'object_type': request.data.get('object_type', 'text'),
+            'text': request.data.get('text', '전달 데이터 없음'),
+            'link': request.link,
+        }
+        
+        # 버튼 제목이 있으면 추가
+        if request.data.get('button_title'):
+            template_object['button_title'] = request.data.get('button_title')
+        
+        data = {
+            'template_object': json.dumps(template_object, ensure_ascii=False)
+        }
+        
+        response = requests.post(KAKAO_API_URL, headers=headers, data=data, timeout=10)
+        
+        if response.status_code == 200:
+            return KakaoResponse(
+                isFail=False,
+                token=access_token,
+                message="메시지 전송 성공"
+            )
+        else:
+            return KakaoResponse(
+                isFail=True,
+                token=access_token,
+                message=f"메시지 전송 실패: {response.text}"
+            )
+            
+    except requests.exceptions.Timeout:
+        return KakaoResponse(
+            isFail=True,
+            token="",
+            message="카카오 API 요청 시간 초과"
+        )
+    except Exception as e:
+        return KakaoResponse(
+            isFail=True,
+            token="",
+            message=f"서버 오류: {str(e)}"
+        )
 
 if __name__ == "__main__":
     import uvicorn

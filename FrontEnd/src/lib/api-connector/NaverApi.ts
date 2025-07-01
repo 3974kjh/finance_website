@@ -18,17 +18,6 @@ const getBackendUrl = () => {
     ? (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8250')
     : (process.env.VITE_BACKEND_URL || 'http://localhost:8250');
   
-  const envInfo = {
-    browser,
-    isBrowserEnv: isBrowserEnvironment(),
-    viteBackendUrl: isBrowserEnvironment() ? import.meta.env.VITE_BACKEND_URL : process.env.VITE_BACKEND_URL,
-    finalBackendUrl: backendUrl,
-    deploymentId: DEPLOYMENT_ID,
-    locationHref: isBrowserEnvironment() ? window.location.href : 'SSR'
-  };
-  
-  console.log('🔍 환경 정보:', envInfo);
-  
   return backendUrl;
 };
 
@@ -49,7 +38,6 @@ export const getSearchResultByNaverApi = async (
 	// ⚡ CloudFlare Pages 배포 확인용 - 브라우저에서만 실행
 	if (isBrowserEnvironment() && !(window as any).__naverApiNewCodeConfirmed) {
 		(window as any).__naverApiNewCodeConfirmed = true;
-		alert(`✅ CloudFlare Pages 새 배포 확인! ${DEPLOYMENT_ID}`);
 		
 		// 윈도우 객체에 배포 정보 저장
 		(window as any).cfDeploymentInfo = {
@@ -58,27 +46,6 @@ export const getSearchResultByNaverApi = async (
 			deployed: true
 		};
 	}
-	
-	// === 디버깅을 위해 현재 시간과 함수 호출 확인 ===
-	const functionStartTime = new Date().toISOString();
-	const startData = {
-		serviceId,
-		query: requestData.query,
-		requestData,
-		timestamp: Date.now(),
-		deploymentId: DEPLOYMENT_ID,
-		env: {
-			browser,
-			isBrowserEnv: isBrowserEnvironment(),
-			windowExists: typeof window !== 'undefined',
-			locationHref: isBrowserEnvironment() ? window.location.href : 'SSR'
-		}
-	};
-	
-	// 다양한 콘솔 출력으로 확실히 보이도록
-	console.log('🚀🚀🚀 네이버 API 함수 시작 [' + functionStartTime + ']:', startData);
-	console.warn('🚀🚀🚀 네이버 API 함수 시작 [' + functionStartTime + ']:', startData);
-	console.error('🚀🚀🚀 네이버 API 함수 시작 [' + functionStartTime + ']:', startData);
 
 	// 캐시 키 생성 (서비스ID, 쿼리, 정렬방식을 조합)
 	// 뉴스는 빠르게 변하므로 15분 간격으로 캐시
