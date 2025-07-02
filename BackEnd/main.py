@@ -10,6 +10,15 @@ import requests
 import os
 import json
 
+# 설정값 및 API 키 import
+from key import (
+    NAVER_CLIENT_ID, NAVER_CLIENT_SECRET, NAVER_API_BASE_URL,
+    KAKAO_REST_API_KEY, KAKAO_REDIRECT_URI, KAKAO_AUTH_URL, KAKAO_API_URL,
+    LOGIN_USERNAME, LOGIN_PASSWORD,
+    SERVER_HOST, SERVER_PORT,
+    check_environment_variables, validate_api_keys, print_config_summary
+)
+
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -18,17 +27,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# 네이버 API 설정
-NAVER_CLIENT_ID = os.getenv('NAVER_CLIENT_ID', 'dqMtE_iRIgA_8e9aB_dV')
-NAVER_CLIENT_SECRET = os.getenv('NAVER_CLIENT_SECRET', 'bg7d_nO_xJ')
-NAVER_API_BASE_URL = "https://openapi.naver.com/v1/search"
-
-# 카카오 API 설정
-KAKAO_REST_API_KEY = os.getenv('KAKAO_REST_API_KEY', os.getenv('PUBLIC_API_KEY', '3efc0a804d4103ba9fd00387adc2f8ca'))
-KAKAO_REDIRECT_URI = os.getenv('KAKAO_REDIRECT_URI', os.getenv('PUBLIC_REDIRECT_URI', 'http://finance-website-687.pages.dev/oauth'))
-KAKAO_AUTH_URL = "https://kauth.kakao.com/oauth/token"
-KAKAO_API_URL = "https://kapi.kakao.com/v2/api/talk/memo/default/send"
 
 # 로그인 요청/응답 모델
 class LoginRequest(BaseModel):
@@ -135,19 +133,19 @@ class KakaoResponse(BaseModel):
     token: str = ""
     message: str = ""
 
+# 서버 시작 시 설정 확인
+print_config_summary()
+check_environment_variables()
+
 @app.post("/login/", response_model=LoginResponse)
 async def login(request: LoginRequest):
     try:
-        # 정해진 아이디와 비밀번호
-        CORRECT_USERNAME = "jukim"
-        CORRECT_PASSWORD = "jukim123$"
-        
-        # 입력받은 값과 비교
-        if request.username == CORRECT_USERNAME and request.password == CORRECT_PASSWORD:
+        # key.py에서 정의된 로그인 정보 사용
+        if request.username == LOGIN_USERNAME and request.password == LOGIN_PASSWORD:
             # 로그인 성공
             user_info = {
                 "id": "1",
-                "username": "jukim",
+                "username": LOGIN_USERNAME,
                 "name": "김준형",
                 "email": "jukim@example.com"
             }
@@ -519,4 +517,4 @@ async def send_kakao_message(request: KakaoMessageRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8250)
+    uvicorn.run(app, host=SERVER_HOST, port=SERVER_PORT)

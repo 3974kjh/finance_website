@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { newsCache, cachedApiCall, generateTimeBasedKey } from "../utils/CacheManager";
 import { browser } from '$app/environment';
+import { EnvConfig } from '../utils/EnvConfig';
 
 // CloudFlare Pages 배포 확인용 고유 식별자
 const DEPLOYMENT_ID = 'CF_DEPLOY_2025_01_15_16_10';
@@ -12,17 +13,9 @@ const isBrowserEnvironment = () => {
 	       browser === true;
 };
 
-// 환경 변수에서 백엔드 URL 가져오기
-const getBackendUrl = () => {
-  const backendUrl = isBrowserEnvironment()
-    ? (import.meta.env.VITE_BACKEND_URL || 'https://ba9c-112-223-52-250.ngrok-free.app')
-    : (process.env.VITE_BACKEND_URL || 'https://ba9c-112-223-52-250.ngrok-free.app');
-  
-  return backendUrl;
-};
-
 /**
  * 네이버 api를 통해 검색 결과 가져오기 (캐시 적용)
+ * CloudFlare Pages 환경 변수 기반 설정
  * 모든 환경에서 백엔드 우선, 실패시 SSR 폴백
  */
 export const getSearchResultByNaverApi = async (
@@ -69,9 +62,12 @@ export const getSearchResultByNaverApi = async (
 		async () => {
 			console.log('🎯🎯🎯 캐시되지 않은 새로운 API 호출 시작 [' + new Date().toISOString() + ']');
 			
+			// CloudFlare Pages 환경 변수 상태 확인
+			EnvConfig.logEnvStatus();
+			
 			// 먼저 백엔드 서버 시도
 			try {
-				const backendUrl = getBackendUrl();
+				const backendUrl = EnvConfig.backendUrl;
 				console.log(`🔄 백엔드 API 호출 시도: ${backendUrl}/api/naver/${serviceId}`);
 				
 				const response = await axios.post(`${backendUrl}/api/naver/${serviceId}`, {
@@ -95,7 +91,7 @@ export const getSearchResultByNaverApi = async (
 				}
 			} catch (backendError) {
 				const errorMessage = backendError instanceof Error ? backendError.message : String(backendError);
-				console.warn(`⚠️ 백엔드 API 실패, SSR로 폴백: ${errorMessage}`);
+				console.warn(`⚠️ 백엔드 API 실패 (${EnvConfig.backendUrl}), SSR로 폴백: ${errorMessage}`);
 				console.warn('⚠️ 백엔드 에러 상세:', backendError);
 				
 				// 백엔드 실패시 SSR API로 폴백

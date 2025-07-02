@@ -1,36 +1,9 @@
 import axios from 'axios';
-
-// 브라우저 환경 감지 함수
-const isBrowserEnvironment = () => {
-  return typeof window !== 'undefined' && typeof document !== 'undefined';
-};
-
-// 환경 변수에서 백엔드 URL 가져오기
-const getBackendUrl = () => {
-  const backendUrl = isBrowserEnvironment()
-    ? (import.meta.env.VITE_BACKEND_URL || 'https://ba9c-112-223-52-250.ngrok-free.app')
-    : (process.env.VITE_BACKEND_URL || 'https://ba9c-112-223-52-250.ngrok-free.app');
-  
-  return backendUrl;
-};
-
-// 카카오 API 환경 변수 가져오기
-const getKakaoConfig = () => {
-  if (isBrowserEnvironment()) {
-    return {
-      apiKey: import.meta.env.VITE_KAKAO_API_KEY || import.meta.env.PUBLIC_API_KEY || '',
-      redirectUri: import.meta.env.VITE_KAKAO_REDIRECT_URI || import.meta.env.PUBLIC_REDIRECT_URI || 'http://finance-website-687.pages.dev/oauth'
-    };
-  } else {
-    return {
-      apiKey: process.env.VITE_KAKAO_API_KEY || process.env.PUBLIC_API_KEY || '',
-      redirectUri: process.env.VITE_KAKAO_REDIRECT_URI || process.env.PUBLIC_REDIRECT_URI || 'http://finance-website-687.pages.dev/oauth'
-    };
-  }
-};
+import { EnvConfig } from '../utils/EnvConfig';
 
 /**
  * 카카오 api를 통해 결과 데이터 전송 (백엔드 API 전용)
+ * CloudFlare Pages 환경 변수 기반 설정
  */
 export const sendFinanceResultByKakaoApi = async (
   accessCode: string,
@@ -47,21 +20,28 @@ export const sendFinanceResultByKakaoApi = async (
 	try {
     console.log('🎯 카카오 API 호출 시작 [' + new Date().toISOString() + ']');
     
-    // 카카오 설정 가져오기
-    const kakaoConfig = getKakaoConfig();
-    console.log('🔧 카카오 설정:', {
-      apiKey: kakaoConfig.apiKey ? `${kakaoConfig.apiKey.slice(0, 10)}...` : 'None',
-      redirectUri: kakaoConfig.redirectUri
-    });
+    // CloudFlare Pages 환경 변수 상태 확인
+    EnvConfig.logEnvStatus();
     
-    // 백엔드 서버 호출
-    const backendUrl = getBackendUrl();
+    // 환경 변수 유효성 검사
+    if (!EnvConfig.validateAll()) {
+      return {
+        isFail: true,
+        token: '',
+        message: '환경 변수가 올바르게 설정되지 않았습니다. CloudFlare Pages Dashboard에서 환경 변수를 확인해주세요.'
+      };
+    }
+    
+    // 카카오 설정 가져오기
+    const kakaoConfig = EnvConfig.kakao;
+    const backendUrl = EnvConfig.backendUrl;
+    
     console.log(`🔄 백엔드 카카오 API 호출: ${backendUrl}/api/kakao/send`);
     
     const requestPayload = {
       accessCode: accessCode,
       accessToken: accessToken,
-      redirectUri: kakaoConfig.redirectUri, // redirectUri 추가
+      redirectUri: kakaoConfig.redirectUri,
       link: link,
       data: requestData
     };
@@ -106,7 +86,7 @@ export const sendFinanceResultByKakaoApi = async (
         return { 
           isFail: true, 
           token: '', 
-          message: '백엔드 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.' 
+          message: `백엔드 서버(${EnvConfig.backendUrl})에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.` 
         };
       }
       

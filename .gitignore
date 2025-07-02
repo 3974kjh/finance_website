@@ -92,6 +92,10 @@ logs/
 secrets.json
 config.local.json
 
+# Backend API 키 파일 (민감한 정보 포함)
+BackEnd/key.py
+**/key.py
+
 # 너무 큰 데이터 파일들 (필요시 주석 해제)
 # *.db
 # *.sqlite

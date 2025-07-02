@@ -1,0 +1,92 @@
+# API 키 및 설정값 정의 (예시 파일)
+# 이 파일을 key.py로 복사한 후 실제 API 키들로 수정하세요.
+
+import os
+
+# =====================================
+# 네이버 API 설정
+# =====================================
+NAVER_CLIENT_ID = os.getenv('NAVER_CLIENT_ID', os.getenv('VITE_NAVER_CLIENT_ID', 'your_naver_client_id_here'))
+NAVER_CLIENT_SECRET = os.getenv('NAVER_CLIENT_SECRET', os.getenv('VITE_NAVER_CLIENT_SECRET', 'your_naver_client_secret_here'))
+NAVER_API_BASE_URL = "https://openapi.naver.com/v1/search"
+
+# =====================================
+# 카카오 API 설정
+# =====================================
+KAKAO_REST_API_KEY = os.getenv('KAKAO_REST_API_KEY', os.getenv('VITE_KAKAO_API_KEY', os.getenv('PUBLIC_API_KEY', 'your_kakao_api_key_here')))
+KAKAO_REDIRECT_URI = os.getenv('KAKAO_REDIRECT_URI', os.getenv('VITE_KAKAO_REDIRECT_URI', os.getenv('PUBLIC_REDIRECT_URI', 'http://localhost:7150/oauth')))
+KAKAO_AUTH_URL = "https://kauth.kakao.com/oauth/token"
+KAKAO_API_URL = "https://kapi.kakao.com/v2/api/talk/memo/default/send"
+
+# =====================================
+# 로그인 설정
+# =====================================
+LOGIN_USERNAME = "your_username_here"
+LOGIN_PASSWORD = "your_password_here"
+
+# =====================================
+# 서버 설정
+# =====================================
+SERVER_HOST = "0.0.0.0"
+SERVER_PORT = 8250
+
+# =====================================
+# 환경 변수 상태 확인 함수
+# =====================================
+def check_environment_variables():
+    """환경 변수 및 설정값 상태를 확인하는 함수"""
+    print("🔧 Backend 환경 변수 상태 확인:")
+    print(f"   - NAVER_CLIENT_ID: {NAVER_CLIENT_ID[:10]}..." if NAVER_CLIENT_ID else "   - NAVER_CLIENT_ID: None")
+    print(f"   - NAVER_CLIENT_SECRET: {NAVER_CLIENT_SECRET[:10]}..." if NAVER_CLIENT_SECRET else "   - NAVER_CLIENT_SECRET: None")
+    print(f"   - KAKAO_REST_API_KEY: {KAKAO_REST_API_KEY[:10]}..." if KAKAO_REST_API_KEY else "   - KAKAO_REST_API_KEY: None")
+    print(f"   - KAKAO_REDIRECT_URI: {KAKAO_REDIRECT_URI}")
+    print(f"   - 서버 설정: {SERVER_HOST}:{SERVER_PORT}")
+    
+    # 필수 환경 변수 체크
+    missing_vars = []
+    if not KAKAO_REST_API_KEY or KAKAO_REST_API_KEY == 'your_kakao_api_key_here':
+        missing_vars.append('KAKAO_REST_API_KEY (또는 VITE_KAKAO_API_KEY)')
+    if not KAKAO_REDIRECT_URI:
+        missing_vars.append('KAKAO_REDIRECT_URI (또는 VITE_KAKAO_REDIRECT_URI)')
+    
+    if missing_vars:
+        print("❌ 설정되지 않은 필수 환경 변수들:")
+        for var in missing_vars:
+            print(f"   - {var}")
+        print("📋 환경 변수를 설정해주세요.")
+    else:
+        print("✅ 모든 필수 환경 변수가 설정되었습니다.")
+
+# =====================================
+# API 키 유효성 검사
+# =====================================
+def validate_api_keys():
+    """API 키들의 유효성을 검사하는 함수"""
+    issues = []
+    
+    if not NAVER_CLIENT_ID or NAVER_CLIENT_ID == 'your_naver_client_id_here':
+        issues.append('NAVER_CLIENT_ID')
+    
+    if not NAVER_CLIENT_SECRET or NAVER_CLIENT_SECRET == 'your_naver_client_secret_here':
+        issues.append('NAVER_CLIENT_SECRET')
+    
+    if not KAKAO_REST_API_KEY or KAKAO_REST_API_KEY == 'your_kakao_api_key_here':
+        issues.append('KAKAO_REST_API_KEY')
+    
+    if not KAKAO_REDIRECT_URI:
+        issues.append('KAKAO_REDIRECT_URI')
+    
+    return issues
+
+# =====================================
+# 설정 요약 출력
+# =====================================
+def print_config_summary():
+    """현재 설정 요약을 출력하는 함수"""
+    print("="*50)
+    print("🚀 Backend 서버 설정 요약")
+    print("="*50)
+    print(f"서버 주소: {SERVER_HOST}:{SERVER_PORT}")
+    print(f"네이버 API: {'✅ 설정됨' if NAVER_CLIENT_ID and NAVER_CLIENT_SECRET else '❌ 미설정'}")
+    print(f"카카오 API: {'✅ 설정됨' if KAKAO_REST_API_KEY and KAKAO_REDIRECT_URI else '❌ 미설정'}")
+    print("="*50) 
