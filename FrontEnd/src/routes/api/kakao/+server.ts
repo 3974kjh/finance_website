@@ -1,10 +1,10 @@
 import { kakaoAccessTokenAxiosInstance } from "$lib/axios-provider/AxiosProvider";
 import { json } from '@sveltejs/kit';
-import { PUBLIC_API_KEY, PUBLIC_REDIRECT_URI } from '$env/static/public';
 import axios from 'axios';
+import { EnvConfig } from "$lib/utils/EnvConfig";
 
-const KAKAO_REST_API_KEY = PUBLIC_API_KEY;
-const REDIRECT_URI = PUBLIC_REDIRECT_URI;
+const KAKAO_REST_API_KEY = EnvConfig.kakao.apiKey;
+const REDIRECT_URI = EnvConfig.kakao.redirectUri;
 
 export async function POST({ request }) {
   const formData = await request.formData();

@@ -1,13 +1,13 @@
 <script lang="ts">
-  import { onMount, onDestroy, tick, createEventDispatcher } from 'svelte';
+  import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import { KaKaoLoginImg, KaKaoSendImg } from '$lib/images/kakao';
-  import { PUBLIC_API_KEY, PUBLIC_REDIRECT_URI } from '$env/static/public';
+  import { EnvConfig } from "$lib/utils/EnvConfig";
 
   export let kakaoAccessCode: string;
   export let isTextDark: boolean = true;
 
-  const KAKAO_REST_API_KEY = PUBLIC_API_KEY;
-  const REDIRECT_URI = PUBLIC_REDIRECT_URI;
+  const KAKAO_REST_API_KEY = EnvConfig.kakao.apiKey;
+  const REDIRECT_URI = EnvConfig.kakao.redirectUri;
 
   const dispatch = createEventDispatcher();
 
