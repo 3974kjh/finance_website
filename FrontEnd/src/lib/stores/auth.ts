@@ -36,9 +36,9 @@ function createAuthStore() {
         token: token
       };
       
-      // localStorage에 저장 (브라우저 환경에서만)
+      // sessionStorage에 저장 (브라우저 환경에서만)
       if (browser) {
-        localStorage.setItem('auth', JSON.stringify(authData));
+        sessionStorage.setItem('auth', JSON.stringify(authData));
       }
       
       set(authData);
@@ -52,9 +52,9 @@ function createAuthStore() {
         token: null
       };
       
-      // localStorage에서 제거 (브라우저 환경에서만)
+      // sessionStorage에서 제거 (브라우저 환경에서만)
       if (browser) {
-        localStorage.removeItem('auth');
+        sessionStorage.removeItem('auth');
       }
       
       set(authData);
@@ -64,7 +64,7 @@ function createAuthStore() {
     initialize: () => {
       if (browser) {
         try {
-          const stored = localStorage.getItem('auth');
+          const stored = sessionStorage.getItem('auth');
           if (stored) {
             const authData: AuthState = JSON.parse(stored);
             if (authData && typeof authData === 'object' && 'isAuthenticated' in authData) {
@@ -72,9 +72,9 @@ function createAuthStore() {
             }
           }
         } catch (error) {
-          console.error('Failed to parse auth data from localStorage:', error);
+          console.error('Failed to parse auth data from sessionStorage:', error);
           // 잘못된 데이터가 있으면 제거
-          localStorage.removeItem('auth');
+          sessionStorage.removeItem('auth');
         }
       }
     }

@@ -11,7 +11,11 @@ export const load: LayoutLoad = async ({ url, route }) => {
   // 브라우저 환경에서만 실행
   if (browser) {
     try {
-      const authData = localStorage.getItem('auth');
+      // 인증 정보 복원
+      let authData: any = null;
+      if (typeof sessionStorage !== 'undefined') {
+        authData = sessionStorage.getItem('auth');
+      }
       
       if (!authData) {
         // 인증 데이터가 없으면 로그인 페이지로 리다이렉트
@@ -33,7 +37,9 @@ export const load: LayoutLoad = async ({ url, route }) => {
       if (error instanceof Error && error.message.includes('redirect')) {
         throw error; // 리다이렉트 에러는 다시 던짐
       }
-      localStorage.removeItem('auth'); // 잘못된 데이터 제거
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem('auth'); // 잘못된 데이터 제거
+      }
       throw redirect(303, '/login');
     }
   }

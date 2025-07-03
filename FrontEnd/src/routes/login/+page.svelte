@@ -21,6 +21,8 @@
 			}
 		});
 
+		username = localStorage.getItem('lastLoginId') || '';
+
 		// auth store 초기화
 		auth.initialize();
 
@@ -67,6 +69,7 @@
 				// 간단한 토큰 생성 (실제로는 서버에서 받아야 하지만 여기서는 간단히)
 				const token = 'simple-token-' + Date.now();
 				auth.login(user, token);
+				localStorage.setItem('lastLoginId', username);
 				
 				// 화면 전환 상태로 변경
 				isLoading = false;
