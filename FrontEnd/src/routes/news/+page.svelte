@@ -26,7 +26,7 @@
 	let searchTerms: string[] = [];
 	let dateInfo: string = '';
 	let searchTermsData: SearchTermData[] = [];
-	let loading = false;
+	let realtimeSearchLoading = false; // 전체 loading을 realtimeSearchLoading으로 분리
 	let error = '';
 	let selectedTermIndex: number = -1; // 선택된 검색어 인덱스
 	
@@ -148,7 +148,7 @@
 	// 실시간 검색어 가져오기
 	const fetchRealtimeSearchTerms = async () => {
 		try {
-			loading = true;
+			realtimeSearchLoading = true; // loading 대신 realtimeSearchLoading 사용
 			error = '';
 			selectedTermIndex = -1; // 선택 초기화
 			
@@ -200,7 +200,7 @@
 				toast.error(errorMsg);
 			}
 		} finally {
-			loading = false;
+			realtimeSearchLoading = false; // loading 대신 realtimeSearchLoading 사용
 		}
 	};
 
@@ -480,6 +480,15 @@
 	const selectFromHistory = (keyword: string) => {
 		searchKeyword = keyword;
 		showSearchHistory = false;
+		
+		// 즉시 customSearchData를 초기화하여 오른쪽 패널이 표시되도록 함
+		customSearchData = {
+			term: keyword,
+			news: [],
+			loading: true,
+			expanded: false
+		};
+		
 		// 검색 기록에 추가하지 않고 바로 검색 실행
 		searchKeywordNewsFromHistory();
 	};
@@ -488,13 +497,16 @@
 	const switchToCustomSearch = () => {
 		searchMode = 'custom';
 		selectedTermIndex = -1;
-		customSearchData = null;
+		// 실시간 검색어에서 오는 데이터는 초기화하지 않음 (customSearchData는 유지)
 	};
 
 	const switchToRealtimeSearch = () => {
 		searchMode = 'realtime';
+		// 직접검색 데이터와 검색 키워드 초기화
 		customSearchData = null;
 		searchKeyword = '';
+		// 진행 중인 검색도 취소 상태로 설정
+		isSearching = false;
 	};
 
 	// 키워드 검색 함수 (검색 기록에 추가)
@@ -512,6 +524,14 @@
 			const trimmedKeyword = searchKeyword.trim();
 			console.log(`🔍 키워드 검색 시작: "${trimmedKeyword}"`);
 			
+			// 즉시 customSearchData를 초기화하여 오른쪽 패널이 표시되도록 함
+			customSearchData = {
+				term: trimmedKeyword,
+				news: [],
+				loading: true,
+				expanded: false
+			};
+			
 			// 키워드 검색 시에만 검색 기록에 추가
 			addToSearchHistory(trimmedKeyword);
 			
@@ -523,48 +543,61 @@
 				filter: 'all'
 			});
 			
-			if (response && response.items) {
-				customSearchData = {
-					term: trimmedKeyword,
-					news: response.items,
-					loading: false,
-					expanded: false
-				};
-				console.log(`✅ 키워드 검색 완료: "${trimmedKeyword}" (${response.items.length}개)`);
-				toast.success(`'${trimmedKeyword}' 검색 완료: ${response.items.length}개 결과`);
+			// 검색 완료 시 여전히 custom 모드인지 확인
+			if (searchMode === 'custom') {
+				if (response && response.items) {
+					customSearchData = {
+						term: trimmedKeyword,
+						news: response.items,
+						loading: false,
+						expanded: false
+					};
+					console.log(`✅ 키워드 검색 완료: "${trimmedKeyword}" (${response.items.length}개)`);
+					toast.success(`'${trimmedKeyword}' 검색 완료: ${response.items.length}개 결과`);
+				} else {
+					customSearchData = {
+						term: trimmedKeyword,
+						news: [],
+						loading: false,
+						expanded: false
+					};
+					console.warn(`⚠️ 검색 결과 없음: "${trimmedKeyword}"`);
+					toast.error(`'${trimmedKeyword}' 검색 결과가 없습니다.`);
+				}
 			} else {
+				console.log('🔄 탭이 전환되어 검색 결과를 무시합니다.');
+			}
+		} catch (err) {
+			console.error('❌ 키워드 검색 실패:', err);
+			const trimmedKeyword = searchKeyword.trim();
+			
+			// 오류 시에도 custom 모드인지 확인
+			if (searchMode === 'custom') {
 				customSearchData = {
 					term: trimmedKeyword,
 					news: [],
 					loading: false,
 					expanded: false
 				};
-				console.warn(`⚠️ 검색 결과 없음: "${trimmedKeyword}"`);
-				toast.error(`'${trimmedKeyword}' 검색 결과가 없습니다.`);
-			}
-		} catch (err) {
-			console.error('❌ 키워드 검색 실패:', err);
-			const trimmedKeyword = searchKeyword.trim();
-			customSearchData = {
-				term: trimmedKeyword,
-				news: [],
-				loading: false,
-				expanded: false
-			};
-			
-			if (err instanceof Error) {
-				if (err.name === 'AbortError') {
-					toast.error('검색이 취소되었습니다.');
-				} else if (err.message.includes('network')) {
-					toast.error('네트워크 연결을 확인해주세요.');
+				
+				if (err instanceof Error) {
+					if (err.name === 'AbortError') {
+						toast.error('검색이 취소되었습니다.');
+					} else if (err.message.includes('network')) {
+						toast.error('네트워크 연결을 확인해주세요.');
+					} else {
+						toast.error(`'${trimmedKeyword}' 검색 중 오류가 발생했습니다.`);
+					}
 				} else {
 					toast.error(`'${trimmedKeyword}' 검색 중 오류가 발생했습니다.`);
 				}
-			} else {
-				toast.error(`'${trimmedKeyword}' 검색 중 오류가 발생했습니다.`);
 			}
 		} finally {
 			isSearching = false;
+			// customSearchData의 loading 상태도 업데이트 (custom 모드일 때만)
+			if (customSearchData && searchMode === 'custom') {
+				customSearchData.loading = false;
+			}
 		}
 	};
 
@@ -583,6 +616,11 @@
 			const trimmedKeyword = searchKeyword.trim();
 			console.log(`🔍 기록에서 검색: "${trimmedKeyword}"`);
 			
+			// customSearchData가 이미 초기화되어 있으므로 loading 상태만 업데이트
+			if (customSearchData) {
+				customSearchData.loading = true;
+			}
+			
 			// 검색 기록에서 선택한 경우 기록에 추가하지 않음
 			
 			const response = await getSearchResultByNaverApi('news', {
@@ -593,47 +631,60 @@
 				filter: 'all'
 			});
 			
-			if (response && response.items) {
-				customSearchData = {
-					term: trimmedKeyword,
-					news: response.items,
-					loading: false,
-					expanded: false
-				};
-				console.log(`✅ 기록 검색 완료: "${trimmedKeyword}" (${response.items.length}개)`);
+			// 검색 완료 시 여전히 custom 모드인지 확인
+			if (searchMode === 'custom') {
+				if (response && response.items) {
+					customSearchData = {
+						term: trimmedKeyword,
+						news: response.items,
+						loading: false,
+						expanded: false
+					};
+					console.log(`✅ 기록 검색 완료: "${trimmedKeyword}" (${response.items.length}개)`);
+				} else {
+					customSearchData = {
+						term: trimmedKeyword,
+						news: [],
+						loading: false,
+						expanded: false
+					};
+					console.warn(`⚠️ 기록 검색 결과 없음: "${trimmedKeyword}"`);
+					toast.error(`'${trimmedKeyword}' 검색 결과가 없습니다.`);
+				}
 			} else {
+				console.log('🔄 탭이 전환되어 검색 결과를 무시합니다.');
+			}
+		} catch (err) {
+			console.error('❌ 기록 검색 실패:', err);
+			const trimmedKeyword = searchKeyword.trim();
+			
+			// 오류 시에도 custom 모드인지 확인
+			if (searchMode === 'custom') {
 				customSearchData = {
 					term: trimmedKeyword,
 					news: [],
 					loading: false,
 					expanded: false
 				};
-				console.warn(`⚠️ 기록 검색 결과 없음: "${trimmedKeyword}"`);
-				toast.error(`'${trimmedKeyword}' 검색 결과가 없습니다.`);
-			}
-		} catch (err) {
-			console.error('❌ 기록 검색 실패:', err);
-			const trimmedKeyword = searchKeyword.trim();
-			customSearchData = {
-				term: trimmedKeyword,
-				news: [],
-				loading: false,
-				expanded: false
-			};
-			
-			if (err instanceof Error) {
-				if (err.name === 'AbortError') {
-					toast.error('검색이 취소되었습니다.');
-				} else if (err.message.includes('network')) {
-					toast.error('네트워크 연결을 확인해주세요.');
+				
+				if (err instanceof Error) {
+					if (err.name === 'AbortError') {
+						toast.error('검색이 취소되었습니다.');
+					} else if (err.message.includes('network')) {
+						toast.error('네트워크 연결을 확인해주세요.');
+					} else {
+						toast.error(`'${trimmedKeyword}' 검색 중 오류가 발생했습니다.`);
+					}
 				} else {
 					toast.error(`'${trimmedKeyword}' 검색 중 오류가 발생했습니다.`);
 				}
-			} else {
-				toast.error(`'${trimmedKeyword}' 검색 중 오류가 발생했습니다.`);
 			}
 		} finally {
 			isSearching = false;
+			// customSearchData의 loading 상태도 업데이트 (custom 모드일 때만)
+			if (customSearchData && searchMode === 'custom') {
+				customSearchData.loading = false;
+			}
 		}
 	};
 
@@ -644,10 +695,13 @@
 		selectedTermIndex = -1;
 	};
 
-	// 선택된 검색어의 뉴스 데이터 가져오기 (키워드 검색 결과 우선)
-	$: selectedNews = customSearchData ? customSearchData.news : (selectedTermIndex >= 0 ? searchTermsData[selectedTermIndex]?.news || [] : []);
-	$: selectedTerm = customSearchData ? customSearchData.term : (selectedTermIndex >= 0 ? searchTermsData[selectedTermIndex]?.term || '' : '');
-	$: selectedLoading = customSearchData ? false : (selectedTermIndex >= 0 ? searchTermsData[selectedTermIndex]?.loading || false : false);
+	// 선택된 검색어의 뉴스 데이터 가져오기 (현재 탭 모드 고려)
+	$: selectedNews = (searchMode === 'custom' && customSearchData) ? customSearchData.news : 
+	                  (searchMode === 'realtime' && selectedTermIndex >= 0) ? searchTermsData[selectedTermIndex]?.news || [] : [];
+	$: selectedTerm = (searchMode === 'custom' && customSearchData) ? customSearchData.term : 
+	                  (searchMode === 'realtime' && selectedTermIndex >= 0) ? searchTermsData[selectedTermIndex]?.term || '' : '';
+	$: selectedLoading = (searchMode === 'custom' && customSearchData) ? (customSearchData.loading || isSearching) : 
+	                     (searchMode === 'realtime' && selectedTermIndex >= 0) ? searchTermsData[selectedTermIndex]?.loading || false : false;
 
 	// 컴포넌트 마운트시 실시간 검색어 로드
 	onMount(() => {
@@ -689,7 +743,7 @@
 					<h1 class="text-4xl font-black bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent tracking-tight">
 						실시간 뉴스
 					</h1>
-					{#if dateInfo && !loading}
+					{#if dateInfo && !realtimeSearchLoading}
 						<p class="text-sm text-gray-600 mt-2 flex items-center font-medium">
 							<span class="w-2 h-2 bg-emerald-500 rounded-full mr-2 animate-pulse"></span>
 							<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -697,7 +751,7 @@
 							</svg>
 							{dateInfo}
 						</p>
-					{:else if loading}
+					{:else if realtimeSearchLoading}
 						<div class="text-sm text-gray-500 mt-2 flex items-center font-medium">
 							<span class="w-2 h-2 bg-gray-400 rounded-full mr-2 animate-pulse"></span>
 							<svg class="w-4 h-4 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -723,7 +777,7 @@
 								placeholder="키워드로 뉴스 검색..."
 								class="bg-transparent outline-none text-gray-800 placeholder-gray-500 font-medium flex-1 min-w-0"
 								bind:value={searchKeyword}
-								disabled={loading || isProgress || isSearching}
+								disabled={realtimeSearchLoading || isProgress || isSearching}
 								on:keypress={(e) => {
 									if (e.key === 'Enter') {
 										searchKeywordNews();
@@ -748,7 +802,7 @@
 							<button
 								class="px-5 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold hover:from-orange-600 hover:to-red-600 transition-all duration-300 disabled:opacity-50 rounded-r-2xl ml-auto"
 								on:click={searchKeywordNews}
-								disabled={!searchKeyword.trim() || loading || isProgress || isSearching}
+								disabled={!searchKeyword.trim() || realtimeSearchLoading || isProgress || isSearching}
 							>
 								{#if isSearching}
 									<div class="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
@@ -765,7 +819,7 @@
 				<button 
 					class="group relative px-8 py-4 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white font-bold rounded-2xl shadow-xl shadow-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/40 transform hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:transform-none disabled:shadow-lg overflow-hidden"
 					on:click={fetchAllNews}
-					disabled={loading || isProgress || searchTermsData.length === 0}
+					disabled={realtimeSearchLoading || isProgress || searchTermsData.length === 0}
 				>
 					<div class="absolute inset-0 bg-gradient-to-r from-emerald-600 to-teal-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 					<div class="relative flex items-center space-x-3">
@@ -783,18 +837,18 @@
 				<button 
 					class="group relative px-8 py-4 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 text-white font-bold rounded-2xl shadow-xl shadow-blue-500/30 hover:shadow-2xl hover:shadow-blue-500/40 transform hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:transform-none disabled:shadow-lg overflow-hidden"
 					on:click={fetchRealtimeSearchTerms}
-					disabled={loading || isProgress}
+					disabled={realtimeSearchLoading || isProgress}
 				>
 					<div class="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 					<div class="relative flex items-center space-x-3">
-						{#if loading}
+						{#if realtimeSearchLoading}
 							<div class="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
 						{:else}
 							<svg class="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
 							</svg>
 						{/if}
-						<span>{loading ? '새로고침 중...' : '새로고침'}</span>
+						<span>{realtimeSearchLoading ? '새로고침 중...' : '새로고침'}</span>
 					</div>
 				</button>
 			</div>
@@ -803,19 +857,7 @@
 
 	<!-- 메인 컨텐츠 -->
 	<div class="flex-1 overflow-hidden p-8">
-		{#if loading}
-			<div class="flex items-center justify-center h-full">
-				<div class="text-center space-y-8">
-					<div class="relative">
-						<div class="w-32 h-32 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full opacity-20 animate-ping"></div>
-					</div>
-					<div class="space-y-3">
-						<h3 class="text-2xl font-bold text-gray-800">데이터를 가져오고 있어요</h3>
-						<p class="text-gray-600">잠시만 기다려주세요...</p>
-					</div>
-				</div>
-			</div>
-		{:else if isProgress}
+		{#if isProgress}
 			<div class="flex flex-col items-center justify-center h-full space-y-8">
 				<div class="relative">
 					<div class="w-40 h-40 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full opacity-20 animate-pulse"></div>
@@ -846,23 +888,6 @@
 					</p>
 				</div>
 			</div>
-		{:else if searchTermsData.length === 0}
-			<div class="flex flex-col items-center justify-center h-full space-y-8">
-				<div class="relative">
-					<div class="w-32 h-32 bg-gradient-to-r from-gray-200 to-gray-300 rounded-full opacity-50"></div>
-					<div class="absolute inset-0 flex items-center justify-center">
-						<div class="w-20 h-20 bg-gradient-to-r from-gray-400 to-gray-500 rounded-2xl flex items-center justify-center shadow-xl">
-							<svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-							</svg>
-						</div>
-					</div>
-				</div>
-				<div class="text-center space-y-4">
-					<h3 class="text-2xl font-bold text-gray-900">검색어가 없습니다</h3>
-					<p class="text-gray-600 text-lg">새로고침 버튼을 눌러 실시간 검색어를 불러오세요</p>
-				</div>
-			</div>
 		{:else}
 			<!-- 좌우 분할 레이아웃 -->
 			<div class="flex h-full space-x-8">
@@ -888,10 +913,13 @@
 								<!-- 모드 전환 버튼 -->
 								<div class="flex space-x-2">
 									<button
-										class="px-3 py-1.5 text-sm font-medium rounded-xl transition-all duration-300 {searchMode === 'realtime' ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg shadow-blue-500/30' : 'bg-gray-200/80 text-gray-600 hover:bg-gray-300/80'}"
+										class="px-3 py-1.5 text-sm font-medium rounded-xl transition-all duration-300 flex items-center space-x-2 {searchMode === 'realtime' ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg shadow-blue-500/30' : 'bg-gray-200/80 text-gray-600 hover:bg-gray-300/80'}"
 										on:click={switchToRealtimeSearch}
 									>
-										실시간
+										{#if realtimeSearchLoading}
+											<div class="animate-spin w-3 h-3 border border-current border-t-transparent rounded-full"></div>
+										{/if}
+										<span>실시간</span>
 									</button>
 									<button
 										class="px-3 py-1.5 text-sm font-medium rounded-xl transition-all duration-300 {searchMode === 'custom' ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/30' : 'bg-gray-200/80 text-gray-600 hover:bg-gray-300/80'}"
@@ -981,86 +1009,127 @@
 									{/if}
 								</div>
 							{:else}
-								<!-- 기존 실시간 검색어 목록 -->
-								{#each searchTermsData as termData, index}
-									{#if selectedTermIndex === index}
-										<!-- 선택된 항목 -->
-										<button 
-											class="search-term-button search-term-selected w-full p-5 text-left flex justify-between items-center transition-all duration-300 {index === searchTermsData.length - 1 ? '' : 'border-b border-white/10'} bg-gradient-to-r from-blue-500/10 to-purple-500/10 border-blue-200/30 shadow-lg shadow-blue-500/10 min-h-[72px] group focus:outline-none"
-											on:click={(e) => {
-												e.preventDefault();
-												e.stopPropagation();
-												customSearchData = null; // 키워드 검색 결과 초기화
-												fetchNewsForTerm(index);
-											}}
-										>
-											<div class="flex items-center space-x-4 flex-1 min-w-0">
-												<div class="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 shadow-lg shadow-blue-500/30 text-white text-sm font-bold rounded-2xl flex-shrink-0 transition-all duration-300">
-													{index + 1}
+								<!-- 실시간 검색어 목록 -->
+								{#if realtimeSearchLoading}
+									<!-- 실시간 검색어 로딩 중 -->
+									<div class="flex items-center justify-center h-full">
+										<div class="text-center space-y-8">
+											<div class="relative">
+												<div class="w-32 h-32 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full opacity-20 animate-ping"></div>
+												<div class="absolute inset-0 flex items-center justify-center">
+													<div class="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-500/30">
+														<svg class="w-10 h-10 text-white animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+														</svg>
+													</div>
 												</div>
-												<span class="search-term-text text-lg font-semibold text-blue-700 break-words flex-1 min-w-0 text-left transition-colors duration-300">
-													{termData.term}
-												</span>
-												{#if termData.loading}
-													<div class="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full flex-shrink-0"></div>
-												{/if}
 											</div>
-											<div class="flex items-center space-x-3 flex-shrink-0 ml-3">
-												{#if termData.news.length > 0}
-													<span class="px-3 py-1.5 bg-blue-500 text-white shadow-lg shadow-blue-500/30 text-sm font-bold rounded-full whitespace-nowrap transition-all duration-300">
-														{termData.news.length}개
-													</span>
-												{/if}
-												<svg 
-													class="w-5 h-5 text-blue-500 flex-shrink-0 transition-all duration-300"
-													fill="none" 
-													stroke="currentColor" 
-													viewBox="0 0 24 24"
-												>
-													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-												</svg>
+											<div class="space-y-3">
+												<h3 class="text-2xl font-bold text-gray-800">실시간 검색어를 가져오고 있어요</h3>
+												<p class="text-gray-600">잠시만 기다려주세요...</p>
 											</div>
-										</button>
-									{:else}
-										<!-- 일반 항목 -->
-										<button 
-											class="search-term-button w-full p-5 text-left flex justify-between items-center transition-all duration-300 {index === searchTermsData.length - 1 ? '' : 'border-b border-white/10'} hover:bg-white/40 min-h-[72px] group focus:outline-none"
-											on:click={(e) => {
-												e.preventDefault();
-												e.stopPropagation();
-												customSearchData = null; // 키워드 검색 결과 초기화
-												fetchNewsForTerm(index);
-											}}
-										>
-											<div class="flex items-center space-x-4 flex-1 min-w-0">
-												<div class="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-blue-400 to-purple-400 group-hover:shadow-lg group-hover:shadow-blue-400/20 text-white text-sm font-bold rounded-2xl flex-shrink-0 transition-all duration-300 group-hover:scale-110">
-													{index + 1}
+										</div>
+									</div>
+								{:else if searchTermsData.length === 0}
+									<!-- 검색어가 없을 때 -->
+									<div class="flex flex-col items-center justify-center h-full space-y-8">
+										<div class="relative">
+											<div class="w-32 h-32 bg-gradient-to-r from-gray-200 to-gray-300 rounded-full opacity-50"></div>
+											<div class="absolute inset-0 flex items-center justify-center">
+												<div class="w-20 h-20 bg-gradient-to-r from-gray-400 to-gray-500 rounded-2xl flex items-center justify-center shadow-xl">
+													<svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+													</svg>
 												</div>
-												<span class="search-term-text text-lg font-semibold text-gray-800 group-hover:text-gray-900 break-words flex-1 min-w-0 text-left transition-colors duration-300">
-													{termData.term}
-												</span>
-												{#if termData.loading}
-													<div class="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full flex-shrink-0"></div>
-												{/if}
 											</div>
-											<div class="flex items-center space-x-3 flex-shrink-0 ml-3">
-												{#if termData.news.length > 0}
-													<span class="px-3 py-1.5 bg-gray-200/80 text-gray-700 group-hover:bg-gray-300/80 text-sm font-bold rounded-full whitespace-nowrap transition-all duration-300">
-														{termData.news.length}개
+										</div>
+										<div class="text-center space-y-4">
+											<h3 class="text-2xl font-bold text-gray-900">검색어가 없습니다</h3>
+											<p class="text-gray-600 text-lg">새로고침 버튼을 눌러 실시간 검색어를 불러오세요</p>
+										</div>
+									</div>
+								{:else}
+									<!-- 실시간 검색어 목록 표시 -->
+									{#each searchTermsData as termData, index}
+										{#if selectedTermIndex === index}
+											<!-- 선택된 항목 -->
+											<button 
+												class="search-term-button search-term-selected w-full p-5 text-left flex justify-between items-center transition-all duration-300 {index === searchTermsData.length - 1 ? '' : 'border-b border-white/10'} bg-gradient-to-r from-blue-500/10 to-purple-500/10 border-blue-200/30 shadow-lg shadow-blue-500/10 min-h-[72px] group focus:outline-none"
+												on:click={(e) => {
+													e.preventDefault();
+													e.stopPropagation();
+													customSearchData = null; // 키워드 검색 결과 초기화
+													fetchNewsForTerm(index);
+												}}
+											>
+												<div class="flex items-center space-x-4 flex-1 min-w-0">
+													<div class="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 shadow-lg shadow-blue-500/30 text-white text-sm font-bold rounded-2xl flex-shrink-0 transition-all duration-300">
+														{index + 1}
+													</div>
+													<span class="search-term-text text-lg font-semibold text-blue-700 break-words flex-1 min-w-0 text-left transition-colors duration-300">
+														{termData.term}
 													</span>
-												{/if}
-												<svg 
-													class="w-5 h-5 text-gray-400 group-hover:text-gray-600 flex-shrink-0 transition-all duration-300 group-hover:translate-x-1"
-													fill="none" 
-													stroke="currentColor" 
-													viewBox="0 0 24 24"
-												>
-													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-												</svg>
-											</div>
-										</button>
-									{/if}
-								{/each}
+													{#if termData.loading}
+														<div class="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full flex-shrink-0"></div>
+													{/if}
+												</div>
+												<div class="flex items-center space-x-3 flex-shrink-0 ml-3">
+													{#if termData.news.length > 0}
+														<span class="px-3 py-1.5 bg-blue-500 text-white shadow-lg shadow-blue-500/30 text-sm font-bold rounded-full whitespace-nowrap transition-all duration-300">
+															{termData.news.length}개
+														</span>
+													{/if}
+													<svg 
+														class="w-5 h-5 text-blue-500 flex-shrink-0 transition-all duration-300"
+														fill="none" 
+														stroke="currentColor" 
+														viewBox="0 0 24 24"
+													>
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+													</svg>
+												</div>
+											</button>
+										{:else}
+											<!-- 일반 항목 -->
+											<button 
+												class="search-term-button w-full p-5 text-left flex justify-between items-center transition-all duration-300 {index === searchTermsData.length - 1 ? '' : 'border-b border-white/10'} hover:bg-white/40 min-h-[72px] group focus:outline-none"
+												on:click={(e) => {
+													e.preventDefault();
+													e.stopPropagation();
+													customSearchData = null; // 키워드 검색 결과 초기화
+													fetchNewsForTerm(index);
+												}}
+											>
+												<div class="flex items-center space-x-4 flex-1 min-w-0">
+													<div class="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-blue-400 to-purple-400 group-hover:shadow-lg group-hover:shadow-blue-400/20 text-white text-sm font-bold rounded-2xl flex-shrink-0 transition-all duration-300 group-hover:scale-110">
+														{index + 1}
+													</div>
+													<span class="search-term-text text-lg font-semibold text-gray-800 group-hover:text-gray-900 break-words flex-1 min-w-0 text-left transition-colors duration-300">
+														{termData.term}
+													</span>
+													{#if termData.loading}
+														<div class="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full flex-shrink-0"></div>
+													{/if}
+												</div>
+												<div class="flex items-center space-x-3 flex-shrink-0 ml-3">
+													{#if termData.news.length > 0}
+														<span class="px-3 py-1.5 bg-gray-200/80 text-gray-700 group-hover:bg-gray-300/80 text-sm font-bold rounded-full whitespace-nowrap transition-all duration-300">
+															{termData.news.length}개
+														</span>
+													{/if}
+													<svg 
+														class="w-5 h-5 text-gray-400 group-hover:text-gray-600 flex-shrink-0 transition-all duration-300 group-hover:translate-x-1"
+														fill="none" 
+														stroke="currentColor" 
+														viewBox="0 0 24 24"
+													>
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+													</svg>
+												</div>
+											</button>
+										{/if}
+									{/each}
+								{/if}
 							{/if}
 						</div>
 					</div>
