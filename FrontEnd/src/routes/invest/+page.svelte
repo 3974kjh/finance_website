@@ -155,6 +155,39 @@
       return 'blue';
     }
   }
+
+  /**
+   * 데이터 변환 및 정렬 최적화 함수
+   */
+  const processFinanceData = (dataArray: any[]): any[] => {
+    if (!dataArray || dataArray.length === 0) {
+      return [];
+    }
+
+    // 한 번의 순회로 변환과 정렬을 위한 데이터 준비
+    const processedData = dataArray.map((item: any) => {
+      const rankSum = parseInt(item.rankSum) || 0;
+      const fullCount = parseInt(item.fullCount) || 1;
+      const count = parseInt(item.count) || 0;
+      
+      return {
+        ...item,
+        rankAvg: Math.round(rankSum / fullCount),
+        rankSum,
+        count
+      };
+    });
+
+    // 네이티브 sort 사용 (lodash orderBy보다 빠름)
+    return processedData.sort((a, b) => {
+      // 1차 정렬: rankAvg 오름차순
+      if (a.rankAvg !== b.rankAvg) {
+        return a.rankAvg - b.rankAvg;
+      }
+      // 2차 정렬: count 내림차순
+      return b.count - a.count;
+    });
+  };
 </script>
 
 <svelte:head>
@@ -244,9 +277,7 @@
                     <button class="h-[24px] sm:h-[28px] rounded-lg px-2 sm:px-3 mr-1 mb-1 text-xs font-medium transition-all duration-200 flex-shrink-0 {selectedMonthRank === financeMonth ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30' : 'bg-slate-600/80 text-slate-200 border border-slate-500/50 hover:bg-slate-500/80'}" on:click={async () => {
                       selectedMonthRank = financeMonth;
                       selectedFinanceMonthRankList = financeMonthRankObject[selectedMonthRank];
-                      selectedFinanceMonthRankList = _.orderBy(financeMonthRankObject[selectedMonthRank].map((item) => {
-                        return {...item, rankSum: parseInt(item.rankSum), count: parseInt(item.count)}
-                      }), ['count', 'rankSum'], ['desc', 'asc']);
+                      selectedFinanceMonthRankList = processFinanceData(financeMonthRankObject[selectedMonthRank]);
                     }}>{`${financeMonth} (${financeMonthRankObject[financeMonth][0]?.count ?? 0}회)`}</button>
                   {/each}
                 {/if}
