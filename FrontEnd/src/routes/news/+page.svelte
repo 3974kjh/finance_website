@@ -27,13 +27,7 @@
 	let dateInfo: string = '';
 	let searchTermsData: SearchTermData[] = [];
 	let realtimeSearchLoading = false; // 전체 loading을 realtimeSearchLoading으로 분리
-	let error = '';
 	let selectedTermIndex: number = -1; // 선택된 검색어 인덱스
-	
-	// 진행률 관련 변수들 (MultiChartBasic 참고)
-	let isProgress: boolean = false;
-	let loadingCount: number = -1;
-	let totalNewsToLoad: number = 0;
 
 	// 키워드 검색 관련 변수들
 	let searchKeyword: string = '';
@@ -222,90 +216,6 @@
 		} catch (error) {
 			console.error('❌ 페이지 초기화 실패:', error);
 			toast.error('페이지를 불러오는 중 오류가 발생했습니다.');
-		}
-	};
-
-	// 모든 검색어의 뉴스를 한번에 가져오기
-	const fetchAllNews = async () => {
-		if (searchTermsData.length === 0) {
-			toast.error('로드할 검색어가 없습니다.');
-			return;
-		}
-		
-		try {
-			isProgress = true;
-			loadingCount = 0;
-			totalNewsToLoad = searchTermsData.length;
-			selectedTermIndex = -1; // 선택 초기화
-			
-			console.log(`🚀 전체 뉴스 로드 시작: ${totalNewsToLoad}개 검색어`);
-			
-			// 🚀 배치 처리로 최적화 - 동시에 최대 3개씩만 요청
-			const batchSize = 3;
-			const batches: SearchTermData[][] = [];
-			
-			for (let i = 0; i < searchTermsData.length; i += batchSize) {
-				batches.push(searchTermsData.slice(i, i + batchSize));
-			}
-			
-			let successCount = 0;
-			let errorCount = 0;
-			
-			for (const batch of batches) {
-				// 배치 내 요청들을 병렬로 처리
-				const batchPromises = batch.map(async (termData, batchIndex) => {
-					const globalIndex = batches.findIndex(b => b.includes(termData)) * batchSize + batchIndex;
-					
-					try {
-						const response = await getSearchResultByNaverApi('news', {
-							query: termData.term,
-							display: 10,
-							start: 1,
-							sort: 'date',
-							filter: 'all'
-						});
-						
-						if (response && response.items) {
-							searchTermsData[globalIndex].news = response.items;
-							successCount++;
-							console.log(`✅ 뉴스 로드 성공: ${termData.term} (${response.items.length}개)`);
-						} else {
-							console.warn(`⚠️ 뉴스 데이터 없음: ${termData.term}`);
-							errorCount++;
-						}
-						
-						loadingCount = globalIndex + 1;
-					} catch (err) {
-						console.error(`❌ ${termData.term} 뉴스 가져오기 실패:`, err);
-						errorCount++;
-						loadingCount = globalIndex + 1;
-					}
-				});
-				
-				// 배치 내 모든 요청 완료 대기
-				await Promise.all(batchPromises);
-				
-				// 배치 간 간격 (ngrok 제한 고려)
-				if (batches.indexOf(batch) < batches.length - 1) {
-					await new Promise(resolve => setTimeout(resolve, 500)); // 500ms 대기
-				}
-			}
-			
-			// 결과 요약
-			console.log(`📊 전체 뉴스 로드 완료: 성공 ${successCount}개, 실패 ${errorCount}개`);
-			
-			if (successCount > 0) {
-				toast.success(`뉴스 로드 완료: ${successCount}개 성공${errorCount > 0 ? `, ${errorCount}개 실패` : ''}`);
-			} else {
-				toast.error('모든 뉴스 로드에 실패했습니다.');
-			}
-			
-		} catch (err) {
-			console.error('❌ 전체 뉴스 가져오기 실패:', err);
-			toast.error('뉴스를 가져오는 중 오류가 발생했습니다.');
-		} finally {
-			isProgress = false;
-			loadingCount = -1;
 		}
 	};
 
@@ -777,7 +687,7 @@
 								placeholder="키워드로 뉴스 검색..."
 								class="bg-transparent outline-none text-gray-800 placeholder-gray-500 font-medium flex-1 min-w-0"
 								bind:value={searchKeyword}
-								disabled={realtimeSearchLoading || isProgress || isSearching}
+								disabled={realtimeSearchLoading || isSearching}
 								on:keypress={(e) => {
 									if (e.key === 'Enter') {
 										searchKeywordNews();
@@ -802,7 +712,7 @@
 							<button
 								class="px-5 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold hover:from-orange-600 hover:to-red-600 transition-all duration-300 disabled:opacity-50 rounded-r-2xl ml-auto"
 								on:click={searchKeywordNews}
-								disabled={!searchKeyword.trim() || realtimeSearchLoading || isProgress || isSearching}
+								disabled={!searchKeyword.trim() || realtimeSearchLoading || isSearching}
 							>
 								{#if isSearching}
 									<div class="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
@@ -815,29 +725,10 @@
 						</div>
 					</div>
 				</div>
-				
-				<button 
-					class="group relative px-8 py-4 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white font-bold rounded-2xl shadow-xl shadow-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/40 transform hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:transform-none disabled:shadow-lg overflow-hidden"
-					on:click={fetchAllNews}
-					disabled={realtimeSearchLoading || isProgress || searchTermsData.length === 0}
-				>
-					<div class="absolute inset-0 bg-gradient-to-r from-emerald-600 to-teal-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-					<div class="relative flex items-center space-x-3">
-						{#if isProgress}
-							<div class="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
-						{:else}
-							<svg class="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-							</svg>
-						{/if}
-						<span>{isProgress ? '뉴스 로딩 중...' : '모든 뉴스 로드'}</span>
-					</div>
-				</button>
-				
 				<button 
 					class="group relative px-8 py-4 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 text-white font-bold rounded-2xl shadow-xl shadow-blue-500/30 hover:shadow-2xl hover:shadow-blue-500/40 transform hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:transform-none disabled:shadow-lg overflow-hidden"
 					on:click={fetchRealtimeSearchTerms}
-					disabled={realtimeSearchLoading || isProgress}
+					disabled={realtimeSearchLoading}
 				>
 					<div class="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 					<div class="relative flex items-center space-x-3">
@@ -857,408 +748,375 @@
 
 	<!-- 메인 컨텐츠 -->
 	<div class="flex-1 overflow-hidden p-8">
-		{#if isProgress}
-			<div class="flex flex-col items-center justify-center h-full space-y-8">
-				<div class="relative">
-					<div class="w-40 h-40 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full opacity-20 animate-pulse"></div>
-					<div class="absolute inset-0 flex items-center justify-center">
-						<div class="text-center space-y-4">
-							<div class="w-24 h-24 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center shadow-2xl shadow-emerald-500/30">
-								<svg class="w-12 h-12 text-white animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
-								</svg>
-							</div>
-						</div>
-					</div>
-				</div>
-				<div class="text-center space-y-4">
-					<h3 class="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">뉴스 데이터 수집 중</h3>
-					<p class="text-xl text-gray-700 font-medium">{totalNewsToLoad}개 검색어의 뉴스를 가져오고 있습니다</p>
-				</div>
-				<div class="w-full max-w-lg">
-					<DownLoadProgressBar
-						min={0}
-						max={totalNewsToLoad}
-						nowCount={loadingCount}
-					/>
-				</div>
-				<div class="bg-white/80 backdrop-blur-sm px-6 py-3 rounded-2xl shadow-lg">
-					<p class="text-lg text-gray-700 font-bold">
-						{loadingCount}/{totalNewsToLoad} 완료
-					</p>
-				</div>
-			</div>
-		{:else}
-			<!-- 좌우 분할 레이아웃 -->
-			<div class="flex h-full space-x-8">
-				<!-- 왼쪽: 실시간 검색어 목록 -->
-				<div class="w-1/3 flex flex-col min-h-0">
-					<div class="bg-white/60 backdrop-blur-xl border border-white/30 rounded-3xl shadow-2xl shadow-gray-900/10 h-full overflow-hidden flex flex-col">
-						<div class="p-6 border-b border-white/20 flex-shrink-0 bg-gradient-to-r from-blue-50/50 to-purple-50/50">
-							<div class="flex items-center justify-between">
-								<div class="flex items-center space-x-3">
-									<div class="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
-										<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											{#if searchMode === 'realtime'}
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-											{:else}
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-											{/if}
-										</svg>
-									</div>
-									<h2 class="text-xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
-										{searchMode === 'realtime' ? '실시간 검색어' : '직접 검색'}
-									</h2>
-								</div>
-								<!-- 모드 전환 버튼 -->
-								<div class="flex space-x-2">
-									<button
-										class="px-3 py-1.5 text-sm font-medium rounded-xl transition-all duration-300 flex items-center space-x-2 {searchMode === 'realtime' ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg shadow-blue-500/30' : 'bg-gray-200/80 text-gray-600 hover:bg-gray-300/80'}"
-										on:click={switchToRealtimeSearch}
-									>
-										{#if realtimeSearchLoading}
-											<div class="animate-spin w-3 h-3 border border-current border-t-transparent rounded-full"></div>
-										{/if}
-										<span>실시간</span>
-									</button>
-									<button
-										class="px-3 py-1.5 text-sm font-medium rounded-xl transition-all duration-300 {searchMode === 'custom' ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/30' : 'bg-gray-200/80 text-gray-600 hover:bg-gray-300/80'}"
-										on:click={switchToCustomSearch}
-									>
-										직접검색
-									</button>
-								</div>
-							</div>
-						</div>
-						<div class="flex-1 overflow-y-auto min-h-0">
-							{#if searchMode === 'custom'}
-								<!-- 직접 검색 모드 -->
-								<div class="p-4 space-y-4 h-full flex flex-col">
-									{#if customSearchData}
-										<!-- 현재 검색 결과 -->
-										<div class="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200/50 rounded-2xl p-4 flex-shrink-0">
-											<div class="flex items-center space-x-3">
-												<div class="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
-													<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-													</svg>
-												</div>
-												<div class="flex-1">
-													<h3 class="font-bold text-orange-800">현재 검색</h3>
-													<p class="text-sm text-orange-700">'{customSearchData.term}' 검색 결과 {customSearchData.news.length}개</p>
-												</div>
-											</div>
-										</div>
-									{/if}
-									
-									{#if searchHistory.length > 0}
-										<!-- 검색 기록 -->
-										<div class="flex-1 flex flex-col min-h-0">
-											<div class="flex items-center justify-between mb-2 flex-shrink-0">
-												<h3 class="text-sm font-bold text-gray-800 flex items-center">
-													<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-													</svg>
-													최근 검색어
-												</h3>
-												<button
-													class="text-xs text-gray-500 hover:text-red-500 transition-colors duration-200"
-													on:click={clearAllSearchHistory}
-												>
-													전체 삭제
-												</button>
-											</div>
-											<div class="flex-1 overflow-y-auto min-h-0 space-y-1">
-												{#each searchHistory as historyItem, index}
-													<div class="flex items-center justify-between hover:bg-gray-50/80 px-3 py-2 rounded-xl group transition-colors duration-200">
-														<button
-															class="flex-1 text-left text-sm text-gray-700 hover:text-gray-900 font-medium"
-															on:click={() => selectFromHistory(historyItem)}
-														>
-															<svg class="w-3 h-3 inline mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-															</svg>
-															{historyItem}
-														</button>
-														<button
-															class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-all duration-200"
-															on:click={() => removeFromSearchHistory(historyItem)}
-															title="삭제"
-														>
-															<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-															</svg>
-														</button>
-													</div>
-												{/each}
-											</div>
-										</div>
-									{:else}
-										<!-- 검색 기록이 없을 때 -->
-										<div class="flex-1 flex items-center justify-center">
-											<div class="text-center py-8">
-												<div class="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-													<svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-													</svg>
-												</div>
-												<h3 class="text-lg font-bold text-gray-600 mb-2">검색 기록이 없습니다</h3>
-												<p class="text-sm text-gray-500">상단 검색창에서 키워드를 검색해보세요</p>
-											</div>
-										</div>
-									{/if}
-								</div>
-							{:else}
-								<!-- 실시간 검색어 목록 -->
-								{#if realtimeSearchLoading}
-									<!-- 실시간 검색어 로딩 중 -->
-									<div class="flex items-center justify-center h-full">
-										<div class="text-center space-y-8">
-											<div class="relative">
-												<div class="w-32 h-32 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full opacity-20 animate-ping"></div>
-												<div class="absolute inset-0 flex items-center justify-center">
-													<div class="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-500/30">
-														<svg class="w-10 h-10 text-white animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-														</svg>
-													</div>
-												</div>
-											</div>
-											<div class="space-y-3">
-												<h3 class="text-2xl font-bold text-gray-800">실시간 검색어를 가져오고 있어요</h3>
-												<p class="text-gray-600">잠시만 기다려주세요...</p>
-											</div>
-										</div>
-									</div>
-								{:else if searchTermsData.length === 0}
-									<!-- 검색어가 없을 때 -->
-									<div class="flex flex-col items-center justify-center h-full space-y-8">
-										<div class="relative">
-											<div class="w-32 h-32 bg-gradient-to-r from-gray-200 to-gray-300 rounded-full opacity-50"></div>
-											<div class="absolute inset-0 flex items-center justify-center">
-												<div class="w-20 h-20 bg-gradient-to-r from-gray-400 to-gray-500 rounded-2xl flex items-center justify-center shadow-xl">
-													<svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-													</svg>
-												</div>
-											</div>
-										</div>
-										<div class="text-center space-y-4">
-											<h3 class="text-2xl font-bold text-gray-900">검색어가 없습니다</h3>
-											<p class="text-gray-600 text-lg">새로고침 버튼을 눌러 실시간 검색어를 불러오세요</p>
-										</div>
-									</div>
-								{:else}
-									<!-- 실시간 검색어 목록 표시 -->
-									{#each searchTermsData as termData, index}
-										{#if selectedTermIndex === index}
-											<!-- 선택된 항목 -->
-											<button 
-												class="search-term-button search-term-selected w-full p-5 text-left flex justify-between items-center transition-all duration-300 {index === searchTermsData.length - 1 ? '' : 'border-b border-white/10'} bg-gradient-to-r from-blue-500/10 to-purple-500/10 border-blue-200/30 shadow-lg shadow-blue-500/10 min-h-[72px] group focus:outline-none"
-												on:click={(e) => {
-													e.preventDefault();
-													e.stopPropagation();
-													customSearchData = null; // 키워드 검색 결과 초기화
-													fetchNewsForTerm(index);
-												}}
-											>
-												<div class="flex items-center space-x-4 flex-1 min-w-0">
-													<div class="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 shadow-lg shadow-blue-500/30 text-white text-sm font-bold rounded-2xl flex-shrink-0 transition-all duration-300">
-														{index + 1}
-													</div>
-													<span class="search-term-text text-lg font-semibold text-blue-700 break-words flex-1 min-w-0 text-left transition-colors duration-300">
-														{termData.term}
-													</span>
-													{#if termData.loading}
-														<div class="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full flex-shrink-0"></div>
-													{/if}
-												</div>
-												<div class="flex items-center space-x-3 flex-shrink-0 ml-3">
-													{#if termData.news.length > 0}
-														<span class="px-3 py-1.5 bg-blue-500 text-white shadow-lg shadow-blue-500/30 text-sm font-bold rounded-full whitespace-nowrap transition-all duration-300">
-															{termData.news.length}개
-														</span>
-													{/if}
-													<svg 
-														class="w-5 h-5 text-blue-500 flex-shrink-0 transition-all duration-300"
-														fill="none" 
-														stroke="currentColor" 
-														viewBox="0 0 24 24"
-													>
-														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-													</svg>
-												</div>
-											</button>
+		<!-- 좌우 분할 레이아웃 -->
+		<div class="flex h-full space-x-8">
+			<!-- 왼쪽: 실시간 검색어 목록 -->
+			<div class="w-1/3 flex flex-col min-h-0">
+				<div class="bg-white/60 backdrop-blur-xl border border-white/30 rounded-3xl shadow-2xl shadow-gray-900/10 h-full overflow-hidden flex flex-col">
+					<div class="p-6 border-b border-white/20 flex-shrink-0 bg-gradient-to-r from-blue-50/50 to-purple-50/50">
+						<div class="flex items-center justify-between">
+							<div class="flex items-center space-x-3">
+								<div class="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
+									<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										{#if searchMode === 'realtime'}
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
 										{:else}
-											<!-- 일반 항목 -->
-											<button 
-												class="search-term-button w-full p-5 text-left flex justify-between items-center transition-all duration-300 {index === searchTermsData.length - 1 ? '' : 'border-b border-white/10'} hover:bg-white/40 min-h-[72px] group focus:outline-none"
-												on:click={(e) => {
-													e.preventDefault();
-													e.stopPropagation();
-													customSearchData = null; // 키워드 검색 결과 초기화
-													fetchNewsForTerm(index);
-												}}
-											>
-												<div class="flex items-center space-x-4 flex-1 min-w-0">
-													<div class="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-blue-400 to-purple-400 group-hover:shadow-lg group-hover:shadow-blue-400/20 text-white text-sm font-bold rounded-2xl flex-shrink-0 transition-all duration-300 group-hover:scale-110">
-														{index + 1}
-													</div>
-													<span class="search-term-text text-lg font-semibold text-gray-800 group-hover:text-gray-900 break-words flex-1 min-w-0 text-left transition-colors duration-300">
-														{termData.term}
-													</span>
-													{#if termData.loading}
-														<div class="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full flex-shrink-0"></div>
-													{/if}
-												</div>
-												<div class="flex items-center space-x-3 flex-shrink-0 ml-3">
-													{#if termData.news.length > 0}
-														<span class="px-3 py-1.5 bg-gray-200/80 text-gray-700 group-hover:bg-gray-300/80 text-sm font-bold rounded-full whitespace-nowrap transition-all duration-300">
-															{termData.news.length}개
-														</span>
-													{/if}
-													<svg 
-														class="w-5 h-5 text-gray-400 group-hover:text-gray-600 flex-shrink-0 transition-all duration-300 group-hover:translate-x-1"
-														fill="none" 
-														stroke="currentColor" 
-														viewBox="0 0 24 24"
-													>
-														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-													</svg>
-												</div>
-											</button>
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
 										{/if}
-									{/each}
-								{/if}
-							{/if}
+									</svg>
+								</div>
+								<h2 class="text-xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+									{searchMode === 'realtime' ? '실시간 검색어' : '직접 검색'}
+								</h2>
+							</div>
+							<!-- 모드 전환 버튼 -->
+							<div class="flex space-x-2">
+								<button
+									class="px-3 py-1.5 text-sm font-medium rounded-xl transition-all duration-300 flex items-center space-x-2 {searchMode === 'realtime' ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg shadow-blue-500/30' : 'bg-gray-200/80 text-gray-600 hover:bg-gray-300/80'}"
+									on:click={switchToRealtimeSearch}
+								>
+									{#if realtimeSearchLoading}
+										<div class="animate-spin w-3 h-3 border border-current border-t-transparent rounded-full"></div>
+									{/if}
+									<span>실시간</span>
+								</button>
+								<button
+									class="px-3 py-1.5 text-sm font-medium rounded-xl transition-all duration-300 {searchMode === 'custom' ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/30' : 'bg-gray-200/80 text-gray-600 hover:bg-gray-300/80'}"
+									on:click={switchToCustomSearch}
+								>
+									직접검색
+								</button>
+							</div>
 						</div>
 					</div>
-				</div>
-
-				<!-- 오른쪽: 선택된 검색어의 뉴스 목록 -->
-				<div class="flex-1 flex flex-col">
-					<div class="bg-white/60 backdrop-blur-xl border border-white/30 rounded-3xl shadow-2xl shadow-gray-900/10 h-full overflow-hidden flex flex-col">
-						{#if customSearchData || selectedTermIndex >= 0}
-							<div class="p-6 border-b border-white/20 flex-shrink-0 bg-gradient-to-r from-emerald-50/50 to-teal-50/50">
-								<div class="flex items-center justify-between">
-									<div class="flex items-center space-x-3">
-										<div class="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center">
-											<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9.5a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path>
-											</svg>
-										</div>
-										<h2 class="text-xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
-											'{selectedTerm}' 관련 뉴스
-										</h2>
-									</div>
-									{#if selectedLoading || isSearching}
-										<div class="animate-spin h-6 w-6 border-2 border-emerald-500 border-t-transparent rounded-full"></div>
-									{/if}
-								</div>
-							</div>
-							<div class="flex-1 overflow-y-auto min-h-0" id="news-results-container">
-								{#if selectedLoading || isSearching}
-									<div class="flex items-center justify-center h-full">
-										<div class="text-center space-y-6">
-											<div class="relative">
-												<div class="w-24 h-24 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full opacity-20 animate-pulse"></div>
+					<div class="flex-1 overflow-y-auto min-h-0">
+						{#if searchMode === 'custom'}
+							<!-- 직접 검색 모드 -->
+							<div class="p-4 space-y-4 h-full flex flex-col">
+								{#if customSearchData}
+									<!-- 현재 검색 결과 -->
+									<div class="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200/50 rounded-2xl p-4 flex-shrink-0">
+										<div class="flex items-center space-x-3">
+											<div class="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
+												<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+												</svg>
 											</div>
-											<div class="space-y-2">
-												<h3 class="text-xl font-bold text-gray-800">뉴스를 가져오고 있어요</h3>
-												<p class="text-gray-600">잠시만 기다려주세요...</p>
+											<div class="flex-1">
+												<h3 class="font-bold text-orange-800">현재 검색</h3>
+												<p class="text-sm text-orange-700">'{customSearchData.term}' 검색 결과 {customSearchData.news.length}개</p>
 											</div>
 										</div>
 									</div>
-								{:else if selectedNews.length > 0}
-									<div class="divide-y divide-white/10">
-										{#each selectedNews as news, newsIndex}
-											<div class="p-8 hover:bg-white/20 transition-all duration-300 group/news">
-												<div class="flex justify-between items-start space-x-6">
-													<div class="flex-1 min-w-0 space-y-4">
-														<a 
-															href={news.originallink || news.link} 
-															target="_blank" 
-															rel="noopener noreferrer"
-															class="block group-hover/news:text-emerald-600 transition-colors duration-300"
-														>
-															<h4 class="text-xl font-bold text-gray-900 leading-relaxed mb-3 line-clamp-2 group-hover/news:text-emerald-700 transition-colors duration-300">
-																{@html sanitizeHtml(news.title)}
-															</h4>
-														</a>
-														<p class="text-gray-700 text-base leading-relaxed mb-4 line-clamp-3">
-															{@html sanitizeHtml(news.description)}
-														</p>
-														<div class="flex items-center justify-between">
-															<div class="flex items-center space-x-4">
-																<span class="text-sm text-gray-500 flex items-center bg-gray-100/60 px-3 py-1.5 rounded-full">
-																	<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																		<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-																	</svg>
-																	{formatDate(news.pubDate)}
-																</span>
-																<span class="px-3 py-1.5 bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 text-sm rounded-full font-semibold border border-blue-200/30">
-																	{newsIndex + 1}/{selectedNews.length}
-																</span>
-															</div>
-														</div>
-													</div>
-													<div class="flex-shrink-0">
-														<a 
-															href={news.originallink || news.link} 
-															target="_blank" 
-															rel="noopener noreferrer"
-															class="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-2xl shadow-xl shadow-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/40 transition-all duration-300 hover:scale-110 group"
-														>
-															<svg class="w-6 h-6 group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-															</svg>
-														</a>
-													</div>
+								{/if}
+								
+								{#if searchHistory.length > 0}
+									<!-- 검색 기록 -->
+									<div class="flex-1 flex flex-col min-h-0">
+										<div class="flex items-center justify-between mb-2 flex-shrink-0">
+											<h3 class="text-sm font-bold text-gray-800 flex items-center">
+												<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+												</svg>
+												최근 검색어
+											</h3>
+											<button
+												class="text-xs text-gray-500 hover:text-red-500 transition-colors duration-200"
+												on:click={clearAllSearchHistory}
+											>
+												전체 삭제
+											</button>
+										</div>
+										<div class="flex-1 overflow-y-auto min-h-0 space-y-1">
+											{#each searchHistory as historyItem, index}
+												<div class="flex items-center justify-between hover:bg-gray-50/80 px-3 py-2 rounded-xl group transition-colors duration-200">
+													<button
+														class="flex-1 text-left text-sm text-gray-700 hover:text-gray-900 font-medium"
+														on:click={() => selectFromHistory(historyItem)}
+													>
+														<svg class="w-3 h-3 inline mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+														</svg>
+														{historyItem}
+													</button>
+													<button
+														class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-all duration-200"
+														on:click={() => removeFromSearchHistory(historyItem)}
+														title="삭제"
+													>
+														<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+														</svg>
+													</button>
 												</div>
-											</div>
-										{/each}
+											{/each}
+										</div>
 									</div>
 								{:else}
-									<div class="flex flex-col items-center justify-center h-full space-y-8">
-										<div class="relative">
-											<div class="w-32 h-32 bg-gradient-to-r from-gray-200 to-gray-300 rounded-full opacity-50"></div>
-											<div class="absolute inset-0 flex items-center justify-center">
-												<div class="w-20 h-20 bg-gradient-to-r from-gray-400 to-gray-500 rounded-2xl flex items-center justify-center shadow-xl">
-													<svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-													</svg>
-												</div>
+									<!-- 검색 기록이 없을 때 -->
+									<div class="flex-1 flex items-center justify-center">
+										<div class="text-center py-8">
+											<div class="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+												<svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+												</svg>
 											</div>
-										</div>
-										<div class="text-center space-y-4">
-											<h3 class="text-2xl font-bold text-gray-900">뉴스를 찾을 수 없어요</h3>
-											<p class="text-gray-600 text-lg">해당 검색어에 대한 뉴스가 없습니다</p>
+											<h3 class="text-lg font-bold text-gray-600 mb-2">검색 기록이 없습니다</h3>
+											<p class="text-sm text-gray-500">상단 검색창에서 키워드를 검색해보세요</p>
 										</div>
 									</div>
 								{/if}
 							</div>
 						{:else}
-							<div class="flex flex-col items-center justify-center h-full space-y-8">
-								<div class="relative">
-									<div class="w-40 h-40 bg-gradient-to-r from-indigo-200 to-purple-200 rounded-full opacity-50 animate-pulse"></div>
-									<div class="absolute inset-0 flex items-center justify-center">
-										<div class="w-24 h-24 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-3xl flex items-center justify-center shadow-2xl shadow-indigo-500/30">
-											<svg class="w-12 h-12 text-white animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path>
-											</svg>
+							<!-- 실시간 검색어 목록 -->
+							{#if realtimeSearchLoading}
+								<!-- 실시간 검색어 로딩 중 -->
+								<div class="flex items-center justify-center h-full">
+									<div class="text-center space-y-8">
+										<div class="relative">
+											<div class="w-32 h-32 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full opacity-20 animate-ping"></div>
+											<div class="absolute inset-0 flex items-center justify-center">
+												<div class="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-500/30">
+													<svg class="w-10 h-10 text-white animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+													</svg>
+												</div>
+											</div>
+										</div>
+										<div class="space-y-3">
+											<h3 class="text-2xl font-bold text-gray-800">실시간 검색어를 가져오고 있어요</h3>
+											<p class="text-gray-600">잠시만 기다려주세요...</p>
 										</div>
 									</div>
 								</div>
-								<div class="text-center space-y-4">
-									<h3 class="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">검색어를 선택하세요</h3>
-									<p class="text-gray-600 text-xl">왼쪽에서 실시간 검색어를 클릭하면<br/>관련 뉴스가 표시됩니다</p>
+							{:else if searchTermsData.length === 0}
+								<!-- 검색어가 없을 때 -->
+								<div class="flex flex-col items-center justify-center h-full space-y-8">
+									<div class="relative">
+										<div class="w-32 h-32 bg-gradient-to-r from-gray-200 to-gray-300 rounded-full opacity-50"></div>
+										<div class="absolute inset-0 flex items-center justify-center">
+											<div class="w-20 h-20 bg-gradient-to-r from-gray-400 to-gray-500 rounded-2xl flex items-center justify-center shadow-xl">
+												<svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+												</svg>
+											</div>
+										</div>
+									</div>
+									<div class="text-center space-y-4">
+										<h3 class="text-2xl font-bold text-gray-900">검색어가 없습니다</h3>
+										<p class="text-gray-600 text-lg">새로고침 버튼을 눌러 실시간 검색어를 불러오세요</p>
+									</div>
 								</div>
-							</div>
+							{:else}
+								<!-- 실시간 검색어 목록 표시 -->
+								{#each searchTermsData as termData, index}
+									{#if selectedTermIndex === index}
+										<!-- 선택된 항목 -->
+										<button 
+											class="search-term-button search-term-selected w-full p-5 text-left flex justify-between items-center transition-all duration-300 {index === searchTermsData.length - 1 ? '' : 'border-b border-white/10'} bg-gradient-to-r from-blue-500/10 to-purple-500/10 border-blue-200/30 shadow-lg shadow-blue-500/10 min-h-[72px] group focus:outline-none"
+											on:click={(e) => {
+												e.preventDefault();
+												e.stopPropagation();
+												customSearchData = null; // 키워드 검색 결과 초기화
+												fetchNewsForTerm(index);
+											}}
+										>
+											<div class="flex items-center space-x-4 flex-1 min-w-0">
+												<div class="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 shadow-lg shadow-blue-500/30 text-white text-sm font-bold rounded-2xl flex-shrink-0 transition-all duration-300">
+													{index + 1}
+												</div>
+												<span class="search-term-text text-lg font-semibold text-blue-700 break-words flex-1 min-w-0 text-left transition-colors duration-300">
+													{termData.term}
+												</span>
+												{#if termData.loading}
+													<div class="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full flex-shrink-0"></div>
+												{/if}
+											</div>
+											<div class="flex items-center space-x-3 flex-shrink-0 ml-3">
+												{#if termData.news.length > 0}
+													<span class="px-3 py-1.5 bg-blue-500 text-white shadow-lg shadow-blue-500/30 text-sm font-bold rounded-full whitespace-nowrap transition-all duration-300">
+														{termData.news.length}개
+													</span>
+												{/if}
+												<svg 
+													class="w-5 h-5 text-blue-500 flex-shrink-0 transition-all duration-300"
+													fill="none" 
+													stroke="currentColor" 
+													viewBox="0 0 24 24"
+												>
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+												</svg>
+											</div>
+										</button>
+									{:else}
+										<!-- 일반 항목 -->
+										<button 
+											class="search-term-button w-full p-5 text-left flex justify-between items-center transition-all duration-300 {index === searchTermsData.length - 1 ? '' : 'border-b border-white/10'} hover:bg-white/40 min-h-[72px] group focus:outline-none"
+											on:click={(e) => {
+												e.preventDefault();
+												e.stopPropagation();
+												customSearchData = null; // 키워드 검색 결과 초기화
+												fetchNewsForTerm(index);
+											}}
+										>
+											<div class="flex items-center space-x-4 flex-1 min-w-0">
+												<div class="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-blue-400 to-purple-400 group-hover:shadow-lg group-hover:shadow-blue-400/20 text-white text-sm font-bold rounded-2xl flex-shrink-0 transition-all duration-300 group-hover:scale-110">
+													{index + 1}
+												</div>
+												<span class="search-term-text text-lg font-semibold text-gray-800 group-hover:text-gray-900 break-words flex-1 min-w-0 text-left transition-colors duration-300">
+													{termData.term}
+												</span>
+												{#if termData.loading}
+													<div class="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full flex-shrink-0"></div>
+												{/if}
+											</div>
+											<div class="flex items-center space-x-3 flex-shrink-0 ml-3">
+												{#if termData.news.length > 0}
+													<span class="px-3 py-1.5 bg-gray-200/80 text-gray-700 group-hover:bg-gray-300/80 text-sm font-bold rounded-full whitespace-nowrap transition-all duration-300">
+														{termData.news.length}개
+													</span>
+												{/if}
+												<svg 
+													class="w-5 h-5 text-gray-400 group-hover:text-gray-600 flex-shrink-0 transition-all duration-300 group-hover:translate-x-1"
+													fill="none" 
+													stroke="currentColor" 
+													viewBox="0 0 24 24"
+												>
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+												</svg>
+											</div>
+										</button>
+									{/if}
+								{/each}
+							{/if}
 						{/if}
 					</div>
 				</div>
 			</div>
-		{/if}
+
+			<!-- 오른쪽: 선택된 검색어의 뉴스 목록 -->
+			<div class="flex-1 flex flex-col">
+				<div class="bg-white/60 backdrop-blur-xl border border-white/30 rounded-3xl shadow-2xl shadow-gray-900/10 h-full overflow-hidden flex flex-col">
+					{#if customSearchData || selectedTermIndex >= 0}
+						<div class="p-6 border-b border-white/20 flex-shrink-0 bg-gradient-to-r from-emerald-50/50 to-teal-50/50">
+							<div class="flex items-center justify-between">
+								<div class="flex items-center space-x-3">
+									<div class="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center">
+										<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9.5a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path>
+										</svg>
+									</div>
+									<h2 class="text-xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+										'{selectedTerm}' 관련 뉴스
+									</h2>
+								</div>
+								{#if selectedLoading || isSearching}
+									<div class="animate-spin h-6 w-6 border-2 border-emerald-500 border-t-transparent rounded-full"></div>
+								{/if}
+							</div>
+						</div>
+						<div class="flex-1 overflow-y-auto min-h-0" id="news-results-container">
+							{#if selectedLoading || isSearching}
+								<div class="flex items-center justify-center h-full">
+									<div class="text-center space-y-6">
+										<div class="relative">
+											<div class="w-24 h-24 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full opacity-20 animate-pulse"></div>
+										</div>
+										<div class="space-y-2">
+											<h3 class="text-xl font-bold text-gray-800">뉴스를 가져오고 있어요</h3>
+											<p class="text-gray-600">잠시만 기다려주세요...</p>
+										</div>
+									</div>
+								</div>
+							{:else if selectedNews.length > 0}
+								<div class="divide-y divide-white/10">
+									{#each selectedNews as news, newsIndex}
+										<div class="p-8 hover:bg-white/20 transition-all duration-300 group/news">
+											<div class="flex justify-between items-start space-x-6">
+												<div class="flex-1 min-w-0 space-y-4">
+													<a 
+														href={news.originallink || news.link} 
+														target="_blank" 
+														rel="noopener noreferrer"
+														class="block group-hover/news:text-emerald-600 transition-colors duration-300"
+													>
+														<h4 class="text-xl font-bold text-gray-900 leading-relaxed mb-3 line-clamp-2 group-hover/news:text-emerald-700 transition-colors duration-300">
+															{@html sanitizeHtml(news.title)}
+														</h4>
+													</a>
+													<p class="text-gray-700 text-base leading-relaxed mb-4 line-clamp-3">
+														{@html sanitizeHtml(news.description)}
+													</p>
+													<div class="flex items-center justify-between">
+														<div class="flex items-center space-x-4">
+															<span class="text-sm text-gray-500 flex items-center bg-gray-100/60 px-3 py-1.5 rounded-full">
+																<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																	<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+																</svg>
+																{formatDate(news.pubDate)}
+															</span>
+															<span class="px-3 py-1.5 bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 text-sm rounded-full font-semibold border border-blue-200/30">
+																{newsIndex + 1}/{selectedNews.length}
+															</span>
+														</div>
+													</div>
+												</div>
+												<div class="flex-shrink-0">
+													<a 
+														href={news.originallink || news.link} 
+														target="_blank" 
+														rel="noopener noreferrer"
+														class="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-2xl shadow-xl shadow-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/40 transition-all duration-300 hover:scale-110 group"
+													>
+														<svg class="w-6 h-6 group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+														</svg>
+													</a>
+												</div>
+											</div>
+										</div>
+									{/each}
+								</div>
+							{:else}
+								<div class="flex flex-col items-center justify-center h-full space-y-8">
+									<div class="relative">
+										<div class="w-32 h-32 bg-gradient-to-r from-gray-200 to-gray-300 rounded-full opacity-50"></div>
+										<div class="absolute inset-0 flex items-center justify-center">
+											<div class="w-20 h-20 bg-gradient-to-r from-gray-400 to-gray-500 rounded-2xl flex items-center justify-center shadow-xl">
+												<svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+												</svg>
+											</div>
+										</div>
+									</div>
+									<div class="text-center space-y-4">
+										<h3 class="text-2xl font-bold text-gray-900">뉴스를 찾을 수 없어요</h3>
+										<p class="text-gray-600 text-lg">해당 검색어에 대한 뉴스가 없습니다</p>
+									</div>
+								</div>
+							{/if}
+						</div>
+					{:else}
+						<div class="flex flex-col items-center justify-center h-full space-y-8">
+							<div class="relative">
+								<div class="w-40 h-40 bg-gradient-to-r from-indigo-200 to-purple-200 rounded-full opacity-50 animate-pulse"></div>
+								<div class="absolute inset-0 flex items-center justify-center">
+									<div class="w-24 h-24 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-3xl flex items-center justify-center shadow-2xl shadow-indigo-500/30">
+										<svg class="w-12 h-12 text-white animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path>
+										</svg>
+									</div>
+								</div>
+							</div>
+							<div class="text-center space-y-4">
+								<h3 class="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">검색어를 선택하세요</h3>
+								<p class="text-gray-600 text-xl">왼쪽에서 실시간 검색어를 클릭하면<br/>관련 뉴스가 표시됩니다</p>
+							</div>
+						</div>
+					{/if}
+				</div>
+			</div>
+		</div>
 	</div>
 </div>
 
