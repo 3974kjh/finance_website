@@ -6,6 +6,7 @@
   import { formatIncludeComma, createComponent } from '$lib/utils/CommonHelper';
   import { StockListPopup } from '$lib/popup';
   import _ from 'lodash';
+	import toast from 'svelte-french-toast';
 
   let financeMonthRankObject: any = null;
 
@@ -43,8 +44,35 @@
   let investResultInfo: {
     investMoney: number,
     equalExpectCost: number,
-    weightExpectCost: number
+    weightExpectCost: number,
+    indexResults: Array<{
+      name: string,
+      key: string,
+      expectCost: number,
+      startValue: number,
+      endValue: number,
+      icon: string,
+      color: string
+    }>
   } | null = null;
+
+  // 비교할 지수 목록
+  let indexModeObject: any = {
+    '코스피': {name: '코스피', key: 'KS11', icon: '🇰🇷', color: 'from-blue-500 to-red-500'},
+    '코스닥': {name: '코스닥', key: 'KQ11', icon: '🇰🇷', color: 'from-blue-500 to-red-500'},
+    'S&P500': {name: 'S&P500', key: 'US500', icon: '🇺🇸', color: 'from-blue-600 to-red-600'},
+    '나스닥': {name: '나스닥', key: 'IXIC', icon: '🇺🇸', color: 'from-blue-600 to-red-600'},
+    '다우존스': {name: '다우존스', key: 'DJI', icon: '🇺🇸', color: 'from-blue-600 to-red-600'},
+    '달러': {name: '달러', key: 'USD/KRW', icon: '💵', color: 'from-green-500 to-green-600'},
+    '금': {name: '금', key: 'GC=F', icon: '🥇', color: 'from-yellow-500 to-yellow-600'},
+    '비트코인': {name: '비트코인', key: 'BTC/USD', icon: '₿', color: 'from-orange-500 to-orange-600'},
+    '상해': {name: '상해', key: 'SSEC', icon: '🇨🇳', color: 'from-red-500 to-yellow-500'},
+    '항셍': {name: '항셍', key: 'HSI', icon: '🇭🇰', color: 'from-red-500 to-white'},
+    '닛케이': {name: '닛케이', key: 'N225', icon: '🇯🇵', color: 'from-red-500 to-white'},
+    '영국': {name: '영국', key: 'FTSE', icon: '🇬🇧', color: 'from-blue-500 to-red-500'},
+    '프랑스': {name: '프랑스', key: 'FCHI', icon: '🇫🇷', color: 'from-blue-500 to-red-500'},
+    '독일': {name: '독일', key: 'GDAXI', icon: '🇩🇪', color: 'from-black to-red-500'}
+  }
 
   onMount(async () => {
     await getKoreaAllFinanceRankList();
@@ -81,8 +109,9 @@
    * 모의 투자 결과 값 계산
    * @param investMoney
    * @param rankStockList
+   * @param indexResultsData
    */
-  const calculationInvestResultInfo = (investMoney: number, rankStockList: any) => {
+  const calculationInvestResultInfo = (investMoney: number, rankStockList: any, indexResultsData: Array<{name: string, key: string, startValue: number, endValue: number, icon: string, color: string}>) => {
     if (rankStockList.length < 1 || investMoney <= 0) {
       return null;
     }
@@ -109,10 +138,27 @@
       weightRank -= 1;
     }
 
+    // 모든 지수 투자 결과 계산
+    const indexResults = indexResultsData.map(indexData => {
+      const indexUpDownRatio: number = parseFloat(calculateChangeRate(indexData.startValue, indexData.endValue)) / 100;
+      const expectCost: number = Math.ceil((indexUpDownRatio * investMoney) + investMoney);
+      
+      return {
+        name: indexData.name,
+        key: indexData.key,
+        expectCost: expectCost,
+        startValue: indexData.startValue,
+        endValue: indexData.endValue,
+        icon: indexData.icon,
+        color: indexData.color
+      };
+    });
+
     return {
       investMoney: investMoney,
       equalExpectCost: Math.ceil(equalExpectCost),
-      weightExpectCost: Math.ceil(weightExpectCost)
+      weightExpectCost: Math.ceil(weightExpectCost),
+      indexResults: indexResults
     }
   }
 
@@ -125,23 +171,59 @@
       return;
     }
 
-    searchDuration = e.detail.duration;
     const investMoney = e.detail.investMoney;
+    
+    // 투자금액 유효성 검사
+    if (!investMoney || investMoney <= 0) {
+      toast.error('0보다 큰 값으로 입력해주세요.');
+      return;
+    }
+
+    searchDuration = e.detail.duration;
     const rankStockList = selectedInvestMode === 1 ? selectedFinanceMonthRankList.slice(1, selectedTopN + 1) : choicedStockInfoList;
+
+    // 선택된 종목이 없는 경우 체크
+    if (rankStockList.length === 0) {
+      toast.error('투자할 종목을 선택해주세요.');
+      return;
+    }
 
     listProgress = true;
 
+    // 주식 데이터 가져오기
     for (let rankStockInfo of rankStockList) {
       const financeDataResult = await getFinanceDataListByChartMode(rankStockInfo.code, searchDuration.week, false);
       rankStockInfo.startCost = financeDataResult[0]?.Close ?? 0;
       rankStockInfo.endCost = financeDataResult[financeDataResult.length - 1]?.Close ?? 0;
     }
 
+    // 모든 지수 데이터를 병렬로 가져오기
+    const indexPromises = Object.entries(indexModeObject).map(async ([indexName, indexInfo]: [string, any]) => {
+      const indexDataResult = await getFinanceDataListByChartMode(indexInfo.key, searchDuration.week, false);
+      const indexStartValue = indexDataResult[0]?.Close ?? 0;
+      const indexEndValue = indexDataResult[indexDataResult.length - 1]?.Close ?? 0;
+      
+      return {
+        name: indexName,
+        key: indexInfo.key,
+        startValue: indexStartValue,
+        endValue: indexEndValue,
+        icon: indexInfo.icon,
+        color: indexInfo.color
+      };
+    });
+
+    const indexResultsData = await Promise.all(indexPromises);
+
     listProgress = false;
 
     calRankStockList = _.cloneDeep(rankStockList);
 
-    investResultInfo = calculationInvestResultInfo(investMoney, calRankStockList);
+    investResultInfo = calculationInvestResultInfo(
+      investMoney, 
+      calRankStockList, 
+      indexResultsData
+    );
   }
 
   const setTextColorByUpDown = (target: any, value: any) => {
@@ -155,6 +237,16 @@
       return 'blue';
     }
   }
+
+  /**
+   * 숫자 포맷팅 함수 (소숫점 둘째자리 반올림)
+   * @param value
+   */
+  const formatNumber = (value: number): string => {
+    if (value === null || value === undefined) return '0';
+    const rounded = Math.round(value * 100) / 100;
+    return formatIncludeComma(rounded) || '0';
+  };
 
   /**
    * 데이터 변환 및 정렬 최적화 함수
@@ -386,9 +478,9 @@
         </div>
       </div>
     </div>
-    <div class="flex flex-col lg:flex-row w-full flex-1 bg-slate-800/60 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-2xl shadow-black/20 p-4 sm:p-6 lg:p-8 space-y-4 lg:space-y-0 lg:space-x-8 min-h-0">
+    <div class="flex flex-col lg:flex-row w-full flex-1 bg-slate-800/60 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-2xl shadow-black/20 p-4 sm:p-6 lg:p-8 space-y-4 lg:space-y-0 lg:space-x-6 min-h-0">
       {#if !!investResultInfo && listProgress === false}
-        <div class="flex flex-col w-full lg:w-[50%] h-full bg-gradient-to-br from-white via-blue-50 to-indigo-50 backdrop-blur-xl rounded-2xl border border-blue-200/50 shadow-xl shadow-blue-500/20 p-4 sm:p-6 lg:p-8 min-h-0">
+        <div class="flex flex-col w-full lg:w-[33.33%] h-full bg-gradient-to-br from-white via-blue-50 to-indigo-50 backdrop-blur-xl rounded-2xl border border-blue-200/50 shadow-xl shadow-blue-500/20 p-4 sm:p-6 lg:p-8 min-h-0">
           <div class="flex items-center space-x-3 mb-4 lg:mb-6 flex-shrink-0">
             <div class="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30">
               <span class="text-white text-lg sm:text-xl lg:text-2xl">⚌</span>
@@ -417,7 +509,7 @@
             </div>
           </div>
         </div>
-        <div class="flex flex-col w-full lg:w-[50%] h-full bg-gradient-to-br from-white via-emerald-50 to-green-50 backdrop-blur-xl rounded-2xl border border-emerald-200/50 shadow-xl shadow-emerald-500/20 p-4 sm:p-6 lg:p-8 min-h-0">
+        <div class="flex flex-col w-full lg:w-[33.33%] h-full bg-gradient-to-br from-white via-emerald-50 to-green-50 backdrop-blur-xl rounded-2xl border border-emerald-200/50 shadow-xl shadow-emerald-500/20 p-4 sm:p-6 lg:p-8 min-h-0">
           <div class="flex items-center space-x-3 mb-4 lg:mb-6 flex-shrink-0">
             <div class="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
               <span class="text-white text-lg sm:text-xl lg:text-2xl">⚖</span>
@@ -442,6 +534,79 @@
                 <p class="font-black text-sm sm:text-lg lg:text-xl" style="color: {setUpDownColor((investResultInfo?.weightExpectCost ?? 0) - (investResultInfo?.investMoney ?? 0))}">
                   {`${formatIncludeComma((investResultInfo?.weightExpectCost ?? 0) - (investResultInfo?.investMoney ?? 0)) ?? '-'} ₩`}
                 </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="flex flex-col w-full lg:w-[33.33%] h-full bg-gradient-to-br from-white via-yellow-50 to-orange-50 backdrop-blur-xl rounded-2xl border border-yellow-200/50 shadow-xl shadow-yellow-500/20 p-4 sm:p-6 lg:p-8 min-h-0">
+          <div class="flex items-center space-x-3 mb-4 lg:mb-6 flex-shrink-0">
+            <div class="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg shadow-yellow-500/30">
+              <span class="text-white text-lg sm:text-xl lg:text-2xl">📈</span>
+            </div>
+            <h2 class="font-black text-lg sm:text-2xl lg:text-3xl bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent">모든 지수 투자</h2>
+          </div>
+          <div class='flex flex-col flex-1 min-h-0 space-y-3 sm:space-y-4'>
+            <div class="flex flex-row justify-between items-center p-3 sm:p-4 bg-white/80 rounded-xl border border-yellow-200/30 shadow-sm flex-shrink-0">
+              <p class="font-bold text-sm sm:text-lg lg:text-xl text-slate-700">투자시작금액</p>
+              <p class="font-black text-sm sm:text-lg lg:text-xl text-yellow-600">{`${formatIncludeComma(investResultInfo?.investMoney) ?? '-'} ₩`}</p>
+            </div>
+            <div class="flex flex-col flex-1 bg-white/60 rounded-xl border border-yellow-200/30 shadow-sm overflow-hidden min-h-0">
+              <div class="flex-shrink-0 p-3 bg-gradient-to-r from-yellow-50 to-orange-50 border-b border-yellow-200/50">
+                <p class="font-bold text-sm sm:text-base text-slate-700">지수별 투자 결과</p>
+              </div>
+              <div class="flex-1 overflow-y-auto min-h-0 p-2 space-y-2">
+                {#each investResultInfo?.indexResults ?? [] as indexResult}
+                  <div class="bg-white/90 rounded-lg border border-yellow-200/30 p-3 space-y-2 flex-shrink-0 shadow-sm hover:shadow-md transition-shadow duration-200">
+                    <div class="flex justify-between items-center">
+                      <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-gradient-to-r {indexResult.color} shadow-sm">
+                          <span class="text-white text-base font-bold">{indexResult.icon}</span>
+                        </div>
+                        <div class="flex flex-col">
+                          <p class="font-bold text-sm text-slate-700">{indexResult.name}</p>
+                          <p class="text-xs text-slate-500">{indexResult.key}</p>
+                        </div>
+                      </div>
+                      <div class="text-right">
+                        <p class="font-bold text-sm" style="color: {setUpDownColor((indexResult.expectCost ?? 0) - (investResultInfo?.investMoney ?? 0))}">
+                          {@html setUpDownRatioTag(investResultInfo?.investMoney ?? 0, indexResult.expectCost ?? 0)}
+                        </p>
+                      </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                      <div class="bg-white/60 rounded-lg p-2">
+                        <p class="text-xs text-slate-600 mb-1">투자결과</p>
+                        <p class="font-bold text-sm text-slate-700">{`${formatIncludeComma(indexResult.expectCost)} ₩`}</p>
+                      </div>
+                      <div class="bg-white/60 rounded-lg p-2">
+                        <p class="text-xs text-slate-600 mb-1">손익금액</p>
+                        <p class="font-bold text-sm" style="color: {setUpDownColor((indexResult.expectCost ?? 0) - (investResultInfo?.investMoney ?? 0))}">
+                          {`${formatIncludeComma((indexResult.expectCost ?? 0) - (investResultInfo?.investMoney ?? 0))} ₩`}
+                        </p>
+                      </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 pt-3 border-t border-yellow-200/30">
+                      <div class="bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg p-3 text-center border border-slate-200/50 hover:from-slate-100 hover:to-slate-200 transition-all duration-200 group">
+                        <div class="flex items-center justify-center mb-2">
+                          <div class="w-5 h-5 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center mr-2">
+                            <span class="text-white text-xs">📊</span>
+                          </div>
+                          <p class="text-xs text-slate-600 font-medium">시작값</p>
+                        </div>
+                        <p class="font-bold text-sm text-slate-700 group-hover:text-slate-800 transition-colors duration-200">{formatNumber(indexResult.startValue)}</p>
+                      </div>
+                      <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-3 text-center border border-emerald-200/50 hover:from-emerald-100 hover:to-emerald-200 transition-all duration-200 group">
+                        <div class="flex items-center justify-center mb-2">
+                          <div class="w-5 h-5 rounded-full bg-gradient-to-r from-emerald-500 to-green-600 flex items-center justify-center mr-2">
+                            <span class="text-white text-xs">📈</span>
+                          </div>
+                          <p class="text-xs text-slate-600 font-medium">현재값</p>
+                        </div>
+                        <p class="font-bold text-sm text-slate-700 group-hover:text-slate-800 transition-colors duration-200">{formatNumber(indexResult.endValue)}</p>
+                      </div>
+                    </div>
+                  </div>
+                {/each}
               </div>
             </div>
           </div>
