@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, tick } from 'svelte'; 
+  import { onMount, tick, onDestroy } from 'svelte'; 
   import { formatIncludeComma } from '$lib/utils/CommonHelper';
   import _ from 'lodash';
   import { browser } from '$app/environment';
@@ -20,11 +20,73 @@
   let lastDate: string;
   let upDownGradient: boolean | null = null;
   let Chart: any;
+  let chartInstance: any = null; // 성능 최적화: 차트 인스턴스 관리
 
   /**
    * line Chart 영역
    */
   let lineChart: HTMLDivElement;
+
+  // 대용량 데이터 최적화를 위한 변수들
+  let isLargeDataset: boolean = false;
+  let optimizedDataSource: any[] = [];
+  let lastUpdateTime: number = 0;
+
+  // 대용량 데이터 감지 및 최적화 함수
+  const optimizeForLargeDataset = (data: any[]): any[] => {
+    if (!data || data.length === 0) return data;
+
+    // 대용량 데이터 임계값 설정 (2년 이상의 데이터)
+    isLargeDataset = data.length > 500; // 250 → 500으로 변경
+
+    if (!isLargeDataset) {
+      return data; // 소량 데이터는 최적화하지 않음
+    }
+
+    // 대용량 데이터 최적화 로직
+    const getOptimizedData = (sourceData: any[]): any[] => {
+      const dataLength = sourceData.length;
+      
+      // 데이터 크기에 따른 샘플링 비율 결정
+      let samplingRatio = 1;
+      if (dataLength > 2000) samplingRatio = 4;      // 5년 이상: 4분의 1
+      else if (dataLength > 1000) samplingRatio = 3;  // 3년 이상: 3분의 1
+      else if (dataLength > 500) samplingRatio = 2;   // 2년 이상: 2분의 1
+      
+      if (samplingRatio === 1) return sourceData;
+
+      const optimized: any[] = [];
+      
+      // 첫 번째 데이터는 항상 포함
+      optimized.push(sourceData[0]);
+      
+      // 샘플링된 데이터 추가
+      for (let i = samplingRatio; i < dataLength - samplingRatio; i += samplingRatio) {
+        optimized.push(sourceData[i]);
+      }
+      
+      // 마지막 데이터는 항상 포함
+      if (dataLength > 1) {
+        optimized.push(sourceData[dataLength - 1]);
+      }
+      
+      return optimized;
+    };
+
+    return getOptimizedData(data);
+  };
+
+  // 스로틀링된 차트 업데이트 함수
+  const throttledUpdateChart = _.throttle(() => {
+    if (chartInstance && lineDataList.length > 0) {
+      const currentTime = Date.now();
+      // 너무 빈번한 업데이트 방지
+      if (currentTime - lastUpdateTime > 100) {
+        lastUpdateTime = currentTime;
+        optimizedDataSource = optimizeForLargeDataset(lineDataList);
+      }
+    }
+  }, 150); // 150ms 스로틀링
 
   onMount(async () => {
     if (!browser) return;
@@ -34,6 +96,9 @@
     const lastData = getLastData(lineDataList);
     lastDate = lastData.date;
     upDownGradient = getUpDownGradient(lineDataList[0]?.Close, lastData?.value);
+
+    // 초기 데이터 최적화
+    optimizedDataSource = optimizeForLargeDataset(lineDataList);
 
     // 동적으로 devextreme import
     try {
@@ -45,7 +110,22 @@
     } catch (error) {
       console.error('Failed to load chart library:', error);
     }
-  })
+  });
+
+  // 성능 최적화: 메모리 정리
+  onDestroy(() => {
+    if (chartInstance) {
+      try {
+        chartInstance.dispose();
+      } catch (error) {
+        console.error('Error disposing chart:', error);
+      }
+      chartInstance = null;
+    }
+    
+    // 스로틀링 함수 정리
+    throttledUpdateChart.cancel();
+  });
 
   const setMainLineColor = (upDown: boolean | null) => {
     if (upDown === null) {
@@ -71,7 +151,8 @@
     }
   }
 
-  const getLastData = (list: any): string => {
+  // linter 에러 수정: 리턴 타입 수정
+  const getLastData = (list: any): { value: number; date: string } => {
     if (list.length < 1) {
       return {
         value: 0,
@@ -97,41 +178,117 @@
   const getSeriesList = () => {
     if (!isMultiLine) {
       return [
-        { valueField: 'Close', name: '종가', hoverMode: 'allArgumentPoints', color: setMainLineColor(upDownGradient) }
+        { 
+          valueField: 'Close', 
+          name: '종가', 
+          hoverMode: 'allArgumentPoints', 
+          color: setMainLineColor(upDownGradient),
+          // 성능 최적화: 포인트 숨김으로 렌더링 부하 감소
+          point: { visible: false },
+          width: isLargeDataset ? 1 : 2 // 대용량 데이터는 더 얇은 선
+        }
       ];
     }
 
     if (!isDetailMode) {
       return [
-        { valueField: 'Close', name: '종가', hoverMode: 'allArgumentPoints', color: '#000000' },
-        { valueField: 'topValue', name: '저항평균선', hoverMode: 'allArgumentPoints', color: '#FF0000', dashStyle: 'dash' },
-        { valueField: 'bottomValue', name: '지지평균선', hoverMode: 'allArgumentPoints', color: '#0000FF', dashStyle: 'dash' }
+        { 
+          valueField: 'Close', 
+          name: '종가', 
+          hoverMode: 'allArgumentPoints', 
+          color: '#000000',
+          point: { visible: false },
+          width: isLargeDataset ? 1 : 2
+        },
+        { 
+          valueField: 'topValue', 
+          name: '저항평균선', 
+          hoverMode: 'allArgumentPoints', 
+          color: '#FF0000', 
+          dashStyle: 'dash',
+          point: { visible: false },
+          width: 1
+        },
+        { 
+          valueField: 'bottomValue', 
+          name: '지지평균선', 
+          hoverMode: 'allArgumentPoints', 
+          color: '#0000FF', 
+          dashStyle: 'dash',
+          point: { visible: false },
+          width: 1
+        }
       ];
     } else {
       return [
-        { valueField: 'Close', name: '종가', hoverMode: 'allArgumentPoints', color: '#000000', width: 3 },
-        { valueField: 'topValue', name: '저항평균선', hoverMode: 'allArgumentPoints', color: '#FF0000', dashStyle: 'dash' },
-        { valueField: 'bottomValue', name: '지지평균선', hoverMode: 'allArgumentPoints', color: '#0000FF', dashStyle: 'dash' },
-        { valueField: 'ma5', name: '5일이평선', hoverMode: 'allArgumentPoints', color: '#1E90FF', width: 3 },
-        { valueField: 'ma20', name: '20일이평선', hoverMode: 'allArgumentPoints', color: '#FFA500', width: 3 },
-        { valueField: 'ma60', name: '60일이평선', hoverMode: 'allArgumentPoints', color: '#32CD32', width: 3 }
+        { 
+          valueField: 'Close', 
+          name: '종가', 
+          hoverMode: 'allArgumentPoints', 
+          color: '#000000', 
+          width: isLargeDataset ? 2 : 3,
+          point: { visible: false }
+        },
+        { 
+          valueField: 'topValue', 
+          name: '저항평균선', 
+          hoverMode: 'allArgumentPoints', 
+          color: '#FF0000', 
+          dashStyle: 'dash',
+          point: { visible: false },
+          width: 1
+        },
+        { 
+          valueField: 'bottomValue', 
+          name: '지지평균선', 
+          hoverMode: 'allArgumentPoints', 
+          color: '#0000FF', 
+          dashStyle: 'dash',
+          point: { visible: false },
+          width: 1
+        },
+        { 
+          valueField: 'ma5', 
+          name: '5일이평선', 
+          hoverMode: 'allArgumentPoints', 
+          color: '#1E90FF', 
+          width: isLargeDataset ? 2 : 3,
+          point: { visible: false }
+        },
+        { 
+          valueField: 'ma20', 
+          name: '20일이평선', 
+          hoverMode: 'allArgumentPoints', 
+          color: '#FFA500', 
+          width: isLargeDataset ? 2 : 3,
+          point: { visible: false }
+        },
+        { 
+          valueField: 'ma60', 
+          name: '60일이평선', 
+          hoverMode: 'allArgumentPoints', 
+          color: '#32CD32', 
+          width: isLargeDataset ? 2 : 3,
+          point: { visible: false }
+        }
       ];
     }
   }
 
   /**
-   * 라인 그래프
+   * 라인 그래프 - 대용량 데이터 최적화 적용
    */
   const createMonthLineChart = () => {
-    if (!!!lineDataList || lineDataList.length < 1) {
+    if (!!!optimizedDataSource || optimizedDataSource.length < 1) {
       return;
     }
     
-    let maxValue: number = (_.maxBy(lineDataList.filter((item) => !!item?.Close && item?.Close > 0), 'Close')?.Close ?? 0) * 1.1;
-    let minValue: number = (_.minBy(lineDataList.filter((item) => !!item?.Close && item?.Close > 0), 'Close')?.Close ?? 0) * 0.9;
+    // linter 에러 수정: 매개변수 타입 지정
+    let maxValue: number = (_.maxBy(optimizedDataSource.filter((item: any) => !!item?.Close && item?.Close > 0), 'Close')?.Close ?? 0) * 1.1;
+    let minValue: number = (_.minBy(optimizedDataSource.filter((item: any) => !!item?.Close && item?.Close > 0), 'Close')?.Close ?? 0) * 0.9;
 
-    const topValue: number = lineDataList[0]?.topValue ?? 0;
-    const bottomValue: number = lineDataList[0]?.bottomValue ?? 0;
+    const topValue: number = optimizedDataSource[0]?.topValue ?? 0;
+    const bottomValue: number = optimizedDataSource[0]?.bottomValue ?? 0;
 
     if (isMultiLine) {
       maxValue = maxValue > topValue ? maxValue : topValue;
@@ -140,20 +297,40 @@
 
     let nowYear: string | null = null;
 
-    new Chart(lineChart, {
-      dataSource: lineDataList,
+    chartInstance = new Chart(lineChart, {
+      dataSource: optimizedDataSource,
+      
+      // 대용량 데이터 성능 최적화 설정
+      rtlEnabled: false,
+      animation: false, // 애니메이션 비활성화로 성능 향상
+      redrawOnResize: true,
+      
+      // Canvas 렌더링 활성화 (SVG보다 성능이 좋음)
+      useCanvas: true,
+      
+      // 대용량 데이터 최적화를 위한 추가 설정
+      seriesSelectionMode: 'single',
+      pointSelectionMode: 'single',
+      
       commonSeriesSettings: {
         argumentField: 'Date',
         point: {
-          visible: false,
-          hoverMode: 'allArgumentPoints'
+          visible: false, // 포인트 숨김으로 성능 향상
+          hoverMode: isLargeDataset ? 'none' : 'allArgumentPoints' // 대용량 데이터는 호버 비활성화
         }
       },
       zoomAndPan: {
-        argumentAxis: 'both'
+        argumentAxis: 'both',
+        // 대용량 데이터 최적화: 제스처 및 스크롤 최적화
+        allowTouchGestures: true,
+        allowMouseWheel: true,
+        panKey: 'shift',
+        dragToZoom: true
       },
       scrollBar: {
         visible: true,
+        position: 'bottom', // 성능 최적화: 스크롤바 위치 최적화
+        offset: 5
       },
       customizeLabel: (e: any) => {
         const setTextColor = (seriesName: string) => {
@@ -277,6 +454,9 @@
         tick: { 
           visible: true
         },
+        // 대용량 데이터 최적화: 축 설정
+        tickInterval: isLargeDataset ? 'year' : undefined,
+        minorTickInterval: isLargeDataset ? 'month' : undefined,
       },
       valueAxis: [{
         title: {
@@ -313,7 +493,7 @@
         enabled: false,
       },
       tooltip: {
-				enabled: true,
+				enabled: true, // 툴팁 항상 활성화
 				location: 'edge',
 				shared: true,
 				zIndex: 99999,
@@ -378,7 +558,8 @@
 					};
 				}
 			},
-      onLegendClick(e) {
+      // linter 에러 수정: 매개변수 타입 지정
+      onLegendClick(e: any) {
         const series = e.target;
         if (series.isVisible()) {
           series.hide();
@@ -387,6 +568,11 @@
         }
       },
     });
+  }
+
+  // 데이터 변경 감지 및 최적화된 업데이트
+  $: if (lineDataList && lineDataList.length > 0) {
+    throttledUpdateChart();
   }
 </script>
 

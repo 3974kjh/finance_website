@@ -15,14 +15,10 @@
   export let detailInfo: any = null;
   export let widthRangeValue: number = 0;
   export let heightRangeValue: number = 0;
+  export let isMultiLine: boolean = false; // 외부에서 관리하는 상태
+  export let analysisData: any = null; // 외부에서 관리하는 분석 데이터
 
   const dispatch = createEventDispatcher();
-
-  let isMultiLine: boolean = false;
-
-  let expectValue: string = '';
-  let afterMonthExpectValue: string = '';
-  let nowValue: string = '';
 
   const addExpectStockValueToChart = async (weekTerm: number) => {
     if (!!!chartKey) {
@@ -35,11 +31,13 @@
       return;
     }
 
-    nowValue = result.data?.nowValue;
-    expectValue = result.data?.expectValue;
-    afterMonthExpectValue = result.data?.afterMonthExpectValue;
+    const analysisValues = {
+      nowValue: result.data?.nowValue,
+      expectValue: result.data?.expectValue,
+      afterMonthExpectValue: result.data?.afterMonthExpectValue
+    };
 
-    dataList = dataList.map((data: any) => {
+    const updatedDataList = dataList.map((data: any) => {
       return {
         ...data,
         afterMonthExpectValue: result.data?.afterMonthExpectValue,
@@ -50,11 +48,23 @@
       }
     });
 
-    isMultiLine = true;
-    
     await tick();
     
-    dispatch('updateDataListCallback', {chartMode: chartMode, dataList: dataList});
+    // 부모 컴포넌트로 isMultiLine 상태, 데이터, 분석 데이터 업데이트를 알림
+    dispatch('updateDataListCallback', {
+      chartMode: chartMode, 
+      dataList: updatedDataList,
+      isMultiLine: true,
+      analysisData: analysisValues
+    });
+  }
+
+  // 모달 닫기 이벤트
+  const closeModal = () => {
+    dispatch('updateMultiLineCallback', {
+      chartMode: chartMode,
+      isMultiLine: false
+    });
   }
 </script>
 
@@ -71,7 +81,7 @@
             e.preventDefault();
 			      e.stopPropagation(); // 이벤트 전파 중단하기
 
-            isMultiLine = false;
+            closeModal();
           }}
         >
           <p class="font-bold text-gray-800 border-b border-gray-200 pb-2 text-sm">{`[${title}] (최근 ${searchDuration.month}개월)`}</p>
@@ -79,19 +89,19 @@
             <div class="flex items-center text-gray-700 flex-wrap">
               <span class="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs mr-2 flex-shrink-0">💲</span>
               <span class="flex-shrink-0 mr-1">현재 가:</span>
-              <span class="font-semibold text-gray-900 break-all">{nowValue}</span>
+              <span class="font-semibold text-gray-900 break-all">{analysisData?.nowValue}</span>
             </div>
             <div class="flex items-center text-gray-700 flex-wrap">
               <span class="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center text-white text-xs mr-2 flex-shrink-0">🎯</span>
               <span class="flex-shrink-0 mr-1">현재 예측가:</span>
-              <span class="font-semibold text-gray-900 break-all mr-1">{expectValue}</span>
-              <span class="break-all">{@html setUpDownRatioTag(nowValue, expectValue)}</span>
+              <span class="font-semibold text-gray-900 break-all mr-1">{analysisData?.expectValue}</span>
+              <span class="break-all">{@html setUpDownRatioTag(analysisData?.nowValue, analysisData?.expectValue)}</span>
             </div>
             <div class="flex items-center text-gray-700 flex-wrap">
               <span class="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center text-white text-xs mr-2 flex-shrink-0">🔮</span>
               <span class="flex-shrink-0 mr-1">한달뒤 예측가:</span>
-              <span class="font-semibold text-gray-900 break-all mr-1">{afterMonthExpectValue}</span>
-              <span class="break-all">{@html setUpDownRatioTag(nowValue, afterMonthExpectValue)}</span>
+              <span class="font-semibold text-gray-900 break-all mr-1">{analysisData?.afterMonthExpectValue}</span>
+              <span class="break-all">{@html setUpDownRatioTag(analysisData?.nowValue, analysisData?.afterMonthExpectValue)}</span>
             </div>
           </div>
         </div>

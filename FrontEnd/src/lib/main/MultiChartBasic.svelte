@@ -26,8 +26,6 @@
   */
   let searchDuration: any = durationObject['1 YEAR'];
 
-  let refreshFlag: boolean = false;
-
   let displayModeObject: any = {
     '2×1': {row: 2, col: 2},
     '2×2': {row: 2, col: 4},
@@ -42,26 +40,26 @@
   let nowDisplayMode: any = displayModeObject['5×4'];
 
 	let chartModeObject: any = {
-		'S&P500'			: {name: 'S&P500', key: 'US500', dataList: [], detailInfo: null, newsInfoList: []},
-		'나스닥'			 : {name: '나스닥', key: 'IXIC', dataList: [], detailInfo: null, newsInfoList: []},
-    '다우존스'		 : {name: '다우존스', key: 'DJI', dataList: [], detailInfo: null, newsInfoList: []},
-		'코스피'			 : {name: '코스피', key: 'KS11', dataList: [], detailInfo: null, newsInfoList: []},
-    '코스닥'			 : {name: '코스닥', key: 'KQ11', dataList: [], detailInfo: null, newsInfoList: []},
-    '상해'			   : {name: '상해', key: 'SSEC', dataList: [], detailInfo: null, newsInfoList: []},
-    '항셍'			   : {name: '항셍', key: 'HSI', dataList: [], detailInfo: null, newsInfoList: []},
-    '닛케이'			 : {name: '닛케이', key: 'N225', dataList: [], detailInfo: null, newsInfoList: []},
-    '영국'			   : {name: '영국', key: 'FTSE', dataList: [], detailInfo: null, newsInfoList: []},
-    '프랑스'			 : {name: '프랑스', key: 'FCHI', dataList: [], detailInfo: null, newsInfoList: []},
-    '독일'			   : {name: '독일', key: 'GDAXI', dataList: [], detailInfo: null, newsInfoList: []},
-    '비트코인'		 : {name: '비트코인', key: 'BTC/USD', dataList: [], detailInfo: null, newsInfoList: []},
-    'VIX'					: {name: 'VIX', key: 'VIX', dataList: [], detailInfo: null, newsInfoList: []},
-		'달러'			   : {name: '달러', key: 'USD/KRW', dataList: [], detailInfo: null, newsInfoList: []},
-		'달러인덱스' 	 : {name: '달러인덱스', key: '^NYICDX', dataList: [], detailInfo: null, newsInfoList: []},
-		'미국5년채권'	 : {name: '미국5년채권', key: 'US5YT', dataList: [], detailInfo: null, newsInfoList: []},
-		'미국10년채권' : {name: '미국10년채권', key: 'US10YT', dataList: [], detailInfo: null, newsInfoList: []},
-		'미국30년채권' : {name: '미국30년채권', key: 'US30YT', dataList: [], detailInfo: null, newsInfoList: []},
-		'금'				  : {name: '금', key: 'GC=F', dataList: [], detailInfo: null, newsInfoList: []},
-		'WTI원유'		  : {name: 'WTI원유', key: 'CL=F', dataList: [], detailInfo: null, newsInfoList: []},
+		'S&P500'			: {name: 'S&P500', key: 'US500', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
+		'나스닥'			 : {name: '나스닥', key: 'IXIC', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
+    '다우존스'		 : {name: '다우존스', key: 'DJI', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
+		'코스피'			 : {name: '코스피', key: 'KS11', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
+    '코스닥'			 : {name: '코스닥', key: 'KQ11', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
+    '상해'			   : {name: '상해', key: 'SSEC', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
+    '항셍'			   : {name: '항셍', key: 'HSI', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
+    '닛케이'			 : {name: '닛케이', key: 'N225', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
+    '영국'			   : {name: '영국', key: 'FTSE', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
+    '프랑스'			 : {name: '프랑스', key: 'FCHI', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
+    '독일'			   : {name: '독일', key: 'GDAXI', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
+    '비트코인'		 : {name: '비트코인', key: 'BTC/USD', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
+    'VIX'					: {name: 'VIX', key: 'VIX', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
+		'달러'			   : {name: '달러', key: 'USD/KRW', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
+		'달러인덱스' 	 : {name: '달러인덱스', key: '^NYICDX', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
+		'미국5년채권'	 : {name: '미국5년채권', key: 'US5YT', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
+		'미국10년채권' : {name: '미국10년채권', key: 'US10YT', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
+		'미국30년채권' : {name: '미국30년채권', key: 'US30YT', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
+		'금'				  : {name: '금', key: 'GC=F', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
+		'WTI원유'		  : {name: 'WTI원유', key: 'CL=F', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
 	}
 
   let isProgress: boolean = true;
@@ -69,6 +67,74 @@
   let count: number = -1;
 
   let axiosController: any = null;
+
+  // 각 종목별 독립적인 업데이트 카운터
+  let updateCounters: { [key: string]: number } = {};
+
+  // 개별 종목 업데이트 카운터 증가 함수
+  const incrementUpdateCounter = (chartMode: string) => {
+    if (!updateCounters[chartMode]) {
+      updateCounters[chartMode] = 0;
+    }
+    updateCounters[chartMode]++;
+    updateCounters = { ...updateCounters }; // 해당 차트만 리렌더링
+  };
+
+  // 개별 종목 업데이트 함수
+  const updateSingleChartMode = async (chartMode: string) => {
+    if (chartModeObject[chartMode].isLoading) {
+      return; // 이미 로딩 중이면 중복 요청 방지
+    }
+
+    // 로딩 상태 시작 - 개별 속성만 업데이트
+    chartModeObject[chartMode].isLoading = true;
+    incrementUpdateCounter(chartMode); // 로딩 상태 변경을 위한 리렌더링
+
+    try {
+      // 병렬로 데이터 가져오기
+      const [financeData, newsData] = await Promise.all([
+        getFinanceDataListByChartMode(chartModeObject[chartMode].key, searchDuration.month, true),
+        getNewInfoList(chartMode + '지수', 20, 1)
+      ]);
+
+      // 데이터 업데이트 - 개별 속성만 업데이트
+      chartModeObject[chartMode].dataList = financeData;
+      chartModeObject[chartMode].newsInfoList = newsData;
+      chartModeObject[chartMode].lastUpdated = new Date();
+      
+      console.log(`✅ Updated data for: ${chartMode}`);
+      
+      // 로컬스토리지 업데이트 (개별 종목만)
+      updateLocalStorage();
+      
+    } catch (error) {
+      console.error(`❌ Failed to update data for ${chartMode}:`, error);
+    } finally {
+      // 로딩 상태 종료 - 개별 속성만 업데이트
+      chartModeObject[chartMode].isLoading = false;
+      incrementUpdateCounter(chartMode); // 데이터 변경을 위한 리렌더링
+    }
+  };
+
+  // 로컬스토리지 업데이트 함수
+  const updateLocalStorage = () => {
+    const todayDate = new Date().toISOString().slice(0, 10);
+    const keys = Object.keys(window.localStorage).filter((key) => key.includes('chartModeObject'));
+
+    // 기존 캐시 정리 (오늘 날짜가 아닌 것만)
+    keys.forEach(key => {
+      if (!key.includes(todayDate)) {
+        localStorage.removeItem(key);
+      }
+    });
+
+    // 새 데이터 저장
+    try {
+      localStorage.setItem(`${todayDate}chartModeObject`, JSON.stringify(chartModeObject));
+    } catch (error) {
+      console.error('캐시 저장 실패:', error);
+    }
+  };
 
 	onMount(async() => {
     if (!!!localStorage) {
@@ -82,14 +148,73 @@
 
     if (keys.filter((key) => key.includes(todayDate)).length > 0) {
       const getChartModeObject = localStorage.getItem(`${todayDate}chartModeObject`);
-      chartModeObject = !!getChartModeObject ? JSON.parse(getChartModeObject) : chartModeObject;
+      if (getChartModeObject) {
+        const cachedData = JSON.parse(getChartModeObject);
+        // 캐시된 데이터를 현재 구조에 맞게 마이그레이션
+        Object.keys(cachedData).forEach(key => {
+          if (chartModeObject[key]) {
+            // 기존 종목 업데이트
+            chartModeObject[key] = {
+              ...chartModeObject[key],
+              ...cachedData[key],
+              isLoading: false,
+              lastUpdated: cachedData[key].lastUpdated ? new Date(cachedData[key].lastUpdated) : null,
+              isMultiLine: cachedData[key].isMultiLine || false,
+              analysisData: cachedData[key].analysisData || null
+            };
+          } else {
+            // 새로 추가된 종목 복원
+            chartModeObject[key] = {
+              ...cachedData[key],
+              isLoading: false,
+              lastUpdated: cachedData[key].lastUpdated ? new Date(cachedData[key].lastUpdated) : null,
+              isMultiLine: cachedData[key].isMultiLine || false,
+              analysisData: cachedData[key].analysisData || null
+            };
+          }
+          // 업데이트 카운터 초기화
+          updateCounters[key] = 0;
+        });
+      }
     } else if (keys.length > 0) {
       const getChartModeObject = localStorage.getItem(keys[0]);
-      chartModeObject = !!getChartModeObject ? JSON.parse(getChartModeObject) : chartModeObject;
+      if (getChartModeObject) {
+        const cachedData = JSON.parse(getChartModeObject);
+        Object.keys(cachedData).forEach(key => {
+          if (chartModeObject[key]) {
+            // 기존 종목 업데이트
+            chartModeObject[key] = {
+              ...chartModeObject[key],
+              ...cachedData[key],
+              isLoading: false,
+              lastUpdated: cachedData[key].lastUpdated ? new Date(cachedData[key].lastUpdated) : null,
+              isMultiLine: cachedData[key].isMultiLine || false,
+              analysisData: cachedData[key].analysisData || null
+            };
+          } else {
+            // 새로 추가된 종목 복원
+            chartModeObject[key] = {
+              ...cachedData[key],
+              isLoading: false,
+              lastUpdated: cachedData[key].lastUpdated ? new Date(cachedData[key].lastUpdated) : null,
+              isMultiLine: cachedData[key].isMultiLine || false,
+              analysisData: cachedData[key].analysisData || null
+            };
+          }
+          // 업데이트 카운터 초기화
+          updateCounters[key] = 0;
+        });
+      }
       await refreshAllFinanceDataList(Object.keys(chartModeObject), searchDuration.month);
     } else {
       await refreshAllFinanceDataList(Object.keys(chartModeObject), searchDuration.month);
     }
+
+    // 모든 종목의 업데이트 카운터 초기화
+    Object.keys(chartModeObject).forEach(key => {
+      updateCounters[key] = 0;
+    });
+    updateCounters = { ...updateCounters };
 
     isProgress = false;
 
@@ -126,6 +251,10 @@
       // 배치 내 요청들을 병렬로 처리
       const batchPromises = batch.map(async (chartMode: string) => {
         try {
+          // 로딩 상태 설정
+          chartModeObject[chartMode].isLoading = true;
+          incrementUpdateCounter(chartMode); // 로딩 상태 변경을 위한 리렌더링
+          
           // 주가 데이터와 뉴스 데이터를 병렬로 가져오기
           const [financeData, newsData] = await Promise.all([
             getFinanceDataListByChartMode(chartModeObject[chartMode].key, month, true, axiosController),
@@ -134,11 +263,17 @@
           
           chartModeObject[chartMode].dataList = financeData;
           chartModeObject[chartMode].newsInfoList = newsData;
+          chartModeObject[chartMode].lastUpdated = new Date();
+          chartModeObject[chartMode].isLoading = false;
           
           count += 1;
           console.log(`🎯 Loaded data for: ${chartMode}`);
+          
+          incrementUpdateCounter(chartMode); // 데이터 변경을 위한 리렌더링
         } catch (error) {
           console.error(`❌ Failed to load data for ${chartMode}:`, error);
+          chartModeObject[chartMode].isLoading = false;
+          incrementUpdateCounter(chartMode); // 에러 상태 변경을 위한 리렌더링
         }
       });
       
@@ -151,7 +286,6 @@
       }
     }
 
-    refreshFlag = !refreshFlag;
     isProgress = false;
 
     // 캐시 저장 최적화
@@ -192,25 +326,30 @@
       {#each Object.keys(chartModeObject) as chartMode}
         {#if !!chartModeObject[chartMode]?.detailInfo}
           <!-- 기업 종목 (삭제 가능) -->
-          <button class="border-0 h-[30px] rounded-lg px-3 mr-2 my-0.5 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white relative transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm border border-purple-300/30" on:click={async () => {
-            chartModeObject[chartMode].dataList = await getFinanceDataListByChartMode(chartModeObject[chartMode].key, searchDuration.month, true);
-            chartModeObject[chartMode].newsInfoList = await getNewInfoList(chartMode+'지수', 20, 1);
-
-            const todayDate = new Date().toISOString().slice(0, 10);
-            const keys = Object.keys(window.localStorage).filter((key) => key.includes('chartModeObject'));
-
-            keys.forEach(key => localStorage.removeItem(key));
-            localStorage.setItem(`${todayDate}chartModeObject`, JSON.stringify(chartModeObject));
-
-            refreshFlag = !refreshFlag;
-          }}>{chartModeObject[chartMode].name}
+          <button 
+            class="border-0 h-[30px] rounded-lg px-3 mr-2 my-0.5 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white relative transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm border border-purple-300/30 disabled:opacity-50 disabled:cursor-not-allowed" 
+            disabled={chartModeObject[chartMode].isLoading}
+            on:click={() => updateSingleChartMode(chartMode)}
+          >
+            {#if chartModeObject[chartMode].isLoading}
+              <div class="flex items-center">
+                <div class="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
+                <span>갱신중...</span>
+              </div>
+            {:else}
+              {chartModeObject[chartMode].name}
+              {#if chartModeObject[chartMode].lastUpdated}
+                <span class="text-xs opacity-75 ml-1">
+                  {chartModeObject[chartMode].lastUpdated.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              {/if}
+            {/if}
             <button class="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 border-0 rounded-full w-[16px] h-[16px] flex items-center justify-center text-white text-xs transition-all duration-200 shadow-md hover:shadow-lg"
               on:click|capture|preventDefault|stopPropagation={() => {
                 delete chartModeObject[chartMode];
-
-                chartModeObject = chartModeObject;
-
-                refreshFlag = !refreshFlag;
+                delete updateCounters[chartMode];
+                updateCounters = { ...updateCounters };
+                updateLocalStorage();
               }}
             >
               <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -220,18 +359,24 @@
           </button>
         {:else}
           <!-- 지수 종목 (기본 종목) -->
-          <button class="border-0 h-[30px] rounded-lg px-3 mr-2 my-0.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white relative transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm" on:click={async () => {
-            chartModeObject[chartMode].dataList = await getFinanceDataListByChartMode(chartModeObject[chartMode].key, searchDuration.month, true);
-            chartModeObject[chartMode].newsInfoList = await getNewInfoList(chartMode+'지수', 20, 1);
-
-            const todayDate = new Date().toISOString().slice(0, 10);
-            const keys = Object.keys(window.localStorage).filter((key) => key.includes('chartModeObject'));
-
-            keys.forEach(key => localStorage.removeItem(key));
-            localStorage.setItem(`${todayDate}chartModeObject`, JSON.stringify(chartModeObject));
-
-            refreshFlag = !refreshFlag;
-          }}>{chartModeObject[chartMode].name}
+          <button 
+            class="border-0 h-[30px] rounded-lg px-3 mr-2 my-0.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white relative transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed" 
+            disabled={chartModeObject[chartMode].isLoading}
+            on:click={() => updateSingleChartMode(chartMode)}
+          >
+            {#if chartModeObject[chartMode].isLoading}
+              <div class="flex items-center">
+                <div class="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
+                <span>갱신중...</span>
+              </div>
+            {:else}
+              {chartModeObject[chartMode].name}
+              {#if chartModeObject[chartMode].lastUpdated}
+                <span class="text-xs opacity-75 ml-1">
+                  {chartModeObject[chartMode].lastUpdated.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              {/if}
+            {/if}
           </button>
         {/if}
       {/each}
@@ -254,9 +399,20 @@
             key: choiceStockInfo.value,
             detailInfo: choiceStockInfo,
             dataList: [],
-            newsInfoList: []
+            newsInfoList: [],
+            isLoading: false,
+            lastUpdated: null,
+            isMultiLine: false,
+            analysisData: null
           }
+          
+          // 새로운 종목의 업데이트 카운터 초기화
+          updateCounters[choiceStockInfo.name] = 0;
         }
+        
+        // 새로 추가된 종목들의 데이터 로드
+        updateCounters = { ...updateCounters };
+        updateLocalStorage();
       }}>
         <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
@@ -337,11 +493,11 @@
       id="chart-viewer"
       class="list-group flex flex-wrap overflow-auto"
       animation={150}
-      disabled={false}
+      disabled={true}
     >
       {#each Object.keys(chartModeObject) as chartMode}
         <div class="flex flex-row p-2 mr-2 mb-2 rounded-2xl bg-white/95 backdrop-blur-lg relative shadow-xl hover:shadow-2xl transition-all duration-300 border border-gray-200/50 hover:border-gray-300/70 group">
-          {#key refreshFlag}
+          {#key updateCounters[chartMode]}
             <ChartViewer
               {searchDuration}
               {chartMode}
@@ -351,10 +507,25 @@
               chartKey={chartModeObject[chartMode].key}
               dataList={chartModeObject[chartMode].dataList}
               detailInfo={chartModeObject[chartMode].detailInfo}
+              isMultiLine={chartModeObject[chartMode].isMultiLine}
+              analysisData={chartModeObject[chartMode].analysisData}
               {widthRangeValue}
               {heightRangeValue}
               on:updateDataListCallback={(e) => {
                 chartModeObject[e.detail.chartMode].dataList = e.detail.dataList;
+                // 분석 기능 시 isMultiLine 상태와 분석 데이터도 업데이트
+                if (e.detail.isMultiLine !== undefined) {
+                  chartModeObject[e.detail.chartMode].isMultiLine = e.detail.isMultiLine;
+                }
+                if (e.detail.analysisData !== undefined) {
+                  chartModeObject[e.detail.chartMode].analysisData = e.detail.analysisData;
+                }
+                // 분석 데이터 업데이트 시에만 해당 차트만 리렌더링
+                incrementUpdateCounter(e.detail.chartMode);
+              }}
+              on:updateMultiLineCallback={(e) => {
+                chartModeObject[e.detail.chartMode].isMultiLine = e.detail.isMultiLine;
+                incrementUpdateCounter(e.detail.chartMode);
               }}
               on:showDetailChartViewerCallback={(e) => {
                 dispatch('showDetailChartViewerCallback', e.detail);
@@ -372,14 +543,27 @@
             <button class="flex absolute top-2 right-2 w-7 h-7 justify-center items-center bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 group-hover:scale-110 border border-red-300/50"
               on:click|capture|preventDefault|stopPropagation={() => {
                 delete chartModeObject[chartMode];
-
-                chartModeObject = chartModeObject;
+                delete updateCounters[chartMode];
+                updateCounters = { ...updateCounters };
+                updateLocalStorage();
               }}
             >
               <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path>
               </svg>
             </button>
+          {/if}
+          
+          <!-- 개별 종목 로딩 상태 표시 -->
+          {#if chartModeObject[chartMode].isLoading}
+            <div class="absolute inset-0 bg-black/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+              <div class="bg-white/90 rounded-lg p-3 shadow-lg">
+                <div class="flex items-center space-x-2">
+                  <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <span class="text-sm font-medium text-gray-700">데이터 갱신 중...</span>
+                </div>
+              </div>
+            </div>
           {/if}
         </div>
       {/each}
