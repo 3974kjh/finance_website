@@ -28,6 +28,7 @@
 	let searchTermsData: SearchTermData[] = [];
 	let realtimeSearchLoading = false; // 전체 loading을 realtimeSearchLoading으로 분리
 	let selectedTermIndex: number = -1; // 선택된 검색어 인덱스
+	let error: string = ''; // 에러 메시지 상태 변수
 
 	// 키워드 검색 관련 변수들
 	let searchKeyword: string = '';
@@ -76,13 +77,13 @@
 						typeof parsedData.dateInfo === 'string' &&
 						parsedData.timestamp) {
 						
-						// 저장된 데이터가 24시간 이내인지 확인 (선택적)
+						// 저장된 데이터가 1시간 이내인지 확인 (실시간 검색어이므로 더 자주 업데이트)
 						const savedTime = new Date(parsedData.timestamp);
 						const now = new Date();
 						const hoursDiff = (now.getTime() - savedTime.getTime()) / (1000 * 60 * 60);
 						
-						// 24시간 이내 데이터면 사용, 아니면 새로 조회
-						if (hoursDiff < 24) {
+						// 1시간 이내 데이터면 사용, 아니면 새로 조회
+						if (hoursDiff < 1) {
 							searchTerms = parsedData.searchTerms;
 							dateInfo = parsedData.dateInfo;
 							
@@ -94,10 +95,10 @@
 								expanded: false
 							}));
 							
-							console.log(`🎯 캐시된 실시간 검색어 데이터 로드 완료: ${searchTerms.length}개`);
+							console.log(`🎯 캐시된 실시간 검색어 데이터 로드 완료: ${searchTerms.length}개 (${Math.round(hoursDiff * 60)}분 전)`);
 							return true; // 캐시된 데이터 사용
 						} else {
-							console.log('⏰ 캐시된 데이터가 24시간을 초과하여 새로 조회합니다.');
+							console.log(`⏰ 캐시된 데이터가 1시간을 초과하여 새로 조회합니다. (${Math.round(hoursDiff * 60)}분 전)`);
 						}
 					} else {
 						console.warn('⚠️ 저장된 데이터 형식이 올바르지 않습니다.');
@@ -139,20 +140,24 @@
 		}
 	};
 
-	// 실시간 검색어 가져오기
-	const fetchRealtimeSearchTerms = async () => {
+	// 실시간 검색어 가져오기 (자동/수동 새로고침 구분)
+	const fetchRealtimeSearchTerms = async (forceRefresh = false) => {
 		try {
-			realtimeSearchLoading = true; // loading 대신 realtimeSearchLoading 사용
+			realtimeSearchLoading = true;
 			error = '';
 			selectedTermIndex = -1; // 선택 초기화
 			
 			// 로딩 시작 시 날짜 정보도 초기화
 			dateInfo = '';
 			
-			console.log('🔄 실시간 검색어 API 호출 시작');
 			const response = await getRealtimeSearchTerms();
 			
-			if (response && response.search_terms) {
+			if (response && response.search_terms && response.search_terms.length > 0) {
+				// 기존 데이터와 비교해서 실제로 변경된 경우에만 업데이트
+				const hasChanged = !searchTerms || 
+					searchTerms.length !== response.search_terms.length ||
+					searchTerms.some((term, index) => term !== response.search_terms[index]);
+				
 				searchTerms = response.search_terms;
 				dateInfo = response.date_info || '';
 				
@@ -164,20 +169,25 @@
 					expanded: false
 				}));
 				
-				// localStorage에 저장 (새로고침 시에만)
+				// localStorage에 저장
 				saveRealtimeSearchData();
 				
-				console.log(`✅ 실시간 검색어 로드 완료: ${searchTerms.length}개`);
-				toast.success(`실시간 검색어 ${searchTerms.length}개를 불러왔습니다.`);
+				if (forceRefresh) {
+					if (hasChanged) {
+						toast.success(`실시간 검색어 ${searchTerms.length}개를 새로 불러왔습니다.`);
+					} else {
+						toast.success(`실시간 검색어를 새로고침했습니다. (${searchTerms.length}개)`);
+					}
+				} else {
+					toast.success(`실시간 검색어 ${searchTerms.length}개를 자동으로 업데이트했습니다.`);
+				}
 			} else {
 				const errorMsg = '실시간 검색어를 가져올 수 없습니다.';
 				error = errorMsg;
 				dateInfo = ''; // 에러 시에도 날짜 정보 초기화
-				console.error('❌ API 응답 데이터 없음:', response);
 				toast.error(errorMsg);
 			}
 		} catch (err) {
-			console.error('❌ 실시간 검색어 가져오기 실패:', err);
 			const errorMsg = '실시간 검색어를 가져오는 중 오류가 발생했습니다.';
 			error = errorMsg;
 			dateInfo = ''; // 에러 시에도 날짜 정보 초기화
@@ -194,7 +204,7 @@
 				toast.error(errorMsg);
 			}
 		} finally {
-			realtimeSearchLoading = false; // loading 대신 realtimeSearchLoading 사용
+			realtimeSearchLoading = false;
 		}
 	};
 
@@ -207,9 +217,9 @@
 			const hasCachedData = loadRealtimeSearchData();
 			
 			if (!hasCachedData) {
-				// 캐시된 데이터가 없으면 API 호출
-				console.log('📡 캐시된 데이터 없음 - API 호출');
-				await fetchRealtimeSearchTerms();
+				// 캐시된 데이터가 없거나 만료된 경우 자동으로 API 호출
+				console.log('📡 캐시된 데이터 없음 또는 만료됨 - 자동 새로고침');
+				await fetchRealtimeSearchTerms(false); // 자동 새로고침
 			} else {
 				console.log('🎯 캐시된 데이터 사용');
 			}
@@ -256,7 +266,7 @@
 			console.log(`🔄 개별 뉴스 API 호출: ${termData.term}`);
 			const response = await getSearchResultByNaverApi('news', {
 				query: termData.term,
-				display: 10,
+				display: 20,
 				start: 1,
 				sort: 'date',
 				filter: 'all'
@@ -653,23 +663,32 @@
 					<h1 class="text-4xl font-black bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent tracking-tight">
 						실시간 뉴스
 					</h1>
-					{#if dateInfo && !realtimeSearchLoading}
-						<p class="text-sm text-gray-600 mt-2 flex items-center font-medium">
-							<span class="w-2 h-2 bg-emerald-500 rounded-full mr-2 animate-pulse"></span>
-							<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+					<div class="mt-2 space-y-1">
+						{#if dateInfo && !realtimeSearchLoading}
+							<p class="text-sm text-gray-600 flex items-center font-medium">
+								<span class="w-2 h-2 bg-emerald-500 rounded-full mr-2 animate-pulse"></span>
+								<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+								</svg>
+								{dateInfo}
+							</p>
+						{:else if realtimeSearchLoading}
+							<div class="text-sm text-gray-500 flex items-center font-medium">
+								<span class="w-2 h-2 bg-gray-400 rounded-full mr-2 animate-pulse"></span>
+								<svg class="w-4 h-4 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+								</svg>
+								데이터를 가져오는 중...
+							</div>
+						{/if}
+						<!-- 캐시 정책 설명 -->
+						<p class="text-xs text-gray-500 flex items-center">
+							<svg class="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
 							</svg>
-							{dateInfo}
+							브라우저 1시간 캐시 • 서버 30분 간격 갱신 • 새로고침으로 서버 데이터 조회
 						</p>
-					{:else if realtimeSearchLoading}
-						<div class="text-sm text-gray-500 mt-2 flex items-center font-medium">
-							<span class="w-2 h-2 bg-gray-400 rounded-full mr-2 animate-pulse"></span>
-							<svg class="w-4 h-4 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-							</svg>
-							데이터를 가져오는 중...
-						</div>
-					{/if}
+					</div>
 				</div>
 			</div>
 			
@@ -727,7 +746,7 @@
 				</div>
 				<button 
 					class="group relative px-8 py-4 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 text-white font-bold rounded-2xl shadow-xl shadow-blue-500/30 hover:shadow-2xl hover:shadow-blue-500/40 transform hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:transform-none disabled:shadow-lg overflow-hidden"
-					on:click={fetchRealtimeSearchTerms}
+					on:click={() => fetchRealtimeSearchTerms(true)}
 					disabled={realtimeSearchLoading}
 				>
 					<div class="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>

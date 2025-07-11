@@ -543,7 +543,7 @@
             <div class="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg shadow-yellow-500/30">
               <span class="text-white text-lg sm:text-xl lg:text-2xl">📈</span>
             </div>
-            <h2 class="font-black text-lg sm:text-2xl lg:text-3xl bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent">모든 지수 투자</h2>
+            <h2 class="font-black text-lg sm:text-2xl lg:text-3xl bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent">지수투자결과</h2>
           </div>
           <div class='flex flex-col flex-1 min-h-0 space-y-3 sm:space-y-4'>
             <div class="flex flex-row justify-between items-center p-3 sm:p-4 bg-white/80 rounded-xl border border-yellow-200/30 shadow-sm flex-shrink-0">
