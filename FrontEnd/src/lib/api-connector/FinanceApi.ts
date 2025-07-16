@@ -336,3 +336,44 @@ export const getRealtimeSearchTerms = async (cancelController?: AbortController)
 		30 // 실시간 검색어는 30분 캐시
 	);
 }
+
+/**
+ * 경제 캘린더 데이터 가져오기 (캐시 적용)
+ */
+export const getEconomicCalendar = async (requestData: {
+	year: number, 
+	countries?: string[], 
+	importance_levels?: number[]
+}, cancelController?: AbortController) => {
+	// 경제 캘린더는 날짜 기반 캐시 (연도, 국가, 중요도 레벨 조합으로)
+	const countriesStr = requestData.countries ? requestData.countries.sort().join(',') : 'all';
+	const importanceStr = requestData.importance_levels ? requestData.importance_levels.sort().join(',') : 'all';
+	const cacheKey = generateDateBasedKey(`economic_calendar_${requestData.year}_${countriesStr}_${importanceStr}`);
+	
+	return cachedApiCall(
+		cacheKey,
+		async () => {
+			try {
+				const newAxiosInstance = localAxiosInstance();
+
+				if (!!cancelController) {
+					newAxiosInstance.defaults.signal = cancelController.signal;
+				}
+
+				const response = await newAxiosInstance.post(
+					'/get_economic_calendar/',
+					requestData
+				);
+
+				return response.data;
+			} catch (error) {
+				if (error) {
+					console.error('경제 캘린더 데이터 요청 실패 : ' + error);
+					return { success: false, error: 'fail-network' };
+				}
+			}
+		},
+		analysisCache,
+		360 // 경제 캘린더는 6시간 캐시 (하루에 몇 번만 업데이트)
+	);
+}

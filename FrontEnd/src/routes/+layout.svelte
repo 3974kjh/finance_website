@@ -83,6 +83,13 @@
 			description: '실시간 뉴스'
 		},
 		{ 
+			path: '/calendar', 
+			label: 'CALENDAR', 
+			icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+			gradient: 'from-indigo-500 to-blue-600',
+			description: '경제 달력'
+		},
+		{ 
 			path: '/invest', 
 			label: 'INVEST', 
 			icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1',
