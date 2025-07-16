@@ -6,9 +6,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import re
+from urllib.parse import urlencode, quote
 
 def setup_driver():
     """
@@ -384,6 +385,335 @@ def test_crawling_performance():
     
     return static_result
 
+def crawl_zeroin_economic_calendar(start_date, end_date, countries=None, importance_levels=None):
+    """
+    제로인 API를 사용하여 경제캘린더 데이터를 가져오는 함수
+    
+    Args:
+        start_date (str): 시작일 (YYYY-MM-DD 형식)
+        end_date (str): 종료일 (YYYY-MM-DD 형식)
+        countries (list): 국가 목록 ["KR", "US", "CN", "GB", "EU"] 등
+        importance_levels (list): 중요도 목록 [1, 2, 3] (1:하, 2:중, 3:상)
+    
+    Returns:
+        dict: 경제지표 데이터와 메타 정보를 포함한 딕셔너리
+    """
+    try:
+        # 날짜 형식 검증
+        try:
+            datetime.strptime(start_date, '%Y-%m-%d')
+            datetime.strptime(end_date, '%Y-%m-%d')
+        except ValueError:
+            return {
+                "success": False,
+                "error": "날짜 형식이 올바르지 않습니다. YYYY-MM-DD 형식을 사용해주세요.",
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+        
+        # 기본 국가 설정 (전체)
+        if countries is None:
+            countries = ["cn", "kr", "gb", "us", "eu"]
+        
+        # 기본 중요도 설정 (전체)
+        if importance_levels is None:
+            importance_levels = [1, 2, 3]
+        
+        # 국가 코드와 이름 매핑
+        country_mapping = {
+            "cn": "China|중국",
+            "kr": "South Korea|대한민국", 
+            "gb": "United Kingdom|영국",
+            "us": "United States|미국",
+            "eu": "European Union|유럽연합"
+        }
+        
+        # 국가 파라미터 구성
+        str_nation_parts = []
+        str_natcd_parts = []
+        
+        for country_code in countries:
+            if country_code.lower() in country_mapping:
+                str_nation_parts.append(country_mapping[country_code.lower()])
+                str_natcd_parts.append(country_code.lower())
+        
+        str_nation = "|".join(str_nation_parts) + "|"
+        str_natcd = "|".join(str_natcd_parts) + "|"
+        str_importance = "|".join(map(str, importance_levels)) + "|"
+        
+        # API URL 구성
+        base_url = "https://asp.zeroin.co.kr/eco/includes/wei/module/json_getData.php"
+        params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "sort_code": "0",
+            "str_nation": str_nation,
+            "str_natcd": str_natcd,
+            "str_importance": str_importance
+        }
+        
+        # 헤더 설정
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/json, text/javascript, */*; q=0.01',
+            'Accept-Language': 'ko-KR,ko;q=0.8,en-US;q=0.5,en;q=0.3',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Referer': 'https://asp.zeroin.co.kr/',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+        
+        print(f"제로인 API 요청: {start_date} ~ {end_date}")
+        print(f"국가: {countries}, 중요도: {importance_levels}")
+        
+        # API 요청
+        response = requests.get(base_url, params=params, headers=headers, timeout=15)
+        response.raise_for_status()
+        
+        # JSON 응답 파싱
+        data = response.json()
+        
+        # 데이터 처리 및 구조화
+        economic_events = []
+        
+        if all(key in data for key in ['date', 'time', 'kevent', 'importance']):
+            event_count = len(data['date'])
+            
+            for i in range(event_count):
+                try:
+                    event = {
+                        'date': data['date'][i] if i < len(data['date']) else '',
+                        'date_full': data['date_temp'][i] if i < len(data.get('date_temp', [])) else '',
+                        'day': data['day'][i] if i < len(data.get('day', [])) else '',
+                        'time': data['time'][i] if i < len(data['time']) else '',
+                        'event_name': data['kevent'][i] if i < len(data['kevent']) else '',
+                        'importance': data['importance'][i] if i < len(data['importance']) else '',
+                        'importance_level': get_importance_level(data['importance'][i] if i < len(data['importance']) else ''),
+                        'importance_class': data['importance_class'][i] if i < len(data.get('importance_class', [])) else '',
+                        'actual': data['actual'][i] if i < len(data.get('actual', [])) else '',
+                        'forecast': data['forecast'][i] if i < len(data.get('forecast', [])) else '',
+                        'previous': data['previous'][i] if i < len(data.get('previous', [])) else '',
+                        'country_name': data['nat_hname'][i] if i < len(data.get('nat_hname', [])) else '',
+                        'country_code': data['natcd'][i] if i < len(data.get('natcd', [])) else '',
+                        'index': data['index'][i] if i < len(data.get('index', [])) else ''
+                    }
+                    
+                    # 빈 이벤트는 제외
+                    if event['event_name'].strip():
+                        economic_events.append(event)
+                        
+                except Exception as e:
+                    print(f"이벤트 {i} 처리 중 오류: {e}")
+                    continue
+        
+        result = {
+            "success": True,
+            "method": "ZeroIn API",
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "api_url": base_url,
+            "parameters": {
+                "start_date": start_date,
+                "end_date": end_date,
+                "countries": countries,
+                "importance_levels": importance_levels
+            },
+            "economic_data": economic_events,
+            "total_count": len(economic_events),
+            "raw_data_keys": list(data.keys()) if isinstance(data, dict) else []
+        }
+        
+        print(f"제로인 API 크롤링 완료: {len(economic_events)}개 이벤트 수집")
+        return result
+        
+    except requests.RequestException as e:
+        error_msg = f"API 요청 오류: {str(e)}"
+        print(error_msg)
+        return {
+            "success": False,
+            "error": error_msg,
+            "method": "ZeroIn API",
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+    except json.JSONDecodeError as e:
+        error_msg = f"JSON 파싱 오류: {str(e)}"
+        print(error_msg)
+        return {
+            "success": False,
+            "error": error_msg,
+            "method": "ZeroIn API",
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+    except Exception as e:
+        error_msg = f"제로인 API 크롤링 중 오류: {str(e)}"
+        print(error_msg)
+        return {
+            "success": False,
+            "error": error_msg,
+            "method": "ZeroIn API",
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+
+def get_importance_level(importance_text):
+    """
+    중요도 텍스트를 숫자로 변환
+    
+    Args:
+        importance_text (str): 중요도 텍스트 ("상", "중", "하")
+    
+    Returns:
+        int: 중요도 레벨 (3: 상, 2: 중, 1: 하)
+    """
+    mapping = {
+        "상": 3,
+        "중": 2, 
+        "하": 1
+    }
+    return mapping.get(importance_text, 1)
+
+def extract_country_from_event(event_name):
+    """
+    이벤트명에서 국가 정보 추출
+    
+    Args:
+        event_name (str): 이벤트명
+    
+    Returns:
+        str: 국가 코드 또는 빈 문자열
+    """
+    # 간단한 키워드 기반 국가 추출
+    country_keywords = {
+        "미국": "US",
+        "중국": "CN", 
+        "영국": "GB",
+        "한국": "KR",
+        "일본": "JP",
+        "독일": "DE",
+        "유럽": "EU",
+        "Fed": "US",
+        "GDP": "",  # 국가별로 다름
+        "CPI": "",  # 국가별로 다름
+    }
+    
+    for keyword, country_code in country_keywords.items():
+        if keyword in event_name:
+            return country_code
+    
+    return ""
+
+def getEconomicCalendarData(start_date, end_date, countries=None, importance_levels=None):
+    """
+    경제캘린더 데이터 크롤링 메인 함수 (제로인 API 사용)
+    
+    Args:
+        start_date (str): 시작일 (YYYY-MM-DD 형식)
+        end_date (str): 종료일 (YYYY-MM-DD 형식)  
+        countries (list): 국가 코드 목록 ["KR", "US", "CN", "GB", "EU"]
+        importance_levels (list): 중요도 목록 [1, 2, 3] (1:하, 2:중, 3:상)
+    
+    Returns:
+        dict: 경제지표 데이터와 메타 정보
+    """
+    
+    # 입력 검증
+    if not start_date or not end_date:
+        return {
+            "success": False,
+            "error": "시작일과 종료일을 모두 입력해주세요.",
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+    
+    # 국가 코드 정규화 (대소문자 통일)
+    if countries:
+        countries = [country.lower() for country in countries]
+    
+    return crawl_zeroin_economic_calendar(start_date, end_date, countries, importance_levels)
+
+def test_zeroin_api():
+    """
+    제로인 API 테스트 함수
+    """
+    print("=== 제로인 API 경제캘린더 테스트 시작 ===")
+    
+    # 테스트 날짜 설정 (오늘부터 3일간)
+    today = datetime.now()
+    start_date = today.strftime('%Y-%m-%d')
+    end_date = (today + timedelta(days=3)).strftime('%Y-%m-%d')
+    
+    print(f"\n테스트 기간: {start_date} ~ {end_date}")
+    print(f"현재 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+    
+    # 1. 전체 국가, 전체 중요도 테스트
+    print("1. 전체 데이터 테스트")
+    print("-" * 50)
+    
+    try:
+        result = getEconomicCalendarData(start_date, end_date)
+        
+        print(f"결과: {result.get('success', False)}")
+        print(f"방식: {result.get('method', 'unknown')}")
+        print(f"수집된 이벤트 수: {len(result.get('economic_data', []))}개")
+        print(f"API URL: {result.get('api_url', 'N/A')}")
+        
+        if result.get('economic_data'):
+            print(f"\n수집된 데이터 예시 (처음 3개):")
+            for i, event in enumerate(result['economic_data'][:3], 1):
+                print(f"  {i}. {event['date']} {event['time']} - {event['event_name'][:50]}...")
+                print(f"     중요도: {event['importance']} | 실제: {event.get('actual', 'N/A')}")
+        
+        if result.get('error'):
+            print(f"오류: {result['error']}")
+            
+    except Exception as e:
+        print(f"전체 데이터 테스트 중 오류: {e}")
+    
+    print("\n" + "="*70 + "\n")
+    
+    # 2. 특정 국가 테스트
+    print("2. 특정 국가 테스트 (한국, 미국)")
+    print("-" * 50)
+    
+    try:
+        kr_us_result = getEconomicCalendarData(start_date, end_date, ["kr", "us"], [2, 3])
+        
+        print(f"결과: {kr_us_result.get('success', False)}")
+        print(f"수집된 이벤트 수: {len(kr_us_result.get('economic_data', []))}개")
+        
+        if kr_us_result.get('economic_data'):
+            print(f"\n한국/미국 중요 이벤트 예시:")
+            for i, event in enumerate(kr_us_result['economic_data'][:2], 1):
+                print(f"  {i}. {event['date']} {event['time']} - {event['event_name']}")
+                print(f"     중요도: {event['importance']} | 국가: {event.get('country_code', 'N/A')}")
+            
+    except Exception as e:
+        print(f"특정 국가 테스트 중 오류: {e}")
+    
+    print("\n" + "="*70 + "\n")
+    
+    # 3. 고중요도만 테스트
+    print("3. 고중요도 이벤트만 테스트")
+    print("-" * 50)
+    
+    try:
+        high_importance_result = getEconomicCalendarData(start_date, end_date, None, [3])
+        
+        print(f"결과: {high_importance_result.get('success', False)}")
+        print(f"수집된 이벤트 수: {len(high_importance_result.get('economic_data', []))}개")
+        
+        if high_importance_result.get('economic_data'):
+            print(f"\n고중요도 이벤트 예시:")
+            for i, event in enumerate(high_importance_result['economic_data'][:3], 1):
+                print(f"  {i}. {event['date']} {event['time']} - {event['event_name']}")
+                print(f"     중요도: {event['importance']}")
+            
+    except Exception as e:
+        print(f"고중요도 테스트 중 오류: {e}")
+    
+    print("\n" + "="*70)
+    print("제로인 API 테스트 완료!")
+    print(f"테스트 종료 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("="*70)
+    
+    return result
+
 # 테스트 실행 (직접 실행시에만)
 if __name__ == "__main__":
-    test_crawling_performance()
+    test_zeroin_api()

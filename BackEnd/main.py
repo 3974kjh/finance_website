@@ -111,10 +111,23 @@ class GetJsonAnalyzeResponse(BaseModel):
 # 실시간 검색어 요청 / 응답
 class RealtimeSearchRequest(BaseModel):
     pass  # 추가 파라미터가 필요한 경우 여기에 정의
+
 class RealtimeSearchResponse(BaseModel):
     search_terms: List[str]
     date_info: str
     total_count: int
+
+# 경제 캘린더 요청 / 응답
+class EconomicCalendarRequest(BaseModel):
+    year: int
+    countries: List[str] = None
+    importance_levels: List[int] = None
+
+class EconomicCalendarResponse(BaseModel):
+    success: bool
+    data: dict
+    total_count: int
+    year: int
 
 # 카카오 API 요청/응답 모델
 class KakaoTokenRequest(BaseModel):
@@ -285,6 +298,41 @@ async def getRealtimeSearch(request: RealtimeSearchRequest):
             search_terms=search_terms,
             date_info=date_info,
             total_count=total_count
+        )
+
+    except HTTPException:
+        raise  # HTTPException은 그대로 다시 발생
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"서버 오류: {str(e)}")
+
+@app.post("/get_economic_calendar/", response_model=EconomicCalendarResponse)
+async def getEconomicCalendar(request: EconomicCalendarRequest):
+    try:
+        # 해당 연도의 1월 1일부터 12월 31일까지 설정
+        start_date = f"{request.year}-01-01"
+        end_date = f"{request.year}-12-31"
+        
+        # WebCrawling 모듈의 getEconomicCalendarData 함수 호출
+        crawl_result = WebCrawling.getEconomicCalendarData(
+            start_date, 
+            end_date, 
+            request.countries, 
+            request.importance_levels
+        )
+        
+        # 크롤링 실패 시 에러 처리
+        if not crawl_result.get("success", False):
+            raise HTTPException(status_code=500, detail=f"경제 캘린더 데이터 수집 실패: {crawl_result.get('error', '알 수 없는 오류')}")
+        
+        # 결과 데이터 추출
+        economic_data = crawl_result.get("economic_data", [])
+        total_count = crawl_result.get("total_count", 0)
+        
+        return EconomicCalendarResponse(
+            success=True,
+            data=crawl_result,
+            total_count=total_count,
+            year=request.year
         )
 
     except HTTPException:
