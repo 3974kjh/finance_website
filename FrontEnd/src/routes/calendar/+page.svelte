@@ -280,11 +280,28 @@
 	const getDateCellClass = (dateInfo: DateInfo, year: number, month: number): string => {
 		const hasEvents = dateInfo.events && dateInfo.events.length > 0;
 		const todayCheck = isToday(year, month, dateInfo.date);
+		const selectedCheck = selectedDateInfo !== null && 
+			selectedDateInfo.year === year && 
+			selectedDateInfo.month === month && 
+			selectedDateInfo.date === dateInfo.date;
 		
 		let baseClass = "flex flex-col items-center justify-start w-[100px] h-[100px] p-2 text-sm border rounded-xl transition-all duration-300 cursor-pointer relative backdrop-blur-sm shadow-lg overflow-visible";
 		
 		// 호버 시 효과
 		baseClass += " hover:shadow-xl hover:scale-105";
+		
+		// 선택된 날짜 강조 (레이아웃에 영향 없는 방식)
+		if (selectedCheck) {
+			baseClass += " shadow-2xl shadow-indigo-400/60";
+			// 선택된 날짜는 배경을 인디고/보라 계열로
+			if (dateInfo.isHoliday) {
+				return baseClass + " bg-gradient-to-br from-indigo-500/50 via-purple-500/40 to-blue-500/50 text-indigo-100 hover:from-indigo-500/60 hover:via-purple-500/50 hover:to-blue-500/60 border-indigo-400/40";
+			} else if (dateInfo.dayOfWeek === 6) { // 토요일
+				return baseClass + " bg-gradient-to-br from-indigo-500/50 via-purple-500/40 to-blue-500/50 text-indigo-100 hover:from-indigo-500/60 hover:via-purple-500/50 hover:to-blue-500/60 border-indigo-400/40";
+			} else {
+				return baseClass + " bg-gradient-to-br from-indigo-500/50 via-purple-500/40 to-blue-500/50 text-indigo-100 hover:from-indigo-500/60 hover:via-purple-500/50 hover:to-blue-500/60 border-indigo-400/40";
+			}
+		}
 		
 		// 오늘 날짜 강조 - 부드러운 애니메이션으로 개선
 		if (todayCheck) {
@@ -345,7 +362,6 @@
 			date: date,
 			weekEvents: generateWeekEvents(year, month, date)
 		};
-		console.log(`날짜 선택: ${year}년 ${month}월 ${date}일`);
 	};
 
 	// 오늘 날짜로 스크롤 이동하는 함수 (선택 로직 제거)
@@ -375,8 +391,6 @@
 			top: scrollY,
 			behavior: 'smooth'
 		});
-		
-		console.log(`오늘 날짜로 스크롤: ${currentMonth}월 ${currentDate}일 (${scrollX}, ${scrollY})`);
 	};
 
 	// 1월 1일로 스크롤 이동하는 함수
@@ -388,8 +402,6 @@
 			top: 0,
 			behavior: 'smooth'
 		});
-		
-		console.log('1월 1일로 스크롤 이동');
 	};
 
 	// 특정 날짜로 스크롤 이동하는 함수
@@ -415,8 +427,6 @@
 			top: scrollY,
 			behavior: 'smooth'
 		});
-		
-		console.log(`${month}월 ${date}일로 스크롤: (${scrollX}, ${scrollY})`);
 	};
 
 	// 국가 토글 함수
@@ -464,18 +474,18 @@
 		if (currentYear === todayYear) {
 			// 오늘 날짜를 자동으로 선택
 			selectDate(todayYear, todayMonth, todayDate);
-			console.log(`오늘 날짜 자동 선택: ${todayYear}년 ${todayMonth}월 ${todayDate}일`);
 		}
 	};
 
 	// 페이지 마운트 시 초기화
-	onMount(() => {
+	onMount(async () => {
 		console.log('연간 달력 페이지 로드됨');
 		calendarData = generateCalendarData(currentYear);
-		// 경제 캘린더 데이터 로드
-		fetchEconomicCalendar(currentYear);
 		
-		// 데이터 로딩 후 먼저 선택하고, 모달이 뜬 후 스크롤
+		// 경제 캘린더 데이터 로드 완료를 기다림
+		await fetchEconomicCalendar(currentYear);
+		
+		// 로딩 완료 후 스크롤 및 선택 로직 실행
 		setTimeout(() => {
 			const today = new Date();
 			const todayYear = today.getFullYear();
@@ -495,16 +505,17 @@
 	});
 
 	// 연도 변경 함수
-	const changeYear = (delta: number) => {
+	const changeYear = async (delta: number) => {
 		// 조회 조건 변경 시 모달 닫기
 		selectedDateInfo = null;
 		
 		currentYear += delta;
 		calendarData = generateCalendarData(currentYear);
-		// 새로운 연도의 경제 캘린더 데이터 로드
-		fetchEconomicCalendar(currentYear);
 		
-		// 연도 변경 시 스크롤 위치 결정
+		// 새로운 연도의 경제 캘린더 데이터 로드 완료를 기다림
+		await fetchEconomicCalendar(currentYear);
+		
+		// 로딩 완료 후 스크롤 위치 결정
 		setTimeout(() => {
 			scrollToAppropriateDate();
 		}, 100);
@@ -530,8 +541,6 @@
 			scrollToJanuary1st();
 			selectedDateInfo = null;
 		}
-		
-		console.log(`연도 변경: ${currentYear}년 ${currentYear === todayYear ? '(오늘 날짜 선택 후 스크롤 이동)' : '(1월 1일로 이동, 선택 해제)'}`);
 	};
 </script>
 
@@ -795,8 +804,6 @@
 											setTimeout(() => {
 												scrollToDate(currentYear, monthIndex + 1, monthData[dayIndex].date);
 											}, 100);
-											
-											console.log(`클릭: ${monthIndex + 1}월 ${monthData[dayIndex].date}일`);
 										}}
 										title={monthData[dayIndex].holidayName || `${monthIndex + 1}월 ${monthData[dayIndex].date}일`}
 									>
@@ -807,6 +814,18 @@
 											{#if isToday(currentYear, monthIndex + 1, monthData[dayIndex].date)}
 												<div class="absolute -top-2 -right-2 bg-gradient-to-r from-yellow-400 to-orange-400 text-slate-900 text-xs font-black px-1.5 py-0.5 rounded-full shadow-lg animate-bounce border-2 border-white">
 													TODAY
+												</div>
+											{/if}
+											<!-- 선택된 날짜 표시 - 오늘 날짜가 아닌 경우만 -->
+											{#if selectedDateInfo && selectedDateInfo.year === currentYear && selectedDateInfo.month === (monthIndex + 1) && selectedDateInfo.date === monthData[dayIndex].date && !isToday(currentYear, monthIndex + 1, monthData[dayIndex].date)}
+												<div class="absolute -top-2 -left-2 bg-gradient-to-r from-indigo-400 to-purple-400 text-white text-xs font-black px-1.5 py-0.5 rounded-full shadow-lg border-2 border-white animate-pulse">
+													SELECTED
+												</div>
+											{/if}
+											<!-- 오늘 날짜이면서 선택된 날짜인 경우 - 추가 표시 -->
+											{#if selectedDateInfo && selectedDateInfo.year === currentYear && selectedDateInfo.month === (monthIndex + 1) && selectedDateInfo.date === monthData[dayIndex].date && isToday(currentYear, monthIndex + 1, monthData[dayIndex].date)}
+												<div class="absolute -bottom-2 -left-2 bg-gradient-to-r from-indigo-400 to-purple-400 text-white text-xs font-black px-1.5 py-0.5 rounded-full shadow-lg border border-white animate-pulse">
+													SELECTED
 												</div>
 											{/if}
 										</div>
@@ -896,7 +915,7 @@
 						{#each selectedDateInfo.weekEvents as dayInfo}
 							<div class="relative">
 								<!-- 날짜 헤더 -->
-								<div class="text-center mb-3">
+								<div class="text-center mb-1 py-1 border-b-4 {dayInfo.isSelected ? 'border-b-purple-300' : 'border-transparent'}">
 									<div class="text-sm text-slate-400 font-medium">
 										{dayInfo.month}월 {dayInfo.day}일
 									</div>
@@ -904,18 +923,27 @@
 										{['일', '월', '화', '수', '목', '금', '토'][new Date(dayInfo.year, dayInfo.month - 1, dayInfo.day).getDay()]}
 									</div>
 									{#if dayInfo.isToday}
-										<div class="w-2 h-2 bg-yellow-400 rounded-full mx-auto mt-1 animate-pulse"></div>
+										<div class="absolute top-0 left-1 bg-gradient-to-r from-yellow-400 to-orange-400 text-slate-900 text-xs font-black px-1.5 py-0.5 rounded-full shadow-lg animate-bounce border-2 border-white">
+											TODAY
+										</div>
 									{/if}
-									{#if dayInfo.isSelected}
-										<div class="w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full mt-1"></div>
+									{#if dayInfo.isSelected && !dayInfo.isToday}
+										<div class="absolute top-0 left-1 bg-gradient-to-r from-indigo-400 to-purple-400 text-white text-xs font-black px-1.5 py-0.5 rounded-full shadow-lg animate-pulse border-2 border-white">
+											SELECTED
+										</div>
+									{/if}
+									{#if dayInfo.isSelected && dayInfo.isToday}
+										<div class="absolute top-6 left-1 bg-gradient-to-r from-indigo-400 to-purple-400 text-white text-xs font-black px-1.5 py-0.5 rounded-full shadow-lg animate-pulse border-2 border-white">
+											SELECTED
+										</div>
 									{/if}
 								</div>
 								
 								<!-- 이벤트 목록 -->
 								<div class="space-y-2 max-h-48 overflow-y-auto scrollbar-thin">
 									{#if dayInfo.events.length === 0}
-										<div class="text-center text-slate-500 text-xs py-6 border border-slate-700/30 rounded-lg bg-slate-800/20">
-											<div class="mb-1">📅</div>
+										<div class="flex h-48 justify-center items-center text-center text-slate-500 text-xs py-6 border border-slate-700/30 rounded-lg bg-slate-800/20 space-x-2">
+											<div>📅</div>
 											<div>이벤트 없음</div>
 										</div>
 									{:else}
