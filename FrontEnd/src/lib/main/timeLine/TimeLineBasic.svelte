@@ -1,17 +1,15 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { TradeInfoType } from '$lib/types';
   import { getFinanceDataListByChartMode, setUpDownColor, setUpDownRatioTag, SingleChartBasic } from '$lib/main';
   import { CalenderContent } from '$lib/main/timeLine';
   import { AddTimeLinePopup } from '$lib/main/timeLine';
   import { createComponent, formatIncludeComma } from '$lib/utils/CommonHelper';
   import { saveHistoryInfo, getHistoryInfo } from "$lib/api-connector/FinanceApi";
   import toast from 'svelte-french-toast';
+  import type { SplitLayoutSizeType } from '$lib/types';
+  import { Pane, Splitpanes } from 'svelte-splitpanes';
 
 	let componentWidth: number = 0;
-  let fullContentWidth: number = 0;
-
-  let contentComponent: HTMLDivElement;
 
   const searchDuration: {month: number, week: number} = {month: 12, week: 52};
 
@@ -77,6 +75,29 @@
     totalProfitLossAmount: 0
   }
 
+  /**
+   * 행 레이아웃 사이즈 초기화
+   */
+  const initialRowSplitLayoutSize = () => {
+    return [
+      {
+        size: 50,
+        min: 10,
+        max: 100
+      },
+      {
+        size: 50,
+        min: 10,
+        max: 100
+      }
+    ]
+  }
+
+  /**
+   * 행 레이아웃 사이즈
+   */
+  let splitRowLayoutSize: SplitLayoutSizeType[] = initialRowSplitLayoutSize();
+
   const setInvestItemTodayInfo = async (stockList: Array<string>, investItemObject: any) => {
     for (let stock of stockList) {
       const financeDataResult = await getFinanceDataListByChartMode(stock, 1, false);
@@ -100,6 +121,10 @@
   }
 
   onMount(async () => {
+    // 행 레이아웃 사이즈 초기화
+    const localStorageTimeLineRowLayoutSize = localStorage.getItem('timeLineSplitRowLayoutSize');
+    splitRowLayoutSize = !!localStorageTimeLineRowLayoutSize ? JSON.parse(localStorageTimeLineRowLayoutSize) : initialRowSplitLayoutSize();
+
     await refreshAllInvestBindingItems();
   })
 
@@ -245,6 +270,21 @@
 
     isSingleMode = true;
   }
+
+  /**
+   * 행 레이아웃 사이즈 변경 이벤트 처리
+   * @param event
+   */
+  const onLayoutRowResized = (event: CustomEvent) => {
+    if (!!!event || !!!event.detail || event.detail?.length < 1) {
+      return;
+    }
+
+    splitRowLayoutSize = event.detail as SplitLayoutSizeType[];
+
+    // 행 레이아웃 사이즈 저장
+    localStorage.setItem('timeLineSplitRowLayoutSize', JSON.stringify(splitRowLayoutSize));
+  };
 </script>
 
 <div class="flex flex-row w-full h-full bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 relative overflow-hidden p-4">
@@ -253,139 +293,144 @@
   <div class="absolute top-0 left-0 w-96 h-96 bg-gradient-to-r from-violet-500/20 to-purple-500/20 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 animate-pulse"></div>
   <div class="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-r from-cyan-500/20 to-teal-500/20 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 animate-pulse"></div>
 
-  <!-- Virtual Investment Section -->
-  <div class="flex flex-col w-[50%] h-full relative z-10 mr-4">
-    <div class="flex flex-row w-full items-center justify-between mb-4 bg-slate-800/60 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-2xl shadow-black/20 p-6">
-      <div class="flex items-center space-x-4">
-        <div class="w-12 h-12 bg-gradient-to-r from-violet-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/30">
-          <span class="text-white text-xl">📝</span>
-        </div>
-        <h2 class="text-2xl font-black bg-gradient-to-r from-violet-400 to-purple-400 bg-clip-text text-transparent">Virtual Investment</h2>
-      </div>
-      
-      <div class="flex items-center space-x-4">
-        <div class="flex items-center space-x-6">
-          <div class="flex items-center space-x-3 bg-slate-700/80 backdrop-blur-sm rounded-xl px-4 py-2 border border-slate-500/30">
-            <div class="w-6 h-6 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-lg flex items-center justify-center">
-              <span class="text-white text-sm">💰</span>
+  <Splitpanes on:resized={onLayoutRowResized}>
+    <!-- Virtual Investment Section -->
+    <Pane size={splitRowLayoutSize[0].size} minSize={splitRowLayoutSize[0].min} maxSize={splitRowLayoutSize[0].max}>
+      <div class="flex flex-col h-full relative z-10 mr-2">
+        <div class="flex flex-row w-full items-center justify-between mb-4 bg-slate-800/60 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-2xl shadow-black/20 p-6">
+          <div class="flex items-center space-x-4">
+            <div class="w-12 h-12 bg-gradient-to-r from-violet-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/30">
+              <span class="text-white text-xl">📝</span>
             </div>
-            <span class="text-slate-200 font-medium text-sm">전체 투자액 :</span>
-            <span class="text-white font-bold text-lg">{`${formatIncludeComma(virtualTotalInvestInfo?.totalAmount) ?? '-'} ₩`}</span>
+            <h2 class="text-2xl font-black bg-gradient-to-r from-violet-400 to-purple-400 bg-clip-text text-transparent">Virtual Investment</h2>
           </div>
           
-          <div class="flex items-center space-x-3 bg-slate-200/90 backdrop-blur-sm rounded-xl px-4 py-2 border border-slate-300/50 shadow-sm">
-            <span class="text-slate-700 font-medium text-sm">{setProfitLossTitleText(virtualTotalInvestInfo?.totalProfitLossAmount)}</span>
-            <span class="font-bold text-lg drop-shadow-lg" style="color: {setUpDownColor(virtualTotalInvestInfo?.totalProfitLossAmount)};">
-              {`${formatIncludeComma(virtualTotalInvestInfo?.totalProfitLossAmount) ?? '-'} ₩`}
-            </span>
-            <span class="text-slate-600 font-medium">
-              <span>{'('}</span>
-              {@html setUpDownRatioTag(virtualTotalInvestInfo?.totalAmount, virtualTotalInvestInfo?.totalAmount + virtualTotalInvestInfo?.totalProfitLossAmount)}
-              <span>{')'}</span>
-            </span>
+          <div class="flex items-center space-x-4">
+            <div class="flex items-center space-x-6">
+              <div class="flex items-center space-x-3 bg-slate-700/80 backdrop-blur-sm rounded-xl px-4 py-2 border border-slate-500/30">
+                <div class="w-6 h-6 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-lg flex items-center justify-center">
+                  <span class="text-white text-sm">💰</span>
+                </div>
+                <span class="text-slate-200 font-medium text-sm">전체 투자액 :</span>
+                <span class="text-white font-bold text-lg">{`${formatIncludeComma(virtualTotalInvestInfo?.totalAmount) ?? '-'} ₩`}</span>
+              </div>
+              
+              <div class="flex items-center space-x-3 bg-slate-200/90 backdrop-blur-sm rounded-xl px-4 py-2 border border-slate-300/50 shadow-sm">
+                <span class="text-slate-700 font-medium text-sm">{setProfitLossTitleText(virtualTotalInvestInfo?.totalProfitLossAmount)}</span>
+                <span class="font-bold text-lg drop-shadow-lg" style="color: {setUpDownColor(virtualTotalInvestInfo?.totalProfitLossAmount)};">
+                  {`${formatIncludeComma(virtualTotalInvestInfo?.totalProfitLossAmount) ?? '-'} ₩`}
+                </span>
+                <span class="text-slate-600 font-medium">
+                  <span>{'('}</span>
+                  {@html setUpDownRatioTag(virtualTotalInvestInfo?.totalAmount, virtualTotalInvestInfo?.totalAmount + virtualTotalInvestInfo?.totalProfitLossAmount)}
+                  <span>{')'}</span>
+                </span>
+              </div>
+            </div>
+            
+            <button class="w-12 h-12 bg-gradient-to-r from-violet-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-violet-500/30 transition-all duration-200 hover:scale-110 hover:shadow-xl hover:shadow-violet-500/40 border border-violet-400/50" 
+              on:click={() => onOpenAddTimeLinePopup(false)}>
+              <span class="text-white text-xl">➕</span>
+            </button>
           </div>
         </div>
         
-        <button class="w-12 h-12 bg-gradient-to-r from-violet-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-violet-500/30 transition-all duration-200 hover:scale-110 hover:shadow-xl hover:shadow-violet-500/40 border border-violet-400/50" 
-          on:click={() => onOpenAddTimeLinePopup(false)}>
-          <span class="text-white text-xl">➕</span>
-        </button>
-      </div>
-    </div>
-    
-    {#if Object.keys(virtualInvestItemObject).length > 0}
-      <div 
-        class="flex flex-col w-full h-full bg-slate-800/40 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-inner p-4 space-y-4 overflow-auto modern-scrollbar"
-        bind:clientWidth={componentWidth}
-      >
-        {#each Object.keys(virtualInvestItemObject) as virtualInvestItem, index}
-          <CalenderContent
-            bind:componentWidth
-            investItemInfo={virtualInvestItemObject[virtualInvestItem]}
-            uniqueId={index}
-            on:onDeleteStockInfoCallback={(e) => onDeleteStockInfoCallback(e?.detail, false)}
-            on:onShowDetailStockInfoCallback={onShowDetailStockInfoCallback}
-          />
-        {/each}
-      </div>
-    {:else}
-      <div class="flex w-full h-full justify-center items-center bg-slate-800/40 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-inner">
-        <div class="text-center space-y-3">
-          <div class="w-16 h-16 bg-gradient-to-r from-slate-600 to-slate-500 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
-            <span class="text-white text-2xl">➕</span>
+        {#if Object.keys(virtualInvestItemObject).length > 0}
+          <div 
+            class="flex flex-col w-full h-full bg-slate-800/40 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-inner p-4 space-y-4 overflow-auto modern-scrollbar"
+            bind:clientWidth={componentWidth}
+          >
+            {#each Object.keys(virtualInvestItemObject) as virtualInvestItem, index}
+              <CalenderContent
+                bind:componentWidth
+                investItemInfo={virtualInvestItemObject[virtualInvestItem]}
+                uniqueId={index}
+                on:onDeleteStockInfoCallback={(e) => onDeleteStockInfoCallback(e?.detail, false)}
+                on:onShowDetailStockInfoCallback={onShowDetailStockInfoCallback}
+              />
+            {/each}
           </div>
-          <p class="text-slate-300 font-medium text-lg">➕ 버튼을 눌러 종목을 추가해주세요</p>
-        </div>
-      </div>
-    {/if}
-  </div>
-
-  <!-- Real Investment Section -->
-  <div class="flex flex-col w-[50%] h-full relative z-10">
-    <div class="flex flex-row w-full items-center justify-between mb-4 bg-slate-800/60 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-2xl shadow-black/20 p-6">
-      <div class="flex items-center space-x-4">
-        <div class="w-12 h-12 bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
-          <span class="text-white text-xl">💵</span>
-        </div>
-        <h2 class="text-2xl font-black bg-gradient-to-r from-emerald-400 to-green-400 bg-clip-text text-transparent">Real Investment</h2>
-      </div>
-      
-      <div class="flex items-center space-x-4">
-        <div class="flex items-center space-x-6">
-          <div class="flex items-center space-x-3 bg-slate-700/80 backdrop-blur-sm rounded-xl px-4 py-2 border border-slate-500/30">
-            <div class="w-6 h-6 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-lg flex items-center justify-center">
-              <span class="text-white text-sm">💰</span>
+        {:else}
+          <div class="flex w-full h-full justify-center items-center bg-slate-800/40 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-inner">
+            <div class="text-center space-y-3">
+              <div class="w-16 h-16 bg-gradient-to-r from-slate-600 to-slate-500 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
+                <span class="text-white text-2xl">➕</span>
+              </div>
+              <p class="text-slate-300 font-medium text-lg">➕ 버튼을 눌러 종목을 추가해주세요</p>
             </div>
-            <span class="text-slate-200 font-medium text-sm">전체 투자액 :</span>
-            <span class="text-white font-bold text-lg">{`${formatIncludeComma(realTotalInvestInfo?.totalAmount) ?? '-'} ₩`}</span>
+          </div>
+        {/if}
+      </div>
+    </Pane>
+    <!-- Real Investment Section -->
+    <Pane size={splitRowLayoutSize[1].size} minSize={splitRowLayoutSize[1].min} maxSize={splitRowLayoutSize[1].max}>
+      <div class="flex flex-col h-full relative z-10 ml-2">
+        <div class="flex flex-row w-full items-center justify-between mb-4 bg-slate-800/60 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-2xl shadow-black/20 p-6">
+          <div class="flex items-center space-x-4">
+            <div class="w-12 h-12 bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
+              <span class="text-white text-xl">💵</span>
+            </div>
+            <h2 class="text-2xl font-black bg-gradient-to-r from-emerald-400 to-green-400 bg-clip-text text-transparent">Real Investment</h2>
           </div>
           
-          <div class="flex items-center space-x-3 bg-slate-200/90 backdrop-blur-sm rounded-xl px-4 py-2 border border-slate-300/50 shadow-sm">
-            <span class="text-slate-700 font-medium text-sm">{setProfitLossTitleText(realTotalInvestInfo?.totalProfitLossAmount)}</span>
-            <span class="font-bold text-lg drop-shadow-lg" style="color: {setUpDownColor(realTotalInvestInfo?.totalProfitLossAmount)};">
-              {`${formatIncludeComma(realTotalInvestInfo?.totalProfitLossAmount) ?? '-'} ₩`}
-            </span>
-            <span class="text-slate-600 font-medium">
-              <span>{'('}</span>
-              {@html setUpDownRatioTag(realTotalInvestInfo?.totalAmount, realTotalInvestInfo?.totalAmount + realTotalInvestInfo?.totalProfitLossAmount)}
-              <span>{')'}</span>
-            </span>
+          <div class="flex items-center space-x-4">
+            <div class="flex items-center space-x-6">
+              <div class="flex items-center space-x-3 bg-slate-700/80 backdrop-blur-sm rounded-xl px-4 py-2 border border-slate-500/30">
+                <div class="w-6 h-6 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-lg flex items-center justify-center">
+                  <span class="text-white text-sm">💰</span>
+                </div>
+                <span class="text-slate-200 font-medium text-sm">전체 투자액 :</span>
+                <span class="text-white font-bold text-lg">{`${formatIncludeComma(realTotalInvestInfo?.totalAmount) ?? '-'} ₩`}</span>
+              </div>
+              
+              <div class="flex items-center space-x-3 bg-slate-200/90 backdrop-blur-sm rounded-xl px-4 py-2 border border-slate-300/50 shadow-sm">
+                <span class="text-slate-700 font-medium text-sm">{setProfitLossTitleText(realTotalInvestInfo?.totalProfitLossAmount)}</span>
+                <span class="font-bold text-lg drop-shadow-lg" style="color: {setUpDownColor(realTotalInvestInfo?.totalProfitLossAmount)};">
+                  {`${formatIncludeComma(realTotalInvestInfo?.totalProfitLossAmount) ?? '-'} ₩`}
+                </span>
+                <span class="text-slate-600 font-medium">
+                  <span>{'('}</span>
+                  {@html setUpDownRatioTag(realTotalInvestInfo?.totalAmount, realTotalInvestInfo?.totalAmount + realTotalInvestInfo?.totalProfitLossAmount)}
+                  <span>{')'}</span>
+                </span>
+              </div>
+            </div>
+            
+            <button class="w-12 h-12 bg-gradient-to-r from-emerald-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/30 transition-all duration-200 hover:scale-110 hover:shadow-xl hover:shadow-emerald-500/40 border border-emerald-400/50"
+              on:click={() => onOpenAddTimeLinePopup(true)}>
+              <span class="text-white text-xl">➕</span>
+            </button>
           </div>
         </div>
         
-        <button class="w-12 h-12 bg-gradient-to-r from-emerald-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/30 transition-all duration-200 hover:scale-110 hover:shadow-xl hover:shadow-emerald-500/40 border border-emerald-400/50"
-          on:click={() => onOpenAddTimeLinePopup(true)}>
-          <span class="text-white text-xl">➕</span>
-        </button>
-      </div>
-    </div>
-    
-    {#if Object.keys(realInvestItemObject).length > 0}
-      <div 
-        class="flex flex-col w-full h-full bg-slate-800/40 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-inner p-4 space-y-4 overflow-auto modern-scrollbar"
-        bind:clientWidth={componentWidth}
-      >
-        {#each Object.keys(realInvestItemObject) as realInvestItem, index}
-          <CalenderContent
-            bind:componentWidth
-            investItemInfo={realInvestItemObject[realInvestItem]}
-            uniqueId={index + 100}
-            on:onDeleteStockInfoCallback={(e) => onDeleteStockInfoCallback(e?.detail, true)}
-            on:onShowDetailStockInfoCallback={onShowDetailStockInfoCallback}
-          />
-        {/each}
-      </div>
-    {:else}
-      <div class="flex w-full h-full justify-center items-center bg-slate-800/40 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-inner">
-        <div class="text-center space-y-3">
-          <div class="w-16 h-16 bg-gradient-to-r from-slate-600 to-slate-500 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
-            <span class="text-white text-2xl">➕</span>
+        {#if Object.keys(realInvestItemObject).length > 0}
+          <div 
+            class="flex flex-col w-full h-full bg-slate-800/40 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-inner p-4 space-y-4 overflow-auto modern-scrollbar"
+            bind:clientWidth={componentWidth}
+          >
+            {#each Object.keys(realInvestItemObject) as realInvestItem, index}
+              <CalenderContent
+                bind:componentWidth
+                investItemInfo={realInvestItemObject[realInvestItem]}
+                uniqueId={index + 100}
+                on:onDeleteStockInfoCallback={(e) => onDeleteStockInfoCallback(e?.detail, true)}
+                on:onShowDetailStockInfoCallback={onShowDetailStockInfoCallback}
+              />
+            {/each}
           </div>
-          <p class="text-slate-300 font-medium text-lg">➕ 버튼을 눌러 종목을 추가해주세요</p>
-        </div>
+        {:else}
+          <div class="flex w-full h-full justify-center items-center bg-slate-800/40 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-inner">
+            <div class="text-center space-y-3">
+              <div class="w-16 h-16 bg-gradient-to-r from-slate-600 to-slate-500 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
+                <span class="text-white text-2xl">➕</span>
+              </div>
+              <p class="text-slate-300 font-medium text-lg">➕ 버튼을 눌러 종목을 추가해주세요</p>
+            </div>
+          </div>
+        {/if}
       </div>
-    {/if}
-  </div>
+    </Pane>
+  </Splitpanes>
 
   {#if isSingleMode && singleChartInfo}
     <div class="absolute inset-0 z-20 bg-black/50 backdrop-blur-sm">
@@ -400,6 +445,53 @@
 </div>
 
 <style>
+  /* Splitpanes 투명 배경 스타일 */
+  :global(.splitpanes) {
+    background: transparent !important;
+  }
+
+  :global(.splitpanes__pane) {
+    background: transparent !important;
+  }
+
+  :global(.splitpanes__splitter) {
+    background: transparent !important;
+    border: none !important;
+    position: relative;
+    cursor: col-resize;
+  }
+
+  :global(.splitpanes--horizontal .splitpanes__splitter) {
+    cursor: row-resize;
+  }
+
+  /* :global(.splitpanes__splitter:hover) {
+    background: rgba(255, 255, 255, 0.1) !important;
+  } */
+
+  /* 스플릿 바 ::before, ::after 가상 요소 아이콘 스타일 */
+  :global(.splitpanes__splitter::before),
+  :global(.splitpanes__splitter::after) {
+    background-color: white !important;
+    border-color: white !important;
+    color: white !important;
+    fill: white !important;
+    stroke: white !important;
+  }
+
+  /* 호버 시 아이콘 강조 */
+  :global(.splitpanes__splitter:hover *) {
+    color: white !important;
+    fill: white !important;
+    stroke: white !important;
+  }
+
+  /* 호버 시 ::before, ::after 가상 요소 강조 */
+  :global(.splitpanes__splitter:hover::before),
+  :global(.splitpanes__splitter:hover::after) {
+    background-color: rgba(255, 255, 255, 0.9) !important;
+  }
+
   /* 글래스모피즘 효과 강화 */
   :global(.backdrop-blur-xl) {
     backdrop-filter: blur(24px) saturate(180%);
