@@ -44,6 +44,7 @@
 		"lodash": "^4.17.21",
 		"sortablejs": "^1.15.6",
 		"svelte-french-toast": "^1.2.0",
+		"svelte-splitpanes": "^8.0.9",
 		"tabulator-tables": "^6.2.1"
 	}
 }
