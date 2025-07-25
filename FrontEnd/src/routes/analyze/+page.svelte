@@ -8,6 +8,7 @@
   import { cancelRequest } from "$lib/axios-provider/AxiosProvider";
   import { page } from '$app/stores';
   import toast from 'svelte-french-toast';
+  import { slide } from 'svelte/transition';
   import _ from 'lodash';
 
   let stockModeList: Array<{name: string, value: string, isSelected: boolean}> = [
@@ -43,6 +44,7 @@
   // 결과 목록
   let calcSignalScoreResultList: any = [];
   let filteredCalcSignalScoreResultList: any = [];
+  let analyzeDate: string | null = null;
 
   // 로딩 상태
   let nowStateText: string | null = null;
@@ -78,6 +80,11 @@
   // 페이지네이션 관련 변수
   let currentPage: number = 0;
   const itemsPerPage: number = 50; // 페이지당 50개 항목
+
+  /**
+   * 로컬 호스트 여부
+   */
+  const isLocalHost: boolean = $page.url.hostname === 'localhost';
 
   // 페이지네이션 표시 여부에 따른 테이블 높이 계산
   $: showPagination = filteredCalcSignalScoreResultList.length > itemsPerPage;
@@ -150,6 +157,7 @@
     searchDuration = !!getSelectedDurationKey ? durationObject[getSelectedDurationKey] : durationObject['1 YEAR'];
     stockModeList = !!getSelectedStockMode ? setSelectStockModeList(stockModeList, JSON.parse(getSelectedStockMode)) : stockModeList;
     calcSignalScoreResultList = !!getCalcResultList?.data ? getCalcResultList.data : [];
+    analyzeDate = getCalcResultList?.date || null;
 
     filteredCalcSignalScoreResultList = _.cloneDeep(calcSignalScoreResultList);
 
@@ -310,22 +318,6 @@
     let topValue = expectResult.data?.topValue;
     let expectRatioValue = expectResult.data?.expectRatioValue;
 
-    // 이동평균 계산 함수
-    const calculateMA = (data: any, moveSize: number): (number | string | null)[] => {
-      const movingAverages: (number | string | null)[] = [];
-      for (let index = 0; index < data.length; index++) {
-        if (index < moveSize - 1) {
-          // 데이터가 부족한 경우 null로 표시
-          movingAverages.push(null);
-        } else {
-          const moveList = data.slice(index - moveSize + 1, index + 1);
-          const sum = moveList.reduce((acc: any, cur: any) => acc + cur.Open, 0);
-          movingAverages.push(formatCostValue(sum / moveSize));
-        }
-      }
-      return movingAverages;
-    };
-
     // 해당 주가의 여러 요인들을 종합하여 각 요인별 점수를 계산하여 일반화한 값 가져오기
     let calcSignalScoreResult = calculateExpectFinanceScore(
       financeDataResult,
@@ -344,7 +336,7 @@
    * 분석한 증시정보 데이터 저장
   */
   const onSaveFinanceRankList = async () => {
-    if ($page.url.hostname !== 'localhost') {
+    if (!isLocalHost) {
       toast.error('수행 권환이 없습니다.');
       return;
     }
@@ -479,6 +471,8 @@
     kakaoAccessCode = e.detail;
     sessionStorage.setItem('kakaoAccessCode', e.detail);
   }
+
+  let isShowConditionSetting: boolean = false;
 </script>
 
 <svelte:head>
@@ -491,9 +485,12 @@
   <div class="absolute top-0 left-0 w-96 h-96 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 animate-pulse"></div>
   <div class="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-r from-cyan-500/20 to-teal-500/20 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 animate-pulse"></div>
   
-  <div class="flex flex-col w-full h-full p-4 space-y-4 relative z-10">
-    <!-- 조회 조건 -->
-    <div class="flex flex-wrap gap-4 items-center bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-xl">
+  {#if isLocalHost && isShowConditionSetting}
+    <div 
+      class="flex flex-wrap absolute top-[80px] right-0 w-[100%] h-[80px] bg-white/10 backdrop-blur-md p-4 border border-white/20 shadow-xl gap-4"
+      style="z-index: 100;"
+      transition:slide
+    >
       <!-- 지수 항목 -->
       <div class="flex items-center space-x-3">
         <div class="flex items-center space-x-2">
@@ -517,7 +514,7 @@
             </button>
           {/each}
         </div>
-      </div>   
+      </div> 
       <!-- 조회 기간 설정 -->
       <div class="flex items-center space-x-3">
         <div class="flex items-center space-x-2">
@@ -543,61 +540,13 @@
           {/each}
         </div>
       </div>
-      <!-- 검색란 -->
-      <div class="flex items-center space-x-3">
-        <div class="flex items-center space-x-2">
-          <div class="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
-            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-            </svg>
-          </div>
-          <span class="font-bold text-white">종목 검색</span>
-        </div>
-        <div class="relative">
-          <input
-            bind:this={searchInputDocument}
-            type="text"
-            autocomplete="off"
-            id="name"
-            name="name"
-            class="h-10 px-3 pr-10 rounded-lg bg-white/90 backdrop-blur-sm border border-white/30 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/50 outline-none transition-all duration-200 text-gray-800 placeholder-gray-500 shadow-md hover:shadow-lg w-60"
-            autofocus={true}
-            disabled={loadProgress}
-            minlength="4"
-            maxlength="8"
-            size="10"
-            placeholder="종목명/종목코드 검색"
-            bind:value={searchStockText}
-            on:keypress={async (e) => {
-              if (e.key === 'Enter') {
-                await tick();
-                searchInputDocument?.focus();
-              }
-            }}
-          />
-          {#if searchStockText.trim() !== ''}
-            <button
-              class="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 bg-gray-500/20 hover:bg-gray-500/40 rounded-full flex items-center justify-center transition-all duration-200 group"
-              on:click={() => {
-                searchStockText = '';
-                searchInputDocument?.focus();
-              }}
-              title="검색어 지우기"
-            >
-              <svg class="w-3 h-3 text-gray-600 group-hover:text-gray-800 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
-            </button>
-          {/if}
-        </div>
-      </div>    
       <!-- 액션 버튼들 -->
       <div class="flex items-center space-x-2 ml-auto">
         <button 
           disabled={loadProgress} 
           class="h-10 flex items-center space-x-2 px-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed"
           on:click={async () => {
-            if ($page.url.hostname !== 'localhost') {
+            if (!isLocalHost) {
               toast.error('수행 권환이 없습니다.');
               return;
             }
@@ -673,6 +622,78 @@
           </svg>
           <span>저장</span>
         </button>
+      </div>
+    </div>
+  {/if}
+  <div class="flex flex-col w-full h-full p-4 space-y-4 relative z-10">
+    <!-- 조회 조건 -->
+    <div class="flex flex-wrap gap-4 items-center bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-xl">
+      <!-- 분석 날짜 표시 -->
+      {#if analyzeDate}
+        <div class="flex items-center space-x-3">
+          <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
+              <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+              </svg>
+            </div>
+            <span class="font-bold text-white">분석 기준일</span>
+          </div>
+          <div class="px-3 py-1 bg-emerald-500/20 border border-emerald-400/30 rounded-lg text-emerald-200 text-sm font-medium shadow-sm">
+            {analyzeDate}
+          </div>
+        </div>
+      {/if}
+      <!-- 검색란 -->
+      <div class="flex items-center space-x-3">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+          </div>
+          <span class="font-bold text-white">종목 검색</span>
+        </div>
+        <div class="relative">
+          <input
+            bind:this={searchInputDocument}
+            type="text"
+            autocomplete="off"
+            id="name"
+            name="name"
+            class="h-10 px-3 pr-10 rounded-lg bg-white/90 backdrop-blur-sm border border-white/30 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/50 outline-none transition-all duration-200 text-gray-800 placeholder-gray-500 shadow-md hover:shadow-lg w-60"
+            autofocus={true}
+            disabled={loadProgress}
+            minlength="4"
+            maxlength="8"
+            size="10"
+            placeholder="종목명/종목코드 검색"
+            bind:value={searchStockText}
+            on:keypress={async (e) => {
+              if (e.key === 'Enter') {
+                await tick();
+                searchInputDocument?.focus();
+              }
+            }}
+          />
+          {#if searchStockText.trim() !== ''}
+            <button
+              class="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 bg-gray-500/20 hover:bg-gray-500/40 rounded-full flex items-center justify-center transition-all duration-200 group"
+              on:click={() => {
+                searchStockText = '';
+                searchInputDocument?.focus();
+              }}
+              title="검색어 지우기"
+            >
+              <svg class="w-3 h-3 text-gray-600 group-hover:text-gray-800 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          {/if}
+        </div>
+      </div>
+      <!-- 액션 버튼들 -->
+      <div class="flex items-center space-x-2 ml-auto">
         <div class="ml-4">
           <KakaoLoginAndSend
             bind:kakaoAccessCode
@@ -681,6 +702,15 @@
             on:onUpdateKakaoAccessCodeCallback={onUpdateKakaoAccessCode}
           />
         </div>
+        <button disabled={!isLocalHost} class="h-10 flex items-center space-x-2 px-3 {isShowConditionSetting ? 'bg-gray-400' : 'bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700'} disabled:from-gray-400 disabled:to-gray-500 text-white rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed transform"
+          on:click={() => {
+            isShowConditionSetting = !isShowConditionSetting;
+          }}
+        >
+          <svg class="w-4 h-4 {isShowConditionSetting ? 'animate-spin' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+          </svg>
+        </button>
       </div>
     </div>
     <!-- 검색 상태 표시 -->

@@ -107,6 +107,7 @@ class GetJsonAnalyzeRequest(BaseModel):
     stock: str = ''
 class GetJsonAnalyzeResponse(BaseModel):
     data: list
+    date: str = None
 
 # 실시간 검색어 요청 / 응답
 class RealtimeSearchRequest(BaseModel):
@@ -272,9 +273,12 @@ async def getFinanceRank(request: GetJsonHistoryRequest):
 @app.post("/get_today_analyze/", response_model=GetJsonAnalyzeResponse)
 async def getTodayAnalyze(request: GetJsonAnalyzeRequest):
     try:
-        todayAnalyze = JsonDataBase.ReadAnalyzeJsonFile()
+        analyze_result = JsonDataBase.ReadLatestAnalyzeJsonFile()
 
-        return GetJsonAnalyzeResponse(data=todayAnalyze)
+        return GetJsonAnalyzeResponse(
+            data=analyze_result["data"], 
+            date=analyze_result["date"]
+        )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

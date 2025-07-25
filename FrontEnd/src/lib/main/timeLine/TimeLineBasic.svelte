@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { getFinanceDataListByChartMode, setUpDownColor, setUpDownRatioTag, SingleChartBasic } from '$lib/main';
   import { CalenderContent } from '$lib/main/timeLine';
   import { AddTimeLinePopup } from '$lib/main/timeLine';
@@ -74,6 +74,16 @@
     totalAmount: 0,
     totalProfitLossAmount: 0
   }
+  
+  /**
+   * 가상 투자 내용 갱신 플래그
+   */
+  let refreshVirtualInvestContentFlag: boolean = false;
+
+  /**
+   * 실제 투자 내용 갱신 플래그
+   */
+  let refreshRealInvestContentFlag: boolean = false;
 
   /**
    * 행 레이아웃 사이즈 초기화
@@ -284,6 +294,11 @@
 
     // 행 레이아웃 사이즈 저장
     localStorage.setItem('timeLineSplitRowLayoutSize', JSON.stringify(splitRowLayoutSize));
+
+    requestAnimationFrame(() => {
+      refreshVirtualInvestContentFlag = !refreshVirtualInvestContentFlag;
+      refreshRealInvestContentFlag = !refreshRealInvestContentFlag;
+    })
   };
 </script>
 
@@ -336,20 +351,22 @@
         </div>
         
         {#if Object.keys(virtualInvestItemObject).length > 0}
-          <div 
-            class="flex flex-col w-full h-full bg-slate-800/40 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-inner p-4 space-y-4 overflow-auto modern-scrollbar"
-            bind:clientWidth={componentWidth}
-          >
-            {#each Object.keys(virtualInvestItemObject) as virtualInvestItem, index}
-              <CalenderContent
-                bind:componentWidth
-                investItemInfo={virtualInvestItemObject[virtualInvestItem]}
-                uniqueId={index}
-                on:onDeleteStockInfoCallback={(e) => onDeleteStockInfoCallback(e?.detail, false)}
-                on:onShowDetailStockInfoCallback={onShowDetailStockInfoCallback}
-              />
-            {/each}
-          </div>
+          {#key refreshVirtualInvestContentFlag}
+            <div 
+              class="flex flex-col w-full h-full bg-slate-800/40 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-inner p-4 space-y-4 overflow-auto modern-scrollbar"
+              bind:clientWidth={componentWidth}
+            >
+              {#each Object.keys(virtualInvestItemObject) as virtualInvestItem, index}
+                <CalenderContent
+                  bind:componentWidth
+                  investItemInfo={virtualInvestItemObject[virtualInvestItem]}
+                  uniqueId={index}
+                  on:onDeleteStockInfoCallback={(e) => onDeleteStockInfoCallback(e?.detail, false)}
+                  on:onShowDetailStockInfoCallback={onShowDetailStockInfoCallback}
+                />
+              {/each}
+            </div>
+          {/key}
         {:else}
           <div class="flex w-full h-full justify-center items-center bg-slate-800/40 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-inner">
             <div class="text-center space-y-3">
@@ -404,20 +421,22 @@
         </div>
         
         {#if Object.keys(realInvestItemObject).length > 0}
-          <div 
-            class="flex flex-col w-full h-full bg-slate-800/40 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-inner p-4 space-y-4 overflow-auto modern-scrollbar"
-            bind:clientWidth={componentWidth}
-          >
-            {#each Object.keys(realInvestItemObject) as realInvestItem, index}
-              <CalenderContent
-                bind:componentWidth
-                investItemInfo={realInvestItemObject[realInvestItem]}
-                uniqueId={index + 100}
-                on:onDeleteStockInfoCallback={(e) => onDeleteStockInfoCallback(e?.detail, true)}
-                on:onShowDetailStockInfoCallback={onShowDetailStockInfoCallback}
-              />
-            {/each}
-          </div>
+          {#key refreshRealInvestContentFlag}
+            <div 
+              class="flex flex-col w-full h-full bg-slate-800/40 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-inner p-4 space-y-4 overflow-auto modern-scrollbar"
+              bind:clientWidth={componentWidth}
+            >
+              {#each Object.keys(realInvestItemObject) as realInvestItem, index}
+                <CalenderContent
+                  bind:componentWidth
+                  investItemInfo={realInvestItemObject[realInvestItem]}
+                  uniqueId={index + 100}
+                  on:onDeleteStockInfoCallback={(e) => onDeleteStockInfoCallback(e?.detail, true)}
+                  on:onShowDetailStockInfoCallback={onShowDetailStockInfoCallback}
+                />
+              {/each}
+            </div>
+          {/key}
         {:else}
           <div class="flex w-full h-full justify-center items-center bg-slate-800/40 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-inner">
             <div class="text-center space-y-3">
