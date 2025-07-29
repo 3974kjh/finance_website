@@ -416,3 +416,40 @@ export const getStockCalendar = async (requestData: {
 		240 // 주식 일정은 4시간 캐시
 	);
 }
+
+/**
+ * 한국 공휴일 데이터 가져오기 (캐시 적용)
+ */
+export const getKoreanHolidays = async (requestData: {
+	year: number
+}, cancelController?: AbortController) => {
+	// 한국 공휴일은 연도별로 캐시 (공휴일은 거의 변경되지 않으므로 하루 단위 캐시)
+	const cacheKey = generateDateBasedKey(`korean_holidays_${requestData.year}`);
+	
+	return cachedApiCall(
+		cacheKey,
+		async () => {
+			try {
+				const newAxiosInstance = localAxiosInstance();
+
+				if (!!cancelController) {
+					newAxiosInstance.defaults.signal = cancelController.signal;
+				}
+
+				const response = await newAxiosInstance.post(
+					'/get_korean_holidays/',
+					requestData
+				);
+
+				return response.data;
+			} catch (error) {
+				if (error) {
+					console.error('한국 공휴일 데이터 요청 실패 : ' + error);
+					return { success: false, error: 'fail-network' };
+				}
+			}
+		},
+		analysisCache,
+		1440 // 한국 공휴일은 24시간 캐시 (하루에 한 번만 체크)
+	);
+}

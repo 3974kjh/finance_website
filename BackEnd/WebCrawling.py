@@ -10,6 +10,11 @@ from datetime import datetime, timedelta
 import json
 import re
 from urllib.parse import urlencode, quote
+import xml.etree.ElementTree as ET
+from urllib.parse import urlencode, quote, unquote
+
+# API 키 import
+from key import KOREA_DATA_PORTAL_API_KEY, KOREA_DATA_PORTAL_HOLIDAY_URL
 
 def setup_driver():
     """
@@ -1058,6 +1063,381 @@ def test_fnguide_api():
     
     return multi_result if 'multi_result' in locals() else single_result
 
+def crawl_monthly_holidays(year, month):
+    """
+    공공데이터포털 한국천문연구원 API에서 특정 연월의 공휴일 정보를 가져오는 함수
+    
+    Args:
+        year (int): 연도 (예: 2024)
+        month (int): 월 (1-12)
+    
+    Returns:
+        dict: 공휴일 정보와 메타 정보를 포함한 딕셔너리
+    """
+    try:
+        # 월을 2자리로 맞춤 (01, 02, ..., 12)
+        month_str = f"{month:02d}"
+        
+        # API URL 및 파라미터 설정
+        base_url = KOREA_DATA_PORTAL_HOLIDAY_URL
+        service_key = KOREA_DATA_PORTAL_API_KEY
+        
+        params = {
+            'serviceKey': service_key,
+            'solYear': str(year),
+            'solMonth': month_str,
+            'numOfRows': '100'  # 한 달에 100개면 충분
+        }
+        
+        # 헤더 설정
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/xml, text/xml, */*',
+            'Accept-Language': 'ko-KR,ko;q=0.8,en-US;q=0.5,en;q=0.3',
+            'Connection': 'keep-alive'
+        }
+        
+        print(f"한국천문연구원 API 요청: {year}년 {month}월")
+        
+        # API 요청
+        response = requests.get(base_url, params=params, headers=headers, timeout=15)
+        response.raise_for_status()
+        
+        # XML 응답 파싱
+        try:
+            # UTF-8로 응답 처리
+            response.encoding = 'utf-8'
+            xml_content = response.text
+            
+            # XML 파싱
+            root = ET.fromstring(xml_content)
+            
+            holidays = []
+            
+            # XML 구조에 따라 파싱 (공공데이터포털 표준 구조)
+            # header 정보 확인
+            header = root.find('.//header')
+            result_code = header.find('resultCode').text if header is not None and header.find('resultCode') is not None else 'unknown'
+            result_msg = header.find('resultMsg').text if header is not None and header.find('resultMsg') is not None else 'unknown'
+            
+            if result_code != '00':
+                return {
+                    "success": False,
+                    "error": f"API 오류 (코드: {result_code}): {result_msg}",
+                    "year_month": f"{year}-{month_str}",
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                }
+            
+            # body 에서 items 찾기
+            items = root.findall('.//item')
+            
+            for item in items:
+                try:
+                    holiday = {
+                        'date_code': item.find('locdate').text if item.find('locdate') is not None else '',
+                        'date_name': item.find('dateName').text if item.find('dateName') is not None else '',
+                        'is_holiday': item.find('isHoliday').text if item.find('isHoliday') is not None else 'Y',
+                        'year': year,
+                        'month': month,
+                        'year_month': f"{year}-{month_str}"
+                    }
+                    
+                    # 날짜 코드를 실제 날짜로 변환 (YYYYMMDD -> YYYY-MM-DD)
+                    if holiday['date_code'] and len(holiday['date_code']) == 8:
+                        date_str = holiday['date_code']
+                        formatted_date = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
+                        holiday['formatted_date'] = formatted_date
+                        
+                        # 요일 계산
+                        try:
+                            date_obj = datetime.strptime(formatted_date, '%Y-%m-%d')
+                            holiday['weekday'] = date_obj.strftime('%A')
+                            holiday['weekday_kr'] = ['월', '화', '수', '목', '금', '토', '일'][date_obj.weekday()]
+                        except:
+                            holiday['weekday'] = ''
+                            holiday['weekday_kr'] = ''
+                    else:
+                        holiday['formatted_date'] = ''
+                        holiday['weekday'] = ''
+                        holiday['weekday_kr'] = ''
+                    
+                    if holiday['date_name']:  # 빈 공휴일명은 제외
+                        holidays.append(holiday)
+                        
+                except Exception as e:
+                    print(f"공휴일 항목 처리 중 오류: {e}")
+                    continue
+            
+            result = {
+                "success": True,
+                "method": "Korean Astronomy API",
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "api_url": base_url,
+                "year_month": f"{year}-{month_str}",
+                "holidays": holidays,
+                "total_count": len(holidays),
+                "api_result_code": result_code,
+                "api_result_msg": result_msg
+            }
+            
+            print(f"한국천문연구원 {year}년 {month}월 크롤링 완료: {len(holidays)}개 공휴일 수집")
+            return result
+            
+        except ET.ParseError as e:
+            error_msg = f"XML 파싱 오류: {str(e)}"
+            print(error_msg)
+            print(f"응답 내용 (처음 500자): {response.text[:500]}")
+            return {
+                "success": False,
+                "error": error_msg,
+                "year_month": f"{year}-{month_str}",
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            
+    except requests.RequestException as e:
+        error_msg = f"API 요청 오류: {str(e)}"
+        print(error_msg)
+        return {
+            "success": False,
+            "error": error_msg,
+            "method": "Korean Astronomy API",
+            "year_month": f"{year}-{month:02d}",
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+    except Exception as e:
+        error_msg = f"한국천문연구원 API 크롤링 중 오류: {str(e)}"
+        print(error_msg)
+        return {
+            "success": False,
+            "error": error_msg,
+            "method": "Korean Astronomy API",
+            "year_month": f"{year}-{month:02d}",
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+
+def getKoreanHolidays(year=None):
+    """
+    한국천문연구원 API에서 1년치 공휴일 정보를 가져오는 메인 함수
+    
+    Args:
+        year (int): 연도 (기본값: 현재 연도)
+    
+    Returns:
+        dict: 통합된 연간 공휴일 데이터
+    """
+    try:
+        # 기본값 설정
+        if year is None:
+            year = datetime.now().year
+        
+        print(f"=== 한국 공휴일 정보 수집 시작: {year}년 ===")
+        
+        all_holidays = []
+        successful_months = []
+        failed_months = []
+        
+        # 1월부터 12월까지 각 월별로 데이터 수집
+        for month in range(1, 13):
+            try:
+                print(f"\n{month}월 공휴일 정보 수집 중...")
+                month_result = crawl_monthly_holidays(year, month)
+                
+                if month_result.get('success', False):
+                    holidays = month_result.get('holidays', [])
+                    all_holidays.extend(holidays)
+                    successful_months.append(month)
+                    if holidays:
+                        print(f"{month}월: {len(holidays)}개 공휴일 수집 성공")
+                    else:
+                        print(f"{month}월: 공휴일 없음")
+                else:
+                    failed_months.append(month)
+                    print(f"{month}월: 수집 실패 - {month_result.get('error', '알 수 없는 오류')}")
+                
+                # API 호출 간격 조절 (서버 부하 방지)
+                time.sleep(0.3)
+                
+            except Exception as e:
+                failed_months.append(month)
+                print(f"{month}월 처리 중 오류: {e}")
+                continue
+        
+        # 공휴일 통계 및 분석
+        holiday_type_stats = {}
+        monthly_stats = {}
+        
+        for holiday in all_holidays:
+            # 공휴일 이름별 카운트
+            holiday_name = holiday.get('date_name', '기타')
+            holiday_type_stats[holiday_name] = holiday_type_stats.get(holiday_name, 0) + 1
+            
+            # 월별 카운트
+            month = holiday.get('month', 0)
+            monthly_stats[month] = monthly_stats.get(month, 0) + 1
+        
+        # 날짜별로 정렬
+        all_holidays.sort(key=lambda x: x.get('date_code', ''))
+        
+        # 특별한 공휴일 분류
+        national_holidays = [h for h in all_holidays if any(keyword in h.get('date_name', '') for keyword in ['절', '기념일', '광복', '개천', '한글'])]
+        traditional_holidays = [h for h in all_holidays if any(keyword in h.get('date_name', '') for keyword in ['설날', '추석', '부처님', '어린이날'])]
+        substitute_holidays = [h for h in all_holidays if '대체공휴일' in h.get('date_name', '')]
+        
+        # 결과 구성
+        result = {
+            "success": len(successful_months) > 0,
+            "method": "Korean Astronomy API (연간 데이터)",
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "target_year": year,
+            "successful_months": successful_months,
+            "failed_months": failed_months,
+            "holidays": all_holidays,
+            "total_count": len(all_holidays),
+            "statistics": {
+                "holiday_types": dict(sorted(holiday_type_stats.items(), key=lambda x: x[1], reverse=True)),
+                "monthly_distribution": {f"{month}월": count for month, count in sorted(monthly_stats.items())},
+                "categories": {
+                    "national_holidays": len(national_holidays),
+                    "traditional_holidays": len(traditional_holidays), 
+                    "substitute_holidays": len(substitute_holidays)
+                }
+            },
+            "holiday_details": {
+                "national_holidays": national_holidays,
+                "traditional_holidays": traditional_holidays,
+                "substitute_holidays": substitute_holidays
+            }
+        }
+        
+        if failed_months:
+            result["warnings"] = f"{len(failed_months)}개월 데이터 수집 실패: {failed_months}"
+        
+        print(f"\n=== 한국 공휴일 정보 수집 완료 ===")
+        print(f"성공: {len(successful_months)}개월 / 실패: {len(failed_months)}개월")
+        print(f"총 공휴일 수: {len(all_holidays)}일")
+        print(f"주요 공휴일: {list(holiday_type_stats.keys())[:5]}")
+        
+        return result
+        
+    except Exception as e:
+        error_msg = f"한국 공휴일 정보 수집 중 오류: {str(e)}"
+        print(error_msg)
+        return {
+            "success": False,
+            "error": error_msg,
+            "method": "Korean Astronomy API (연간 데이터)",
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+
+def test_korean_holidays_api():
+    """
+    한국천문연구원 공휴일 API 테스트 함수
+    """
+    print("=== 한국천문연구원 공휴일 API 테스트 시작 ===")
+    
+    current_year = datetime.now().year
+    current_month = datetime.now().month
+    
+    print(f"\n현재 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"테스트 대상: {current_year}년")
+    
+    # 1. 단일 월 테스트 (현재 월)
+    print(f"\n1. 단일 월 테스트 ({current_year}년 {current_month}월)")
+    print("-" * 60)
+    
+    try:
+        single_result = crawl_monthly_holidays(current_year, current_month)
+        
+        print(f"결과: {single_result.get('success', False)}")
+        print(f"수집된 공휴일 수: {len(single_result.get('holidays', []))}개")
+        print(f"API URL: {single_result.get('api_url', 'N/A')}")
+        print(f"API 응답 코드: {single_result.get('api_result_code', 'N/A')}")
+        
+        if single_result.get('holidays'):
+            print(f"\n수집된 공휴일:")
+            for i, holiday in enumerate(single_result['holidays'], 1):
+                print(f"  {i}. {holiday['formatted_date']} ({holiday['weekday_kr']}) - {holiday['date_name']}")
+        else:
+            print(f"  이번 달에는 공휴일이 없습니다.")
+        
+        if single_result.get('error'):
+            print(f"오류: {single_result['error']}")
+            
+    except Exception as e:
+        print(f"단일 월 테스트 중 오류: {e}")
+    
+    print("\n" + "="*70 + "\n")
+    
+    # 2. 연간 데이터 테스트
+    print(f"2. 연간 공휴일 데이터 테스트 ({current_year}년)")
+    print("-" * 60)
+    
+    try:
+        annual_result = getKoreanHolidays(current_year)
+        
+        print(f"결과: {annual_result.get('success', False)}")
+        print(f"성공한 월: {annual_result.get('successful_months', [])}")
+        print(f"실패한 월: {annual_result.get('failed_months', [])}")
+        print(f"총 공휴일 수: {len(annual_result.get('holidays', []))}일")
+        
+        if annual_result.get('statistics'):
+            stats = annual_result['statistics']
+            print(f"\n통계 정보:")
+            print(f"  공휴일별 분포: {dict(list(stats.get('holiday_types', {}).items())[:5])}")
+            print(f"  월별 분포: {stats.get('monthly_distribution', {})}")
+            print(f"  카테고리별:")
+            categories = stats.get('categories', {})
+            print(f"    - 국경일: {categories.get('national_holidays', 0)}일")
+            print(f"    - 전통명절: {categories.get('traditional_holidays', 0)}일")
+            print(f"    - 대체공휴일: {categories.get('substitute_holidays', 0)}일")
+        
+        # 주요 공휴일 목록 출력
+        if annual_result.get('holidays'):
+            print(f"\n{current_year}년 전체 공휴일 목록:")
+            for holiday in annual_result['holidays']:
+                print(f"  • {holiday['formatted_date']} ({holiday['weekday_kr']}) - {holiday['date_name']}")
+        
+        if annual_result.get('warnings'):
+            print(f"\n경고: {annual_result['warnings']}")
+            
+    except Exception as e:
+        print(f"연간 데이터 테스트 중 오류: {e}")
+    
+    print("\n" + "="*70 + "\n")
+    
+    # 3. 이전 년도 테스트 (간단히)
+    print(f"3. 이전 년도 공휴일 비교 ({current_year-1}년)")
+    print("-" * 60)
+    
+    try:
+        prev_year_result = getKoreanHolidays(current_year - 1)
+        
+        if prev_year_result.get('success', False):
+            prev_holidays = prev_year_result.get('holidays', [])
+            print(f"결과: 성공")
+            print(f"{current_year-1}년 공휴일 수: {len(prev_holidays)}일")
+            
+            # 연도별 비교
+            current_holidays = annual_result.get('holidays', []) if 'annual_result' in locals() else []
+            if current_holidays:
+                print(f"연도별 비교:")
+                print(f"  - {current_year-1}년: {len(prev_holidays)}일")
+                print(f"  - {current_year}년: {len(current_holidays)}일")
+                print(f"  - 차이: {len(current_holidays) - len(prev_holidays):+d}일")
+        else:
+            print(f"결과: 실패")
+            print(f"오류: {prev_year_result.get('error', '알 수 없는 오류')}")
+            
+    except Exception as e:
+        print(f"이전 년도 테스트 중 오류: {e}")
+    
+    print("\n" + "="*70)
+    print("한국천문연구원 공휴일 API 테스트 완료!")
+    print(f"테스트 종료 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("="*70)
+    
+    return annual_result if 'annual_result' in locals() else single_result
+
 # 테스트 실행 (직접 실행시에만)
 if __name__ == "__main__":
     # 사용자가 테스트할 API를 선택할 수 있도록 메뉴 제공
@@ -1065,10 +1445,11 @@ if __name__ == "__main__":
     print("1. 제로인 경제캘린더 API 테스트")
     print("2. FnGuide 주식 일정 API 테스트")
     print("3. Signal.bz 실시간 검색어 크롤링 테스트")
-    print("4. 모든 API 테스트")
-    print("5. 종료")
+    print("4. 한국천문연구원 공휴일 API 테스트")
+    print("5. 모든 API 테스트")
+    print("6. 종료")
     
-    choice = input("\n선택하세요 (1-5): ").strip()
+    choice = input("\n선택하세요 (1-6): ").strip()
     
     if choice == "1":
         test_zeroin_api()
@@ -1077,6 +1458,8 @@ if __name__ == "__main__":
     elif choice == "3":
         test_crawling_performance()
     elif choice == "4":
+        test_korean_holidays_api()
+    elif choice == "5":
         print("\n=== 모든 API 테스트 시작 ===\n")
         print("1. 제로인 경제캘린더 API 테스트")
         print("="*50)
@@ -1090,9 +1473,13 @@ if __name__ == "__main__":
         print("="*50)
         test_crawling_performance()
         
+        print("\n\n4. 한국 공휴일 정보 API 테스트")
+        print("="*50)
+        test_korean_holidays_api()
+        
         print("\n=== 모든 API 테스트 완료 ===")
-    elif choice == "5":
+    elif choice == "6":
         print("테스트를 종료합니다.")
     else:
-        print("잘못된 선택입니다. 기본으로 FnGuide API 테스트를 실행합니다.")
-        test_fnguide_api()
+        print("잘못된 선택입니다. 기본으로 한국 공휴일 API 테스트를 실행합니다.")
+        test_korean_holidays_api()

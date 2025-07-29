@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { getStockCalendar } from '$lib/api-connector/FinanceApi';
+	import { getStockCalendar, getKoreanHolidays } from '$lib/api-connector/FinanceApi';
 
 	// 현재 연도 (2025년으로 변경해서 테스트)
 	let currentYear = 2025;
@@ -41,58 +41,9 @@
             event.event_name.toLowerCase().includes(query);
 		}).length;
 
-	// 한국 공휴일 데이터 (기본적인 공휴일들)
-	const koreanHolidays: Record<string, string> = {
-		'1-1': '신정',
-		'3-1': '삼일절',
-		'5-5': '어린이날',
-		'6-6': '현충일',
-		'8-15': '광복절',
-		'10-3': '개천절',
-		'10-9': '한글날',
-		'12-25': '크리스마스'
-	};
+	// 한국 공휴일 데이터 (API에서 가져올 데이터)
+	let koreanHolidays: Record<string, string> = {};
 
-	// 월별 날짜 데이터 타입
-	interface DateInfo {
-		date: number;
-		dayOfWeek: number; // 0: 일요일, 1: 월요일, ..., 6: 토요일
-		isWeekend: boolean;
-		isHoliday: boolean;
-		holidayName?: string;
-		events?: StockEvent[]; // 해당 날짜의 주식 이벤트들
-	}
-
-	// 주식 이벤트 타입
-	interface StockEvent {
-		key: string;
-		serial_number: string;
-		base_date: string;
-		company_name: string;
-		activity_code: string;
-		event_name: string;
-		event_code: string;
-		date_time: string;
-		stock_code: string;
-		stock_type: string;
-		event_type: string;
-		change_stocks: string;
-		issue_price: string;
-		capital_after_change: string;
-		total_issued_stocks: string;
-		new_stock_listing_date: string;
-		ex_rights_date: string;
-		payment_date: string;
-		allocation_base_date: string;
-		allocation_ratio: string;
-		discount_ratio: string;
-		note: string;
-		year_month: string;
-	}
-
-	// 연도별 달력 데이터
-	let calendarData: DateInfo[][] = [];
-	
 	// 주식 일정 데이터
 	let stockEvents: StockEvent[] = [];
 	let isLoadingEvents = false;
@@ -655,6 +606,8 @@
 
 	// 페이지 마운트 시 초기화
 	onMount(async () => {
+    await applyKoreanHolidays();
+
 		// 초기 빈 달력 데이터 생성 (로딩 중에도 달력 구조는 보이도록)
 		calendarData = generateCalendarData(currentYear);
 		
@@ -680,12 +633,44 @@
 		});
 	});
 
+  /**
+	 * 한국 공휴일 데이터 로드 및 적용
+	 */
+	const applyKoreanHolidays = async () => {
+		// 새로운 연도의 한국 공휴일 데이터 로드 완료를 기다림
+		isLoadingEvents = true;
+		try {
+			const result = await getKoreanHolidays({ year: currentYear });
+			if (result.success && result.data.holidays) {
+				// 공휴일 데이터를 월-일 형태의 키로 변환
+				const holidaysMap: Record<string, string> = {};
+				result.data.holidays.forEach((holiday: any) => {
+					if (holiday.formatted_date) {
+						const [year, month, day] = holiday.formatted_date.split('-');
+						const key = `${parseInt(month)}-${parseInt(day)}`;
+						holidaysMap[key] = holiday.date_name;
+					}
+				});
+				koreanHolidays = holidaysMap;
+			} else {
+				throw new Error(result.error || '한국 공휴일 데이터를 가져올 수 없습니다.');
+			}
+		} catch (error) {
+			koreanHolidays = {}; // 에러 발생 시 빈 객체로 설정
+		} finally {
+			isLoadingEvents = false;
+		}
+	}
+
 	// 연도 변경 함수
 	const changeYear = async (delta: number) => {
 		// 조회 조건 변경 시 모달 닫기
 		selectedDateInfo = null;
 		
 		currentYear += delta;
+
+    await applyKoreanHolidays();
+
 		calendarData = generateCalendarData(currentYear);
 		
 		// 새로운 연도의 주식 일정 데이터 로드 완료를 기다림
@@ -926,6 +911,46 @@
 		// 기본적으로 모든 필드 표시
 		return true;
 	};
+
+	// 월별 날짜 데이터 타입
+	interface DateInfo {
+		date: number;
+		dayOfWeek: number; // 0: 일요일, 1: 월요일, ..., 6: 토요일
+		isWeekend: boolean;
+		isHoliday: boolean;
+		holidayName?: string;
+		events?: StockEvent[]; // 해당 날짜의 주식 이벤트들
+	}
+
+	// 주식 이벤트 타입
+	interface StockEvent {
+		key: string;
+		serial_number: string;
+		base_date: string;
+		company_name: string;
+		activity_code: string;
+		event_name: string;
+		event_code: string;
+		date_time: string;
+		stock_code: string;
+		stock_type: string;
+		event_type: string;
+		change_stocks: string;
+		issue_price: string;
+		capital_after_change: string;
+		total_issued_stocks: string;
+		new_stock_listing_date: string;
+		ex_rights_date: string;
+		payment_date: string;
+		allocation_base_date: string;
+		allocation_ratio: string;
+		discount_ratio: string;
+		note: string;
+		year_month: string;
+	}
+
+	// 연도별 달력 데이터
+	let calendarData: DateInfo[][] = [];
 </script>
 
 <svelte:head>

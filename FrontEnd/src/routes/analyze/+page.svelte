@@ -551,6 +551,11 @@
               return;
             }
 
+            const nowDate = new Date();
+
+            // 분석일자 변경
+            analyzeDate = `${nowDate.getFullYear()}-${nowDate.getMonth()}-${nowDate.getDate()}`;
+
             axiosController = new AbortController();
             searchStockText = '';
             loadingText = '증시 목록을 가져오는 중입니다...';
@@ -572,6 +577,7 @@
             if (totalStockInfoList < 1) {
               loadProgress = false;
               count = -1;
+              analyzeDate = '';
               return;
             }
 
