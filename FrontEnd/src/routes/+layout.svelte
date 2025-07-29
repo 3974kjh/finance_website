@@ -84,10 +84,17 @@
 		},
 		{ 
 			path: '/calendar', 
-			label: 'CALENDAR', 
-			icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+			label: 'F_CALENDAR', 
+			icon: 'M8 7V3m8 4V3M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
 			gradient: 'from-indigo-500 to-blue-600',
 			description: '경제 달력'
+		},
+		{ 
+			path: '/stockCalendar', 
+			label: 'S_CALENDAR', 
+			icon: 'M8 7V3m8 4V3M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+			gradient: 'from-orange-500 to-red-600',
+			description: '주식 달력'
 		},
 		{ 
 			path: '/invest', 
@@ -336,7 +343,7 @@
 			</div>
 
 			<!-- 네비게이션 메뉴 -->
-			<nav class="flex-1 space-y-2">
+			<nav class="flex-1 space-y-2 overflow-y-auto overflow-x-hidden max-h-[calc(100vh-280px)] scrollbar-thin">
 				{#each navigationItems as item}
 					<button 
 						class="nav-button w-full flex items-center justify-center p-4 rounded-2xl transition-all duration-200 overflow-hidden {$page.url.pathname === item.path ? 'bg-gradient-to-r ' + item.gradient + ' text-white shadow-2xl shadow-' + item.gradient.split(' ')[1].replace('to-', '').replace('-600', '-500') + '/40 transform scale-105' : 'text-slate-200 hover:bg-slate-700/60 hover:shadow-lg hover:shadow-black/20'} {isExpanded ? 'pointer-events-none' : ''}"
@@ -352,6 +359,16 @@
 							<svg class="w-6 h-6 {$page.url.pathname === item.path ? 'text-white drop-shadow-lg' : 'text-slate-200 hover:text-white'} transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{item.icon}"></path>
 							</svg>
+							<!-- 달력 아이콘에 글자 추가 -->
+							{#if item.path === '/calendar'}
+								<div class="absolute inset-0 flex items-center justify-center">
+									<span class="text-xs font-black {$page.url.pathname === item.path ? 'text-white drop-shadow-lg' : 'text-slate-200 hover:text-white'} transition-colors duration-200" style="margin-top: 2px;">F</span>
+								</div>
+							{:else if item.path === '/stockCalendar'}
+								<div class="absolute inset-0 flex items-center justify-center">
+									<span class="text-xs font-black {$page.url.pathname === item.path ? 'text-white drop-shadow-lg' : 'text-slate-200 hover:text-white'} transition-colors duration-200" style="margin-top: 2px;">S</span>
+								</div>
+							{/if}
 						</div>
 						
 						<!-- 활성 상태 인디케이터 -->
@@ -427,7 +444,7 @@
 			{/if}
 
 			<!-- 확장된 네비게이션 메뉴 -->
-			<nav class="flex-1 space-y-2 px-4">
+			<nav class="flex-1 space-y-2 px-4 overflow-y-auto overflow-x-hidden max-h-[calc(100vh-380px)] scrollbar-thin">
 				{#each navigationItems as item, index}
 					<button 
 						class="w-full flex items-center space-x-4 px-4 py-4 rounded-2xl transition-all duration-200 overflow-hidden {$page.url.pathname === item.path ? 'bg-gradient-to-r ' + item.gradient + ' text-white shadow-2xl shadow-' + item.gradient.split(' ')[1].replace('to-', '').replace('-600', '-500') + '/40' : 'text-slate-200 hover:bg-slate-700/60 hover:shadow-lg hover:shadow-black/20'} {isExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4'}"
@@ -444,6 +461,16 @@
 							<svg class="w-5 h-5 {$page.url.pathname === item.path ? 'text-white drop-shadow-lg' : 'text-slate-200 hover:text-white'} transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{item.icon}"></path>
 							</svg>
+							<!-- 달력 아이콘에 글자 추가 -->
+							{#if item.path === '/calendar'}
+								<div class="absolute inset-0 flex items-center justify-center">
+									<span class="text-sm font-black {$page.url.pathname === item.path ? 'text-white drop-shadow-lg' : 'text-slate-200 hover:text-white'} transition-colors duration-200" style="margin-top: 2px;">F</span>
+								</div>
+							{:else if item.path === '/stockCalendar'}
+								<div class="absolute inset-0 flex items-center justify-center">
+									<span class="text-sm font-black {$page.url.pathname === item.path ? 'text-white drop-shadow-lg' : 'text-slate-200 hover:text-white'} transition-colors duration-200" style="margin-top: 2px;">S</span>
+								</div>
+							{/if}
 						</div>
 						
 						<!-- 텍스트 -->
@@ -596,6 +623,35 @@
 
 	:global(::-webkit-scrollbar-thumb:hover) {
 		background: linear-gradient(45deg, rgba(75, 85, 99, 0.8), rgba(107, 114, 128, 0.8));
+	}
+
+	/* 네비게이션 전용 얇은 스크롤바 */
+	:global(.scrollbar-thin::-webkit-scrollbar) {
+		width: 4px;
+	}
+
+	:global(.scrollbar-thin::-webkit-scrollbar-track) {
+		background: rgba(0, 0, 0, 0.1);
+		border-radius: 8px;
+		margin: 4px 0;
+	}
+
+	:global(.scrollbar-thin::-webkit-scrollbar-thumb) {
+		background: linear-gradient(135deg, rgba(59, 130, 246, 0.4), rgba(139, 92, 246, 0.4));
+		border-radius: 8px;
+		border: none;
+		transition: all 0.2s ease;
+	}
+
+	:global(.scrollbar-thin::-webkit-scrollbar-thumb:hover) {
+		background: linear-gradient(135deg, rgba(59, 130, 246, 0.6), rgba(139, 92, 246, 0.6));
+		box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
+	}
+
+	/* Firefox 스크롤바 스타일링 */
+	:global(.scrollbar-thin) {
+		scrollbar-width: thin;
+		scrollbar-color: rgba(59, 130, 246, 0.4) rgba(0, 0, 0, 0.1);
 	}
 
 	/* 반응형 디자인 */

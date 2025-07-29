@@ -377,3 +377,42 @@ export const getEconomicCalendar = async (requestData: {
 		360 // 경제 캘린더는 6시간 캐시 (하루에 몇 번만 업데이트)
 	);
 }
+
+/**
+ * 주식 일정 캘린더 데이터 가져오기 (캐시 적용)
+ */
+export const getStockCalendar = async (requestData: {
+	year: number, 
+	months?: number[]
+}, cancelController?: AbortController) => {
+	// 주식 일정은 날짜 기반 캐시 (연도, 월 조합으로)
+	const monthsStr = requestData.months ? requestData.months.sort().join(',') : 'all';
+	const cacheKey = generateDateBasedKey(`stock_calendar_${requestData.year}_${monthsStr}`);
+	
+	return cachedApiCall(
+		cacheKey,
+		async () => {
+			try {
+				const newAxiosInstance = localAxiosInstance();
+
+				if (!!cancelController) {
+					newAxiosInstance.defaults.signal = cancelController.signal;
+				}
+
+				const response = await newAxiosInstance.post(
+					'/get_stock_calendar/',
+					requestData
+				);
+
+				return response.data;
+			} catch (error) {
+				if (error) {
+					console.error('주식 일정 캘린더 데이터 요청 실패 : ' + error);
+					return { success: false, error: 'fail-network' };
+				}
+			}
+		},
+		analysisCache,
+		240 // 주식 일정은 4시간 캐시
+	);
+}

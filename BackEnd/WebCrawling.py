@@ -714,6 +714,385 @@ def test_zeroin_api():
     
     return result
 
+def crawl_fnguide_calendar_month(year, month):
+    """
+    FnGuide에서 특정 연월의 주식 일정 데이터를 가져오는 함수
+    
+    Args:
+        year (int): 연도 (예: 2024)
+        month (int): 월 (1-12)
+    
+    Returns:
+        dict: 주식 일정 데이터와 메타 정보를 포함한 딕셔너리
+    """
+    try:
+        # 월을 2자리로 맞춤 (01, 02, ..., 12)
+        month_str = f"{month:02d}"
+        
+        # API URL 구성
+        base_url = "https://comp.fnguide.com/SVO2/json/data/05_01"
+        filename = f"{year}{month_str}.json"
+        api_url = f"{base_url}/{filename}"
+        
+        # 현재 타임스탬프를 파라미터로 추가 (캐시 방지)
+        timestamp = int(time.time() * 1000)
+        
+        # 헤더 설정 (FnGuide 사이트에서 요구하는 형태)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/json, text/javascript, */*; q=0.01',
+            'Accept-Language': 'ko-KR,ko;q=0.8,en-US;q=0.5,en;q=0.3',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Referer': 'https://comp.fnguide.com/SVO2/ASP/SVD_comp_calendar.asp',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+        
+        # API 요청
+        params = {'_': timestamp}
+        print(f"FnGuide API 요청: {year}년 {month}월 ({api_url})")
+        
+        response = requests.get(api_url, params=params, headers=headers, timeout=15)
+        response.raise_for_status()
+        
+        # JSON 응답 파싱 (BOM 문제 해결)
+        try:
+            # UTF-8 BOM 제거하여 파싱
+            content_text = response.content.decode('utf-8-sig')
+            data = json.loads(content_text)
+        except UnicodeDecodeError:
+            # 일반 UTF-8로 시도
+            data = response.json()
+        except json.JSONDecodeError:
+            # 응답 내용 확인을 위해 일부 출력
+            print(f"JSON 파싱 실패. 응답 내용 (처음 200자): {response.text[:200]}")
+            raise
+        
+        # 데이터 구조 확인 및 처리
+        stock_events = []
+        
+        if 'comp' in data and isinstance(data['comp'], list):
+            for event_data in data['comp']:
+                try:
+                    # 이벤트 데이터 구조화
+                    event = {
+                        'key': event_data.get('KEY', ''),
+                        'serial_number': event_data.get('일련번호', ''),
+                        'base_date': event_data.get('기준일자', ''),
+                        'company_name': event_data.get('기업명', ''),
+                        'activity_code': event_data.get('활동코드', ''),
+                        'event_name': event_data.get('이벤트명', ''),
+                        'event_code': event_data.get('이벤트코드', ''),
+                        'date_time': event_data.get('일자', ''),
+                        'stock_code': event_data.get('종목명', ''),
+                        'stock_type': event_data.get('주식구분', ''),
+                        'event_type': event_data.get('종류', ''),
+                        'change_stocks': event_data.get('변동주식수', ''),
+                        'issue_price': event_data.get('발행가', ''),
+                        'capital_after_change': event_data.get('변동후자본금', ''),
+                        'total_issued_stocks': event_data.get('총발행주식수', ''),
+                        'new_stock_listing_date': event_data.get('신주상장일', ''),
+                        'ex_rights_date': event_data.get('권리락일', ''),
+                        'payment_date': event_data.get('납입일', ''),
+                        'allocation_base_date': event_data.get('배정기준일', ''),
+                        'allocation_ratio': event_data.get('배정비율', ''),
+                        'discount_ratio': event_data.get('할인비율', ''),
+                        'note': event_data.get('비고', ''),
+                        'year_month': f"{year}-{month_str}"
+                    }
+                    
+                    # 빈 이벤트가 아닌 경우만 추가
+                    if event['company_name'] or event['event_name'] or event['event_type']:
+                        stock_events.append(event)
+                        
+                except Exception as e:
+                    print(f"이벤트 데이터 처리 중 오류: {e}")
+                    continue
+        
+        result = {
+            "success": True,
+            "method": "FnGuide API",
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "api_url": api_url,
+            "year_month": f"{year}-{month_str}",
+            "stock_events": stock_events,
+            "total_count": len(stock_events),
+            "raw_data_structure": list(data.keys()) if isinstance(data, dict) else []
+        }
+        
+        print(f"FnGuide {year}년 {month}월 크롤링 완료: {len(stock_events)}개 이벤트 수집")
+        return result
+        
+    except requests.RequestException as e:
+        error_msg = f"API 요청 오류: {str(e)}"
+        print(error_msg)
+        return {
+            "success": False,
+            "error": error_msg,
+            "method": "FnGuide API",
+            "year_month": f"{year}-{month:02d}",
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+    except json.JSONDecodeError as e:
+        error_msg = f"JSON 파싱 오류: {str(e)}"
+        print(error_msg)
+        return {
+            "success": False,
+            "error": error_msg,
+            "method": "FnGuide API",
+            "year_month": f"{year}-{month:02d}",
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+    except Exception as e:
+        error_msg = f"FnGuide API 크롤링 중 오류: {str(e)}"
+        print(error_msg)
+        return {
+            "success": False,
+            "error": error_msg,
+            "method": "FnGuide API",
+            "year_month": f"{year}-{month:02d}",
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+
+def getFnGuideStockCalendar(year=None, months=None):
+    """
+    FnGuide에서 1년치 또는 지정된 월들의 주식 일정 데이터를 가져오는 메인 함수
+    
+    Args:
+        year (int): 연도 (기본값: 현재 연도)
+        months (list): 가져올 월 목록 (기본값: 1-12월 전체)
+    
+    Returns:
+        dict: 통합된 주식 일정 데이터
+    """
+    try:
+        # 기본값 설정
+        if year is None:
+            year = datetime.now().year
+        
+        if months is None:
+            months = list(range(1, 13))  # 1월부터 12월까지
+        
+        print(f"=== FnGuide 주식 일정 크롤링 시작: {year}년 ===")
+        print(f"대상 월: {months}")
+        
+        all_events = []
+        successful_months = []
+        failed_months = []
+        
+        # 각 월별로 데이터 수집
+        for month in months:
+            try:
+                print(f"\n{month}월 데이터 수집 중...")
+                month_result = crawl_fnguide_calendar_month(year, month)
+                
+                if month_result.get('success', False):
+                    events = month_result.get('stock_events', [])
+                    all_events.extend(events)
+                    successful_months.append(month)
+                    print(f"{month}월: {len(events)}개 이벤트 수집 성공")
+                else:
+                    failed_months.append(month)
+                    print(f"{month}월: 수집 실패 - {month_result.get('error', '알 수 없는 오류')}")
+                
+                # API 호출 간격 조절 (서버 부하 방지)
+                time.sleep(0.5)
+                
+            except Exception as e:
+                failed_months.append(month)
+                print(f"{month}월 처리 중 오류: {e}")
+                continue
+        
+        # 이벤트 타입별 통계
+        event_type_stats = {}
+        company_stats = {}
+        
+        for event in all_events:
+            # 이벤트 타입별 카운트
+            event_type = event.get('event_type', '기타')
+            event_type_stats[event_type] = event_type_stats.get(event_type, 0) + 1
+            
+            # 회사별 카운트
+            company_name = event.get('company_name', '기타')
+            company_stats[company_name] = company_stats.get(company_name, 0) + 1
+        
+        # 날짜별로 정렬
+        all_events.sort(key=lambda x: x.get('date_time', ''))
+        
+        # 결과 구성
+        result = {
+            "success": len(successful_months) > 0,
+            "method": "FnGuide API (연간 데이터)",
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "target_year": year,
+            "requested_months": months,
+            "successful_months": successful_months,
+            "failed_months": failed_months,
+            "stock_events": all_events,
+            "total_count": len(all_events),
+            "statistics": {
+                "event_types": dict(sorted(event_type_stats.items(), key=lambda x: x[1], reverse=True)),
+                "top_companies": dict(sorted(company_stats.items(), key=lambda x: x[1], reverse=True)[:10]),
+                "events_per_month": {month: len([e for e in all_events if e.get('year_month', '').endswith(f"{month:02d}")]) for month in successful_months}
+            }
+        }
+        
+        if failed_months:
+            result["warnings"] = f"{len(failed_months)}개월 데이터 수집 실패: {failed_months}"
+        
+        print(f"\n=== FnGuide 크롤링 완료 ===")
+        print(f"성공: {len(successful_months)}개월 / 실패: {len(failed_months)}개월")
+        print(f"총 수집 이벤트: {len(all_events)}개")
+        print(f"주요 이벤트 타입: {list(event_type_stats.keys())[:5]}")
+        
+        return result
+        
+    except Exception as e:
+        error_msg = f"FnGuide 연간 데이터 수집 중 오류: {str(e)}"
+        print(error_msg)
+        return {
+            "success": False,
+            "error": error_msg,
+            "method": "FnGuide API (연간 데이터)",
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+
+def test_fnguide_api():
+    """
+    FnGuide API 테스트 함수
+    """
+    print("=== FnGuide 주식 일정 API 테스트 시작 ===")
+    
+    current_year = datetime.now().year
+    current_month = datetime.now().month
+    
+    print(f"\n현재 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"테스트 대상: {current_year}년")
+    
+    # 1. 단일 월 테스트 (현재 월)
+    print(f"\n1. 단일 월 테스트 ({current_year}년 {current_month}월)")
+    print("-" * 60)
+    
+    try:
+        single_result = crawl_fnguide_calendar_month(current_year, current_month)
+        
+        print(f"결과: {single_result.get('success', False)}")
+        print(f"수집된 이벤트 수: {len(single_result.get('stock_events', []))}개")
+        print(f"API URL: {single_result.get('api_url', 'N/A')}")
+        
+        if single_result.get('stock_events'):
+            print(f"\n수집된 데이터 예시 (처음 3개):")
+            for i, event in enumerate(single_result['stock_events'][:3], 1):
+                print(f"  {i}. {event['company_name']} - {event['event_type']}")
+                print(f"     일시: {event['date_time']} | 이벤트: {event['event_name']}")
+        
+        if single_result.get('error'):
+            print(f"오류: {single_result['error']}")
+            
+    except Exception as e:
+        print(f"단일 월 테스트 중 오류: {e}")
+    
+    print("\n" + "="*70 + "\n")
+    
+    # 2. 최근 3개월 테스트
+    print(f"2. 최근 3개월 테스트")
+    print("-" * 60)
+    
+    try:
+        # 최근 3개월 계산
+        recent_months = []
+        for i in range(3):
+            target_date = datetime.now() - timedelta(days=30*i)
+            if target_date.month not in recent_months:
+                recent_months.append(target_date.month)
+        
+        recent_months = sorted(recent_months)
+        print(f"대상 월: {recent_months}")
+        
+        multi_result = getFnGuideStockCalendar(current_year, recent_months)
+        
+        print(f"결과: {multi_result.get('success', False)}")
+        print(f"성공한 월: {multi_result.get('successful_months', [])}")
+        print(f"실패한 월: {multi_result.get('failed_months', [])}")
+        print(f"총 이벤트 수: {len(multi_result.get('stock_events', []))}개")
+        
+        if multi_result.get('statistics'):
+            stats = multi_result['statistics']
+            print(f"\n통계 정보:")
+            print(f"  이벤트 타입별: {list(stats.get('event_types', {}).keys())[:5]}")
+            print(f"  월별 이벤트 수: {stats.get('events_per_month', {})}")
+            
+        if multi_result.get('warnings'):
+            print(f"경고: {multi_result['warnings']}")
+            
+    except Exception as e:
+        print(f"다중 월 테스트 중 오류: {e}")
+    
+    print("\n" + "="*70 + "\n")
+    
+    # 3. 이벤트 타입 분석
+    if 'multi_result' in locals() and multi_result.get('stock_events'):
+        print("3. 이벤트 타입 분석")
+        print("-" * 60)
+        
+        events = multi_result['stock_events']
+        
+        # 이벤트 타입별 분류
+        ir_events = [e for e in events if 'IR' in e.get('event_code', '')]
+        dividend_events = [e for e in events if '배당' in e.get('event_type', '')]
+        capital_events = [e for e in events if '증자' in e.get('event_type', '') or '감자' in e.get('event_type', '')]
+        
+        print(f"IR 이벤트: {len(ir_events)}개")
+        print(f"배당 관련: {len(dividend_events)}개") 
+        print(f"자본 변동: {len(capital_events)}개")
+        
+        if ir_events:
+            print(f"\nIR 이벤트 예시:")
+            for event in ir_events[:2]:
+                print(f"  - {event['company_name']}: {event['event_name']}")
+    
+    print("\n" + "="*70)
+    print("FnGuide API 테스트 완료!")
+    print(f"테스트 종료 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("="*70)
+    
+    return multi_result if 'multi_result' in locals() else single_result
+
 # 테스트 실행 (직접 실행시에만)
 if __name__ == "__main__":
-    test_zeroin_api()
+    # 사용자가 테스트할 API를 선택할 수 있도록 메뉴 제공
+    print("=== WebCrawling 모듈 테스트 메뉴 ===")
+    print("1. 제로인 경제캘린더 API 테스트")
+    print("2. FnGuide 주식 일정 API 테스트")
+    print("3. Signal.bz 실시간 검색어 크롤링 테스트")
+    print("4. 모든 API 테스트")
+    print("5. 종료")
+    
+    choice = input("\n선택하세요 (1-5): ").strip()
+    
+    if choice == "1":
+        test_zeroin_api()
+    elif choice == "2":
+        test_fnguide_api()
+    elif choice == "3":
+        test_crawling_performance()
+    elif choice == "4":
+        print("\n=== 모든 API 테스트 시작 ===\n")
+        print("1. 제로인 경제캘린더 API 테스트")
+        print("="*50)
+        test_zeroin_api()
+        
+        print("\n\n2. FnGuide 주식 일정 API 테스트")
+        print("="*50)
+        test_fnguide_api()
+        
+        print("\n\n3. Signal.bz 실시간 검색어 크롤링 테스트")
+        print("="*50)
+        test_crawling_performance()
+        
+        print("\n=== 모든 API 테스트 완료 ===")
+    elif choice == "5":
+        print("테스트를 종료합니다.")
+    else:
+        print("잘못된 선택입니다. 기본으로 FnGuide API 테스트를 실행합니다.")
+        test_fnguide_api()

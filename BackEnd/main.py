@@ -130,6 +130,17 @@ class EconomicCalendarResponse(BaseModel):
     total_count: int
     year: int
 
+# 주식 일정 캘린더 요청 / 응답
+class StockCalendarRequest(BaseModel):
+    year: int
+    months: List[int] = None
+
+class StockCalendarResponse(BaseModel):
+    success: bool
+    data: dict
+    total_count: int
+    year: int
+
 # 카카오 API 요청/응답 모델
 class KakaoTokenRequest(BaseModel):
     accessCode: str
@@ -333,6 +344,35 @@ async def getEconomicCalendar(request: EconomicCalendarRequest):
         total_count = crawl_result.get("total_count", 0)
         
         return EconomicCalendarResponse(
+            success=True,
+            data=crawl_result,
+            total_count=total_count,
+            year=request.year
+        )
+
+    except HTTPException:
+        raise  # HTTPException은 그대로 다시 발생
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"서버 오류: {str(e)}")
+
+@app.post("/get_stock_calendar/", response_model=StockCalendarResponse)
+async def getStockCalendar(request: StockCalendarRequest):
+    try:
+        # WebCrawling 모듈의 getFnGuideStockCalendar 함수 호출
+        crawl_result = WebCrawling.getFnGuideStockCalendar(
+            year=request.year,
+            months=request.months
+        )
+        
+        # 크롤링 실패 시 에러 처리
+        if not crawl_result.get("success", False):
+            raise HTTPException(status_code=500, detail=f"주식 일정 데이터 수집 실패: {crawl_result.get('error', '알 수 없는 오류')}")
+        
+        # 결과 데이터 추출
+        stock_events = crawl_result.get("stock_events", [])
+        total_count = crawl_result.get("total_count", 0)
+        
+        return StockCalendarResponse(
             success=True,
             data=crawl_result,
             total_count=total_count,
