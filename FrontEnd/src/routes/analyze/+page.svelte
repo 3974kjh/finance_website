@@ -554,7 +554,7 @@
             const nowDate = new Date();
 
             // 분석일자 변경
-            analyzeDate = `${nowDate.getFullYear()}-${nowDate.getMonth()}-${nowDate.getDate()}`;
+            analyzeDate = `${nowDate.getFullYear()}-${nowDate.getMonth() + 1}-${nowDate.getDate()}`;
 
             axiosController = new AbortController();
             searchStockText = '';
