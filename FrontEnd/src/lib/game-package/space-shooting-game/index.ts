@@ -1,0 +1,1 @@
+export { default as SpaceShootingGame } from './SpaceShootingGame.svelte';

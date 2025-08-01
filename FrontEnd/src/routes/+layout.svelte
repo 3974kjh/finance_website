@@ -109,6 +109,13 @@
 			icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10',
 			gradient: 'from-violet-500 to-purple-600',
 			description: '포트폴리오 관리'
+		},
+		{ 
+			path: '/game', 
+			label: 'ARCADE', 
+			icon: 'M12 4a2 2 0 100 4 2 2 0 000-4zm0 12a2 2 0 100 4 2 2 0 000-4zm-8-4a2 2 0 104 0 2 2 0 00-4 0zm12 0a2 2 0 104 0 2 2 0 00-4 0z',
+			gradient: 'from-pink-500 to-rose-600',
+			description: '아케이드 게임'
 		}
 	];
 
@@ -248,7 +255,7 @@
 		}
 	};
 
-	// 이벤트 리스너 추가 여부 추적
+	// 이벤트 리스너 추적
 	let listenersAdded = false;
 
 	// 컴포넌트 마운트 시 전역 마우스 이벤트 리스너 추가
