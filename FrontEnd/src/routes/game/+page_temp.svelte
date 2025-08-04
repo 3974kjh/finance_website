@@ -2,90 +2,90 @@
   import { onMount } from 'svelte';
   import { SnakeGame, SpaceShootingGame } from '$lib/game-package';
   
-  // 게임 정보 데이터
+  // 게임 ?�보 ?�이??
   const gameList = [
     {
       id: 'snake',
       name: 'Snake Game',
-      description: '클래식 스네이크 게임',
+      description: '?�래???�네?�크 게임',
       component: SnakeGame,
       color: 'from-green-400 to-emerald-600',
       bgColor: 'bg-green-500/20',
-      icon: '🐍'
+      icon: '?��'
     },
     {
       id: 'space-shooting',
       name: 'Space Shooter',
-      description: '우주 비행기 슈팅 게임',
+      description: '?�주 비행�??�팅 게임',
       component: SpaceShootingGame,
       color: 'from-blue-400 to-purple-600',
       bgColor: 'bg-blue-500/20',
-      icon: '🚀'
+      icon: '??'
     }
   ];
 
-  // 상태 관리
+  // ?�태 관�?
   let selectedGame: any = null;
   let showGameScreen = false;
   let isGameLoading = false;
   let currentScreen = 'menu'; // 'menu' | 'game'
-  let isGameExpanded = false; // 게임 전체화면 확장 상태
-  let isGameReady = false; // 게임이 실제로 시작할 준비가 되었는지
+  let isGameExpanded = false; // 게임 ?�체?�면 ?�장 ?�태
+  let isGameReady = false; // 게임???�제�??�작??준비�? ?�었?��?
   let gameExpandTimer: number | null = null;
   
-  // CD 스크롤 관련 상태
+  // CD ?�크�?관???�태
   let cdContainer: HTMLElement;
   let scrollPosition = 0;
   let canScrollLeft = false;
   let canScrollRight = false;
 
-  // 게임 선택 함수
+  // 게임 ?�택 ?�수
   const selectGame = (game: any) => {
     if (isGameLoading) return;
     
     isGameLoading = true;
     selectedGame = game;
-    isGameReady = false; // 게임 준비 상태 초기화
+    isGameReady = false; // 게임 준�??�태 초기??
     
-    // 로딩 애니메이션 후 게임 화면 표시 (하지만 게임은 아직 시작하지 않음)
+    // 로딩 ?�니메이????게임 ?�면 ?�시 (?��?�?게임?� ?�직 ?�작?��? ?�음)
     setTimeout(() => {
       currentScreen = 'game';
       showGameScreen = true;
       isGameLoading = false;
       
-      // 게임 로딩 완료 후 잠시 대기하고 전체화면으로 확장
+      // 게임 로딩 ?�료 ???�시 ?�기하�??�체?�면?�로 ?�장
       gameExpandTimer = window.setTimeout(() => {
         isGameExpanded = true;
         
-        // 확장 애니메이션 완료 후 게임 시작
+        // ?�장 ?�니메이???�료 ??게임 ?�작
         setTimeout(() => {
-          isGameReady = true; // 이제 게임 컴포넌트 렌더링
-        }, 800); // 확장 애니메이션 시간과 맞춤
-      }, 500); // 0.5초 후 확장
+          isGameReady = true; // ?�제 게임 컴포?�트 ?�더�?
+        }, 800); // ?�장 ?�니메이???�간�?맞춤
+      }, 500); // 0.5�????�장
     }, 1000);
   };
 
-  // 메인 메뉴로 돌아가기
+  // 메인 메뉴�??�아가�?
   const backToMenu = () => {
-    // 게임이 확장된 상태라면 먼저 축소
+    // 게임???�장???�태?�면 먼�? 축소
     if (isGameExpanded) {
       isGameExpanded = false;
-      isGameReady = false; // 게임 컴포넌트 중지
+      isGameReady = false; // 게임 컴포?�트 중�?
       
-      // 축소 애니메이션 완료 후 메뉴로 전환
+      // 축소 ?�니메이???�료 ??메뉴�??�환
       setTimeout(() => {
         currentScreen = 'menu';
         showGameScreen = false;
         selectedGame = null;
         
-        // 타이머 정리
+        // ?�?�머 ?�리
         if (gameExpandTimer) {
           clearTimeout(gameExpandTimer);
           gameExpandTimer = null;
         }
-      }, 800); // 축소 애니메이션 시간과 맞춤
+      }, 800); // 축소 ?�니메이???�간�?맞춤
     } else {
-      // 확장되지 않은 상태라면 바로 메뉴로
+      // ?�장?��? ?��? ?�태?�면 바로 메뉴�?
       currentScreen = 'menu';
       showGameScreen = false;
       selectedGame = null;
@@ -98,7 +98,7 @@
     }
   };
 
-  // CD 스크롤 함수
+  // CD ?�크�??�수
   const scrollCDs = (direction: 'left' | 'right') => {
     if (!cdContainer) return;
     
@@ -120,7 +120,7 @@
     updateScrollButtons();
   };
 
-  // 스크롤 버튼 상태 업데이트
+  // ?�크�?버튼 ?�태 ?�데?�트
   const updateScrollButtons = () => {
     if (!cdContainer) return;
     
@@ -131,7 +131,7 @@
     canScrollRight = currentScroll < maxScroll;
   };
 
-  // 키보드 이벤트 처리
+  // ?�보???�벤??처리
   const handleKeydown = (event: KeyboardEvent) => {
     if (event.key === 'Escape' && (showGameScreen || isGameExpanded)) {
       backToMenu();
@@ -139,23 +139,23 @@
   };
 
   onMount(() => {
-    // 키보드 이벤트 리스너 추가
+    // ?�보???�벤??리스??추�?
     document.addEventListener('keydown', handleKeydown);
     
-    // 스크롤 버튼 초기 상태 설정
+    // ?�크�?버튼 초기 ?�태 ?�정
     setTimeout(() => {
       if (cdContainer) {
         updateScrollButtons();
         cdContainer.addEventListener('scroll', updateScrollButtons);
       }
-    }, 100); // DOM이 완전히 렌더링된 후 실행
+    }, 100); // DOM???�전???�더링된 ???�행
     
     return () => {
       document.removeEventListener('keydown', handleKeydown);
       if (cdContainer) {
         cdContainer.removeEventListener('scroll', updateScrollButtons);
       }
-      // 게임 확장 타이머 정리
+      // 게임 ?�장 ?�?�머 ?�리
       if (gameExpandTimer) {
         clearTimeout(gameExpandTimer);
         gameExpandTimer = null;
@@ -165,22 +165,22 @@
 </script>
 
 <svelte:head>
-  <title>아케이드 게임 - FinanceChart</title>
-  <meta name="description" content="클래식 아케이드 게임 컬렉션" />
+  <title>?��??�드 게임 - FinanceChart</title>
+  <meta name="description" content="?�래???��??�드 게임 컬렉?? />
 </svelte:head>
 
-<!-- 아케이드 게임기 메인 화면 -->
+<!-- ?��??�드 게임�?메인 ?�면 -->
 <div class="w-full h-screen bg-gradient-to-b from-gray-800 via-gray-900 to-black relative overflow-hidden flex items-center justify-center">
-  <!-- 배경 패턴 -->
+  <!-- 배경 ?�턴 -->
   <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,_rgba(59,130,246,0.1),_transparent_50%)]"></div>
   
-  <!-- 게임 확장 컨테이너 -->
+  <!-- 게임 ?�장 컨테?�너 -->
   <div class="game-expansion-container" class:expanded={isGameExpanded}>
-    <!-- 아케이드 게임기 본체 -->
+    <!-- ?��??�드 게임�?본체 -->
     <div class="arcade-machine" class:game-playing={isGameExpanded}>
-      <!-- 게임기 상단부 (마키/헤더) -->
+      <!-- 게임�??�단부 (마키/?�더) -->
       <div class="arcade-top">
-        <!-- 마키 장식 -->
+        <!-- 마키 ?�식 -->
         <div class="marquee-decoration">
           <div class="marquee-light left"></div>
           <div class="marquee-text">
@@ -188,13 +188,13 @@
           </div>
           <div class="marquee-light right"></div>
         </div>
-        <!-- 전원 표시등 -->
+        <!-- ?�원 ?�시??-->
         <div class="power-indicator"></div>
       </div>
       
-      <!-- 게임기 메인 바디 -->
+      <!-- 게임�?메인 바디 -->
       <div class="arcade-body">
-        <!-- 상단 장식 패널 -->
+        <!-- ?�단 ?�식 ?�널 -->
         <div class="top-panel">
           <div class="speaker-grille left">
             <div class="speaker-holes">
@@ -218,40 +218,40 @@
           </div>
         </div>
         
-        <!-- 모니터 영역 -->
+        <!-- 모니???�역 -->
         <div class="monitor-container">
-          <!-- 모니터 베젤 -->
+          <!-- 모니??베젤 -->
           <div class="monitor-bezel">
-            <!-- 화면 영역 -->
+            <!-- ?�면 ?�역 -->
             <div class="screen-area">
               {#if currentScreen === 'menu'}
-                <!-- 게임 선택 메뉴 화면 -->
+                <!-- 게임 ?�택 메뉴 ?�면 -->
                 <div class="menu-screen">
-                  <!-- 스캔라인 효과 -->
+                  <!-- ?�캔?�인 ?�과 -->
                   <div class="scanlines"></div>
                   
-                  <!-- 메뉴 헤더 -->
+                  <!-- 메뉴 ?�더 -->
                   <div class="menu-header">
                     <h1 class="arcade-menu-title crt-text">
-                      ◄ GAME LIBRARY ►
+                      ??GAME LIBRARY ??
                     </h1>
                     <p class="menu-subtitle crt-text">
                       SELECT YOUR GAME
                     </p>
                   </div>
 
-                  <!-- CD 게임 선택 영역 -->
+                  <!-- CD 게임 ?�택 ?�역 -->
                   <div class="cd-selection-area">
-                    <!-- 좌측 스크롤 버튼 -->
+                    <!-- 좌측 ?�크�?버튼 -->
                     {#if canScrollLeft}
                       <!-- svelte-ignore a11y-click-events-have-key-events -->
                       <!-- svelte-ignore a11y-no-static-element-interactions -->
                       <div class="scroll-button left" on:click={() => scrollCDs('left')}>
-                        <div class="scroll-arrow">◀</div>
+                        <div class="scroll-arrow">?�</div>
                       </div>
                     {/if}
                     
-                    <!-- CD 컨테이너 -->
+                    <!-- CD 컨테?�너 -->
                     <div class="cd-container" bind:this={cdContainer}>
                       {#each gameList as game}
                         <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -260,25 +260,25 @@
                           class="cd-case"
                           on:click={() => selectGame(game)}
                         >
-                          <!-- CD 디스크 -->
+                          <!-- CD ?�스??-->
                           <div class="cd-disc {game.color}">
-                            <!-- CD 중앙 홀 -->
+                            <!-- CD 중앙 ?� -->
                             <div class="cd-hole"></div>
                             
-                            <!-- CD 반사 효과 -->
+                            <!-- CD 반사 ?�과 -->
                             <div class="cd-reflection"></div>
                             <div class="cd-shine"></div>
                             
-                            <!-- 게임 아이콘 -->
+                            <!-- 게임 ?�이�?-->
                             <div class="game-icon">
                               {game.icon}
                             </div>
                             
-                            <!-- CD 회전 라인들 -->
+                            <!-- CD ?�전 ?�인??-->
                             <div class="cd-lines"></div>
                           </div>
                           
-                          <!-- CD 레이블 -->
+                          <!-- CD ?�이�?-->
                           <div class="cd-label">
                             <h3 class="game-title crt-text">{game.name}</h3>
                             <p class="game-desc crt-text">{game.description}</p>
@@ -287,31 +287,31 @@
                       {/each}
                     </div>
                     
-                    <!-- 우측 스크롤 버튼 -->
+                    <!-- ?�측 ?�크�?버튼 -->
                     {#if canScrollRight}
                       <!-- svelte-ignore a11y-click-events-have-key-events -->
                       <!-- svelte-ignore a11y-no-static-element-interactions -->
                       <div class="scroll-button right" on:click={() => scrollCDs('right')}>
-                        <div class="scroll-arrow">▶</div>
+                        <div class="scroll-arrow">??/div>
                       </div>
                     {/if}
                   </div>
 
-                  <!-- 하단 안내 -->
+                  <!-- ?�단 ?�내 -->
                   <div class="menu-footer">
                     <p class="instruction-text crt-text">
-                      🎮 CLICK CD TO START GAME • ESC TO EXIT 🎮
+                      ?�� CLICK CD TO START GAME ??ESC TO EXIT ?��
                     </p>
                   </div>
                 </div>
                 
               {:else if currentScreen === 'game' && selectedGame}
-                <!-- 게임 플레이 화면 -->
+                <!-- 게임 ?�레???�면 -->
                 <div class="game-screen relative">
-                  <!-- 스캔라인 효과 -->
+                  <!-- ?�캔?�인 ?�과 -->
                   <div class="scanlines"></div>
                   
-                  <!-- 게임 대기 화면 -->
+                  <!-- 게임 ?��??�면 -->
                   <div class="game-waiting-screen">
                     <div class="game-preview">
                       <h2 class="game-preview-title crt-text">
@@ -335,7 +335,7 @@
                 </div>
               {/if}
               
-              <!-- 모니터 내부 로딩 오버레이 -->
+              <!-- 모니???��? 로딩 ?�버?�이 -->
               {#if isGameLoading}
                 <div class="monitor-loading-overlay">
                   <div class="loading-content">
@@ -352,9 +352,9 @@
           </div>
         </div>
         
-        <!-- 컨트롤 패널 -->
+        <!-- 컨트�??�널 -->
         <div class="control-panel">
-          <!-- 패널 상단 장식 -->
+          <!-- ?�널 ?�단 ?�식 -->
           <div class="control-panel-header">
             <div class="player-indicator">
               <span class="player-text">PLAYER 1</span>
@@ -371,9 +371,9 @@
             </div>
           </div>
           
-          <!-- 메인 컨트롤 영역 -->
+          <!-- 메인 컨트�??�역 -->
           <div class="main-controls">
-            <!-- 조이스틱 영역 -->
+            <!-- 조이?�틱 ?�역 -->
             <div class="joystick-area">
               <div class="joystick">
                 <div class="joystick-base"></div>
@@ -381,7 +381,7 @@
               </div>
             </div>
             
-            <!-- 버튼 영역 -->
+            <!-- 버튼 ?�역 -->
             <div class="button-area">
               <div class="buttons-grid">
                 <div class="action-button red" data-label="A"></div>
@@ -389,7 +389,7 @@
               </div>
             </div>
             
-            <!-- 시스템 버튼들 -->
+            <!-- ?�스??버튼??-->
             <div class="system-buttons">
               <div class="coin-slot">
                 <div class="coin-opening"></div>
@@ -400,20 +400,20 @@
         </div>
       </div>
       
-      <!-- 게임기 하단부 -->
+      <!-- 게임�??�단부 -->
       <div class="arcade-bottom">
-        <!-- 하단 장식 그릴 -->
+        <!-- ?�단 ?�식 그릴 -->
         <div class="bottom-grille">
           {#each Array(20) as _, i}
             <div class="grille-line"></div>
           {/each}
         </div>
-        <!-- 브랜드 로고 -->
+        <!-- 브랜??로고 -->
         <div class="brand-logo">RETRO GAMING CO.</div>
       </div>
     </div>
     
-    <!-- 확장된 게임 화면 -->
+    <!-- ?�장??게임 ?�면 -->
     {#if isGameExpanded && selectedGame}
       <div class="expanded-game-screen">
         <!-- 게임 종료 버튼 -->
@@ -426,12 +426,12 @@
           </div>
         </div>
         
-        <!-- 확장된 게임 컨텐츠 -->
+        <!-- ?�장??게임 컨텐�?-->
         <div class="expanded-game-content">
           {#if isGameReady}
             <svelte:component this={selectedGame.component} />
           {:else}
-            <!-- 확장 완료 대기 화면 -->
+            <!-- ?�장 ?�료 ?��??�면 -->
             <div class="game-expansion-waiting">
               <div class="expansion-complete-indicator">
                 <div class="game-start-icon">
@@ -454,10 +454,10 @@
 </div>
 
 <style>
-  /* 아케이드 게임기 스타일 */
-  /* .arcade-machine 스타일은 게임 확장 시스템에서 정의됨 */
+  /* ?��??�드 게임�??��???*/
+  /* .arcade-machine ?��??��? 게임 ?�장 ?�스?�에???�의??*/
 
-  /* 상단 마키 영역 */
+  /* ?�단 마키 ?�역 */
   .arcade-top {
     height: 6%;
     background: linear-gradient(180deg, #e2e8f0 0%, #94a3b8 50%, #64748b 100%);
@@ -529,7 +529,7 @@
     animation: power-pulse 3s infinite;
   }
 
-  /* 상단 장식 패널 */
+  /* ?�단 ?�식 ?�널 */
   .top-panel {
     display: flex;
     align-items: center;
@@ -612,7 +612,7 @@
       inset -4px 0 8px rgba(0,0,0,0.2);
   }
 
-  /* 모니터 영역 */
+  /* 모니???�역 */
   .monitor-container {
     flex: 1;
     display: flex;
@@ -663,7 +663,7 @@
     border: 3px solid #0f172a;
   }
 
-  /* 메뉴 화면 */
+  /* 메뉴 ?�면 */
   .menu-screen {
     width: 100%;
     height: 100%;
@@ -692,7 +692,7 @@
     font-weight: bold;
   }
 
-  /* CD 선택 영역 */
+  /* CD ?�택 ?�역 */
   .cd-selection-area {
     flex: 1;
     display: flex;
@@ -895,7 +895,7 @@
     font-weight: bold;
   }
 
-  /* 게임 화면 */
+  /* 게임 ?�면 */
   .game-screen {
     width: 100%;
     height: 100%;
@@ -911,7 +911,7 @@
     overflow: hidden;
   }
 
-  /* 게임 대기 화면 (모니터) */
+  /* 게임 ?��??�면 (모니?? */
   .game-waiting-screen {
     width: 100%;
     height: 100%;
@@ -995,7 +995,7 @@
     line-height: 1.2;
   }
 
-  /* 확장 완료 대기 화면 (전체화면) */
+  /* ?�장 ?�료 ?��??�면 (?�체?�면) */
   .game-expansion-waiting {
     width: 100%;
     height: 100%;
@@ -1069,7 +1069,7 @@
     line-height: 1.2;
   }
 
-  /* 대기 화면 애니메이션 */
+  /* ?��??�면 ?�니메이??*/
   @keyframes expansion-pulse {
     0%, 100% {
       opacity: 0.3;
@@ -1081,7 +1081,7 @@
     }
   }
 
-  /* 로딩 오버레이 */
+  /* 로딩 ?�버?�이 */
   .monitor-loading-overlay {
     position: absolute;
     top: 0;
@@ -1124,7 +1124,7 @@
     animation: pulse 2s infinite;
   }
 
-  /* 스캔라인 효과 */
+  /* ?�캔?�인 ?�과 */
   .scanlines {
     position: absolute;
     top: 0;
@@ -1142,7 +1142,7 @@
     z-index: 100;
   }
 
-  /* CRT 텍스트 효과 */
+  /* CRT ?�스???�과 */
   .crt-text {
     text-shadow: 
       0 0 5px currentColor,
@@ -1151,7 +1151,7 @@
     font-family: 'Courier New', monospace;
   }
 
-  /* 컨트롤 패널 */
+  /* 컨트�??�널 */
   .control-panel {
     height: clamp(120px, 15vh, 160px);
     background: linear-gradient(145deg, #64748b, #374151);
@@ -1250,7 +1250,7 @@
     flex-wrap: nowrap;
   }
 
-  /* 조이스틱 */
+  /* 조이?�틱 */
   .joystick-area {
     display: flex;
     flex-direction: column;
@@ -1315,7 +1315,7 @@
     transform: translate(-50%, -50%) scale(0.95);
   }
 
-  /* 액션 버튼 */
+  /* ?�션 버튼 */
   .button-area {
     display: flex;
     flex-direction: column;
@@ -1379,7 +1379,7 @@
     background: linear-gradient(145deg, #3b82f6, #2563eb);
   }
 
-  /* 시스템 버튼 */
+  /* ?�스??버튼 */
   .system-buttons {
     display: flex;
     flex-direction: column;
@@ -1418,7 +1418,7 @@
     line-height: 1.2;
   }
 
-  /* 하단부 */
+  /* ?�단부 */
   .arcade-bottom {
     height: 8%;
     background: linear-gradient(180deg, #1f2937 0%, #111827 50%, #0f172a 100%);
@@ -1456,7 +1456,7 @@
     letter-spacing: 2px;
   }
 
-  /* 애니메이션 */
+  /* ?�니메이??*/
   @keyframes marquee-blink {
     0%, 100% { opacity: 1; box-shadow: 0 0 10px #fbbf24; }
     50% { opacity: 0.7; box-shadow: 0 0 5px #fbbf24; }
@@ -1507,9 +1507,9 @@
     50% { opacity: 0.7; }
   }
 
-  /* 반응형 디자인 */
+  /* 반응???�자??*/
   
-  /* 매우 큰 화면 (1400px 이상) */
+  /* 매우 ???�면 (1400px ?�상) */
   @media (min-width: 1400px) {
     .arcade-machine {
       width: 90vw;
@@ -1521,7 +1521,7 @@
     }
   }
 
-  /* 큰 화면 (1024px - 1399px) */
+  /* ???�면 (1024px - 1399px) */
   @media (max-width: 1399px) and (min-width: 1024px) {
     .arcade-machine {
       width: 92vw;
@@ -1529,7 +1529,7 @@
     }
   }
 
-  /* 중간 화면 (768px - 1023px) */
+  /* 중간 ?�면 (768px - 1023px) */
   @media (max-width: 1023px) and (min-width: 768px) {
     .arcade-machine {
       width: 95vw;
@@ -1566,7 +1566,7 @@
     }
   }
 
-  /* 작은 화면 (480px - 767px) */
+  /* ?��? ?�면 (480px - 767px) */
   @media (max-width: 767px) and (min-width: 480px) {
     .arcade-machine {
       width: 98vw;
@@ -1612,7 +1612,7 @@
     }
   }
 
-  /* 매우 작은 화면 (479px 이하) */
+  /* 매우 ?��? ?�면 (479px ?�하) */
   @media (max-width: 479px) {
     .arcade-machine {
       width: 100vw;
@@ -1675,7 +1675,7 @@
       font-size: 0.8rem;
     }
 
-    /* 게임 대기 화면 - 매우 작은 화면 최적화 */
+    /* 게임 ?��??�면 - 매우 ?��? ?�면 최적??*/
     .game-waiting-screen {
       padding: clamp(3px, 0.5vh, 8px);
     }
@@ -1721,7 +1721,7 @@
       line-height: 1.1;
     }
 
-    /* 확장 대기 화면 - 매우 작은 화면 */
+    /* ?�장 ?��??�면 - 매우 ?��? ?�면 */
     .game-expansion-waiting {
       padding: clamp(5px, 1vh, 10px);
     }
@@ -1758,7 +1758,7 @@
     }
   }
 
-  /* 세로 모드 추가 최적화 */
+  /* ?�로 모드 추�? 최적??*/
   @media (orientation: portrait) and (max-width: 768px) {
     .arcade-machine {
       height: 100vh;
@@ -1768,7 +1768,7 @@
       max-height: 90%;
     }
 
-    /* 게임 대기 화면 - 세로 모드 최적화 */
+    /* 게임 ?��??�면 - ?�로 모드 최적??*/
     .game-waiting-screen {
       padding: clamp(2px, 0.3vh, 6px);
     }
@@ -1800,7 +1800,7 @@
       font-size: clamp(0.6rem, 1.8vw, 0.9rem);
     }
 
-    /* 확장 대기 화면 - 세로 모드 */
+    /* ?�장 ?��??�면 - ?�로 모드 */
     .game-start-icon {
       font-size: clamp(3rem, 10vw, 6rem);
       margin-bottom: clamp(10px, 2vh, 20px);
@@ -1816,7 +1816,7 @@
     }
   }
 
-  /* 가로 모드이지만 높이가 작은 경우 */
+  /* 가�?모드?��?�??�이가 ?��? 경우 */
   @media (orientation: landscape) and (max-height: 600px) {
     .arcade-machine {
       height: 100vh;
@@ -1839,7 +1839,7 @@
       height: clamp(80px, 10vh, 100px);
     }
 
-    /* 게임 대기 화면 - 낮은 높이 최적화 */
+    /* 게임 ?��??�면 - ??? ?�이 최적??*/
     .game-waiting-screen {
       padding: clamp(2px, 0.5vh, 5px);
     }
@@ -1875,7 +1875,7 @@
       font-size: clamp(0.5rem, 1.2vh, 0.8rem);
     }
 
-    /* 확장 대기 화면 - 낮은 높이 */
+    /* ?�장 ?��??�면 - ??? ?�이 */
     .game-start-icon {
       font-size: clamp(2.5rem, 8vh, 5rem);
       margin-bottom: clamp(5px, 1.5vh, 15px);
@@ -1896,7 +1896,7 @@
     }
   }
 
-  /* 매우 넓은 화면 (울트라와이드) */
+  /* 매우 ?��? ?�면 (?�트?��??�드) */
   @media (min-aspect-ratio: 21/9) {
     .arcade-machine {
       width: 80vw;
@@ -1904,7 +1904,7 @@
     }
   }
 
-  /* 사용자 정의 스크롤바 */
+  /* ?�용???�의 ?�크롤바 */
   :global(::-webkit-scrollbar) {
     width: 8px;
   }
@@ -1924,7 +1924,7 @@
     background: linear-gradient(45deg, #4ade80, #22c55e);
   }
 
-  /* 게임 확장 시스템 */
+  /* 게임 ?�장 ?�스??*/
   .game-expansion-container {
     position: relative;
     width: 100%;
@@ -1959,7 +1959,7 @@
     pointer-events: none;
   }
 
-  /* 확장된 게임 화면 */
+  /* ?�장??게임 ?�면 */
   .expanded-game-screen {
     position: fixed;
     top: 0;
@@ -1992,19 +1992,31 @@
     max-height: 100vh;
   }
 
-  /* 매우 작은 화면에서는 사이드바 완전 숨김 */
-  @media (max-width: 640px) {
-    .expanded-game-content {
-      width: 100vw;
-      margin-left: 0;
-    }
-    
-    .expanded-game-content > :global(*) {
-      max-width: 100vw;
-    }
-  }
+  /*   /* ?��? ?�면?�서???�이?�바가 ?��??�을 ??고려 */ */
+  /*   @media (max-width: 768px) { */
+  /*     .expanded-game-content { */
+  /*       width: calc(100vw - 100px); /* ?��? ?�이?�바 ?�비 */ */
+  /*       margin-left: 100px; */
+  /*     } */
+  /*      */
+  /*     .expanded-game-content > :global(*) { */
+  /*       max-width: calc(100vw - 100px); */
+  /*     } */
+  /*   } */
+  /*  */
+  /*   /* 매우 ?��? ?�면?�서???�이?�바 ?�전 ?��? */ */
+  /*   @media (max-width: 640px) { */
+  /*     .expanded-game-content { */
+  /*       width: 100vw; */
+  /*       margin-left: 0; */
+  /*     } */
+  /*      */
+  /*     .expanded-game-content > :global(*) { */
+  /*       max-width: 100vw; */
+  /*     } */
+  /*   } */
 
-  /* 게임 종료 오버레이 */
+  /* 게임 종료 ?�버?�이 */
   .game-exit-overlay {
     position: absolute;
     top: 20px;
@@ -2066,7 +2078,7 @@
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
   }
 
-  /* 게임 확장 애니메이션 */
+  /* 게임 ?�장 ?�니메이??*/
   @keyframes game-expand-in {
     0% {
       opacity: 0;
@@ -2096,7 +2108,7 @@
     }
   }
 
-  /* 게임 축소 애니메이션 (JavaScript로 제어) */
+  /* 게임 축소 ?�니메이??(JavaScript�??�어) */
   .expanded-game-screen.closing {
     animation: game-expand-out 0.8s cubic-bezier(0.55, 0.06, 0.68, 0.19) forwards;
   }
@@ -2119,7 +2131,7 @@
     }
   }
 
-  /* 반응형 조정 - 게임 확장 모드 */
+  /* 반응??조정 - 게임 ?�장 모드 */
   @media (max-width: 768px) {
     .game-exit-overlay {
       top: 10px;
@@ -2173,7 +2185,7 @@
     }
   }
 
-  /* 게임 확장 중 아케이드 머신 숨김 효과 개선 */
+  /* 게임 ?�장 �??��??�드 머신 ?��? ?�과 개선 */
   .arcade-machine.game-playing .arcade-top,
   .arcade-machine.game-playing .arcade-body,
   .arcade-machine.game-playing .arcade-bottom {
@@ -2184,7 +2196,7 @@
     transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   }
 
-  /* 개선된 애니메이션들 */
+  /* 개선???�니메이?�들 */
   @keyframes fade-in-scale {
     0% {
       opacity: 0;
