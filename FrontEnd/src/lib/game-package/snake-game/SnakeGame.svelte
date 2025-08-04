@@ -262,7 +262,7 @@
       this.addNew = 0;
       this.score = 0;
       this.gameOver = false;
-      this.moveTimer = 0;
+      this.moveTimer = this.time?.now ? this.time.now - this.currentMoveDelay : 0; // 즉시 이동 가능하도록 설정
       this.spacePressed = false; // 게임 재시작 시 스페이스바 상태 초기화
       this.lastKeyPressed = '';
       this.keyPressTime = 0;

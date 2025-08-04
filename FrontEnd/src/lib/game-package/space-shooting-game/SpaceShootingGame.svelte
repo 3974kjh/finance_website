@@ -576,21 +576,27 @@
     private updateEnemies(time: number) {
       if (!this.enemies) return;
 
-      // 적 생성 간격을 스테이지에 따라 조정
-      const spawnInterval = Math.max(800, 2000 - (this.stage * 100)); // 최소 0.8초
+      // 적 생성 간격을 스테이지에 따라 더 적극적으로 조정 (더 빠르게, 더 많이)
+      const baseSpawnInterval = Math.max(400, 1800 - (this.stage * 150)); // 스테이지당 150ms 감소, 최소 400ms
+      const enemiesPerWave = Math.min(3, 1 + Math.floor(this.stage / 2)); // 2스테이지마다 적 1마리씩 추가 (최대 3마리)
       
-      if (time > this.enemySpawnTimer + spawnInterval) {
-        this.spawnEnemy();
+      if (time > this.enemySpawnTimer + baseSpawnInterval) {
+        // 여러 마리 동시 생성
+        for (let i = 0; i < enemiesPerWave; i++) {
+          this.spawnEnemy();
+        }
         this.enemySpawnTimer = time;
       }
 
-      // 적 이동 및 업데이트
+      // 적 이동 및 업데이트 - 스테이지별 속도 대폭 증가
       this.enemies.children.entries.forEach(enemy => {
         const enemyObj = enemy as Phaser.GameObjects.Rectangle;
-        const speed = 2 + Math.floor(this.stage * 0.8); // 스테이지별 속도 증가
+        const baseSpeed = 2.5; // 기본 속도 증가
+        const stageSpeedBonus = Math.floor(this.stage * 1.2); // 스테이지당 1.2배 속도 증가
+        const speed = baseSpeed + stageSpeedBonus;
         enemyObj.x -= speed;
 
-        // 적 시각 효과 개선
+        // 적 시각 효과 개선 (스테이지별 색상 적용)
         this.drawEnhancedEnemy(enemyObj);
 
         // 화면 밖으로 나가면 제거
@@ -607,13 +613,53 @@
       const enemySize = Math.max(15, Math.min(25, GAME_HEIGHT / 25));
       const y = Phaser.Math.Between(50, GAME_HEIGHT - 50);
       
-      const enemy = this.add.rectangle(GAME_WIDTH + 50, y, enemySize, enemySize, 0xff4444);
+      // 스테이지별 색상 계산 (더 화려하고 위협적으로)
+      let enemyColor = 0xff4444; // 기본 빨간색
+      const stageColorShift = this.stage - 1;
       
-      // 스테이지별 체력 증가
-      const enemyHealth = 1 + Math.floor(this.stage / 3); // 3스테이지마다 체력 1 증가
+      if (stageColorShift >= 1) {
+        // 스테이지별 색상 변화: 빨강 -> 주황 -> 노랑 -> 초록 -> 파랑 -> 보라 -> 분홍 등
+        const hue = (stageColorShift * 30) % 360; // 30도씩 색상 변화
+        const saturation = Math.min(100, 70 + (stageColorShift * 5)); // 채도 증가
+        const lightness = Math.max(40, 60 - (stageColorShift * 2)); // 명도 조정
+        
+        // HSL to RGB 변환을 위한 간단한 색상 팔레트
+        const colorPalette = [
+          0xff4444, // 1단계: 빨강
+          0xff8844, // 2단계: 주황
+          0xffcc44, // 3단계: 노랑
+          0x88ff44, // 4단계: 연두
+          0x44ff88, // 5단계: 청록
+          0x4488ff, // 6단계: 파랑
+          0x8844ff, // 7단계: 보라
+          0xff44cc, // 8단계: 분홍
+          0xff4488, // 9단계: 마젠타
+          0xccff44  // 10단계: 라임
+        ];
+        
+        const colorIndex = Math.min(stageColorShift - 1, colorPalette.length - 1);
+        enemyColor = colorPalette[colorIndex];
+        
+        // 고단계에서는 더 강렬한 색상 효과
+        if (this.stage >= 10) {
+          const intensity = Math.min(255, 180 + (this.stage * 8));
+          enemyColor = Phaser.Display.Color.GetColor(intensity, intensity * 0.3, intensity * 0.7);
+        }
+      }
+      
+      const enemy = this.add.rectangle(GAME_WIDTH + 50, y, enemySize, enemySize, enemyColor);
+      
+      // 스테이지별 체력 대폭 증가 - 더 도전적으로
+      const baseHealth = 1;
+      const stageHealthBonus = Math.floor(this.stage / 2) + Math.floor(this.stage * 0.8); // 2스테이지마다 +1, 스테이지당 +0.8
+      const enemyHealth = baseHealth + stageHealthBonus;
+      
       enemy.setData('health', enemyHealth);
       enemy.setData('maxHealth', enemyHealth);
-      enemy.setData('animTimer', 0); // 애니메이션 타이머
+      enemy.setData('animTimer', 0);
+      enemy.setData('stageColor', enemyColor); // 스테이지별 색상 저장
+      
+      console.log(`Stage ${this.stage}: Enemy spawned with ${enemyHealth} HP, color: ${enemyColor.toString(16)}`);
       
       this.enemies.add(enemy);
     }
@@ -890,37 +936,160 @@
     private fireChargedBullet() {
       if (!this.player || !this.bullets) return;
 
-      const bulletSize = Math.max(6, Math.min(12, GAME_WIDTH / 100));
+      // 탄 강화 레벨에 따른 차지 공격 강화
+      const baseChargedBullets = 5;
+      const upgradeBonusBullets = (this.bulletUpgrade - 1) * 2; // 레벨당 2발씩 추가
+      const totalChargedBullets = baseChargedBullets + upgradeBonusBullets;
       
-      // 넓은 범위 공격 (5발 동시 발사 - 더 강력하게)
-      for (let i = -2; i <= 2; i++) {
+      // 탄 강화 레벨에 따른 데미지 증가
+      const baseDamage = 5;
+      const upgradeDamageBonus = this.bulletUpgrade * 2; // 레벨당 +2 데미지
+      const chargedDamage = baseDamage + upgradeDamageBonus;
+      
+      // 탄 강화 레벨에 따른 총알 크기 증가
+      const baseSize = Math.max(6, Math.min(12, GAME_WIDTH / 100));
+      const sizeMultiplier = 1 + (this.bulletUpgrade * 0.3); // 레벨당 30% 크기 증가
+      const bulletSize = baseSize * sizeMultiplier;
+      
+      // 탄 강화 레벨에 따른 속도 증가
+      const baseSpeed = Math.max(10, Math.min(15, GAME_WIDTH / 50));
+      const speedBonus = this.bulletUpgrade * 2; // 레벨당 +2 속도
+      const bulletSpeed = baseSpeed + speedBonus;
+      
+      // 탄 강화 레벨에 따른 확산 범위 조정
+      const baseSpread = 25;
+      const spreadMultiplier = 1 + (this.bulletUpgrade * 0.2); // 레벨당 20% 범위 증가
+      const spreadRange = baseSpread * spreadMultiplier;
+      
+      console.log(`Charged attack: Level ${this.bulletUpgrade}, ${totalChargedBullets} bullets, ${chargedDamage} damage, ${bulletSpeed} speed`);
+      
+      // 강화된 차지 총알 발사
+      for (let i = 0; i < totalChargedBullets; i++) {
+        const spread = (i - (totalChargedBullets - 1) / 2) * spreadRange / totalChargedBullets;
+        
         const bullet = this.add.rectangle(
           this.player.x + 25, 
-          this.player.y + (i * 25), 
+          this.player.y + spread, 
           bulletSize * 4, 
           bulletSize * 2, 
-          0x00ffff // 차지 어택은 청록색
+          this.getChargedBulletColor() // 레벨별 색상
         );
-        bullet.setData('speed', Math.max(10, Math.min(15, GAME_WIDTH / 50)));
-        bullet.setData('damage', 5); // 5배 데미지
+        
+        bullet.setData('speed', bulletSpeed);
+        bullet.setData('damage', chargedDamage);
         bullet.setData('charged', true);
+        bullet.setData('upgradeLevel', this.bulletUpgrade);
         this.bullets.add(bullet);
       }
 
-      // 간단한 차지 어택 시각 효과 (플레이어 주변에만)
+      // 탄 강화 레벨에 따른 강화된 차지 어택 시각 효과
+      this.createEnhancedChargeEffect();
+    }
+
+    private getChargedBulletColor(): number {
+      // 탄 강화 레벨에 따른 차지 총알 색상 변화
+      const colorsByLevel = [
+        0x00ffff, // 레벨 1: 청록색 (기본)
+        0x00aaff, // 레벨 2: 하늘색
+        0x0066ff, // 레벨 3: 파란색
+        0x6600ff, // 레벨 4: 보라색
+        0xff00ff  // 레벨 5: 마젠타 (최고급)
+      ];
+      
+      const colorIndex = Math.min(this.bulletUpgrade - 1, colorsByLevel.length - 1);
+      return colorsByLevel[colorIndex];
+    }
+
+    private createEnhancedChargeEffect() {
+      if (!this.player) return;
+
+      // 기본 차지 효과
       const chargeEffect = this.add.graphics();
       
-      // 단순한 원형 폭발 효과
-      chargeEffect.fillStyle(0x00ffff, 0.4);
-      chargeEffect.fillCircle(this.player.x, this.player.y, 30);
-      chargeEffect.fillStyle(0xffffff, 0.6);
-      chargeEffect.fillCircle(this.player.x, this.player.y, 20);
+      // 탄 강화 레벨에 따른 효과 크기 증가
+      const baseEffectSize = 30;
+      const sizeMultiplier = 1 + (this.bulletUpgrade * 0.4); // 레벨당 40% 크기 증가
+      const effectSize = baseEffectSize * sizeMultiplier;
       
-      // 간단한 외곽 링
-      chargeEffect.lineStyle(3, 0x00ffff, 0.8);
-      chargeEffect.strokeCircle(this.player.x, this.player.y, 35);
+      // 탄 강화 레벨에 따른 효과 색상
+      const effectColor = this.getChargedBulletColor();
+      const secondaryColor = 0xffffff;
       
-      this.time.delayedCall(200, () => {
+      // 메인 폭발 효과 (레벨별 크기 조정)
+      chargeEffect.fillStyle(effectColor, 0.6);
+      chargeEffect.fillCircle(this.player.x, this.player.y, effectSize);
+      chargeEffect.fillStyle(secondaryColor, 0.8);
+      chargeEffect.fillCircle(this.player.x, this.player.y, effectSize * 0.7);
+      
+      // 외곽 링 효과 (레벨별 다중 링)
+      const ringCount = Math.min(5, 1 + this.bulletUpgrade); // 레벨당 링 1개 추가
+      for (let i = 0; i < ringCount; i++) {
+        const ringRadius = effectSize + (i * 15);
+        const ringOpacity = 0.8 - (i * 0.15);
+        chargeEffect.lineStyle(3 + i, effectColor, ringOpacity);
+        chargeEffect.strokeCircle(this.player.x, this.player.y, ringRadius);
+      }
+      
+      // 탄 강화 레벨에 따른 에너지 빔 효과
+      const beamCount = Math.min(12, 4 + (this.bulletUpgrade * 2)); // 레벨당 빔 2개 추가
+      for (let i = 0; i < beamCount; i++) {
+        const angle = (i * (360 / beamCount)) * Math.PI / 180;
+        const beamLength = effectSize + (this.bulletUpgrade * 10);
+        const beamEndX = this.player.x + Math.cos(angle) * beamLength;
+        const beamEndY = this.player.y + Math.sin(angle) * beamLength;
+        
+        chargeEffect.lineStyle(2 + Math.floor(this.bulletUpgrade / 2), effectColor, 0.7);
+        chargeEffect.lineBetween(this.player.x, this.player.y, beamEndX, beamEndY);
+      }
+      
+      // 탄 강화 레벨에 따른 파티클 효과
+      const particleCount = Math.min(20, 8 + (this.bulletUpgrade * 3)); // 레벨당 파티클 3개 추가
+      for (let i = 0; i < particleCount; i++) {
+        const particleAngle = (i * (360 / particleCount)) * Math.PI / 180;
+        const particleDistance = effectSize + Phaser.Math.Between(10, 30);
+        const particleX = this.player.x + Math.cos(particleAngle) * particleDistance;
+        const particleY = this.player.y + Math.sin(particleAngle) * particleDistance;
+        
+        const particleSize = 3 + Math.floor(this.bulletUpgrade / 2);
+        chargeEffect.fillStyle(secondaryColor, 0.9);
+        chargeEffect.fillCircle(particleX, particleY, particleSize);
+      }
+      
+      // 레벨별 특수 효과
+      if (this.bulletUpgrade >= 3) {
+        // 레벨 3 이상: 십자 에너지 방출
+        const crossLength = effectSize * 1.5;
+        chargeEffect.lineStyle(4, effectColor, 0.8);
+        // 수평선
+        chargeEffect.lineBetween(this.player.x - crossLength, this.player.y, 
+                                 this.player.x + crossLength, this.player.y);
+        // 수직선  
+        chargeEffect.lineBetween(this.player.x, this.player.y - crossLength, 
+                                 this.player.x, this.player.y + crossLength);
+      }
+      
+      if (this.bulletUpgrade >= 5) {
+        // 레벨 5: 최고급 오라 효과
+        const auraSize = effectSize * 2;
+        chargeEffect.fillStyle(effectColor, 0.2);
+        chargeEffect.fillCircle(this.player.x, this.player.y, auraSize);
+        
+        // 회전하는 에너지 오라
+        const auraBeamCount = 8;
+        for (let i = 0; i < auraBeamCount; i++) {
+          const angle = (i * 45 + this.time.now * 0.1) * Math.PI / 180;
+          const auraBeamLength = auraSize * 0.8;
+          const beamEndX = this.player.x + Math.cos(angle) * auraBeamLength;
+          const beamEndY = this.player.y + Math.sin(angle) * auraBeamLength;
+          
+          chargeEffect.lineStyle(3, 0xff00ff, 0.6);
+          chargeEffect.lineBetween(this.player.x, this.player.y, beamEndX, beamEndY);
+        }
+      }
+      
+      // 효과 지속 시간 (레벨별 조정)
+      const effectDuration = Math.min(500, 200 + (this.bulletUpgrade * 50)); // 레벨당 50ms 추가
+      this.time.delayedCall(effectDuration, () => {
         chargeEffect.destroy();
       });
     }
@@ -1009,21 +1178,26 @@
       const bossSize = Math.max(80, Math.min(120, GAME_HEIGHT / 8));
       this.boss = this.add.rectangle(GAME_WIDTH - 150, GAME_HEIGHT / 2, bossSize, bossSize, 0x8800ff);
       
-      // 보스 체력 설정 (대폭 감소) - 훨씬 적절한 수준으로 조정
-      this.bossMaxHealth = 20 + (this.stage * 10); // 기본 20 + 스테이지당 10 (훨씬 낮게)
+      // 보스 체력 설정 - 스테이지별 대폭 증가
+      const baseHealth = 30; // 기본 체력 증가
+      const stageHealthMultiplier = this.stage * 15; // 스테이지당 15씩 증가
+      const exponentialBonus = Math.floor(Math.pow(this.stage, 1.5) * 5); // 지수적 증가 요소
+      this.bossMaxHealth = baseHealth + stageHealthMultiplier + exponentialBonus;
       this.bossCurrentHealth = this.bossMaxHealth;
       this.bossDirection = 1;
       this.bossLastShot = 0;
       
-      console.log(`Boss created with health: ${this.bossMaxHealth} for stage ${this.stage}`);
+      console.log(`Stage ${this.stage}: Boss created with ${this.bossMaxHealth} HP (Base: ${baseHealth}, Stage: ${stageHealthMultiplier}, Exponential: ${exponentialBonus})`);
       this.updateBossHealthDisplay();
     }
 
     private updateBoss(time: number) {
       if (!this.boss) return;
 
-      // 보스 이동 (위아래) - 스테이지별 속도 증가
-      const bossSpeed = 2 + Math.floor(this.stage * 0.8);
+      // 보스 이동 (위아래) - 스테이지별 속도 대폭 증가
+      const baseSpeed = 2;
+      const stageSpeedBonus = Math.floor(this.stage * 1.5); // 스테이지당 1.5배 속도 증가
+      const bossSpeed = baseSpeed + stageSpeedBonus;
       this.boss.y += this.bossDirection * bossSpeed;
 
       // 화면 경계에서 방향 전환
@@ -1031,8 +1205,11 @@
         this.bossDirection *= -1;
       }
 
-      // 보스 미사일 발사 - 스테이지별 공격속도 증가
-      const shootInterval = Math.max(500, 1200 - (this.stage * 80)); // 최소 0.5초
+      // 보스 미사일 발사 - 스테이지별 공격속도 대폭 증가
+      const baseShootInterval = 800; // 기본 간격 감소
+      const stageIntervalReduction = Math.min(600, this.stage * 60); // 스테이지당 60ms 감소, 최대 600ms 감소
+      const shootInterval = Math.max(200, baseShootInterval - stageIntervalReduction); // 최소 200ms
+      
       if (time > this.bossLastShot + shootInterval) {
         this.fireBossBullet();
         this.bossLastShot = time;
@@ -1212,16 +1389,47 @@
     private fireBossBullet() {
       if (!this.boss || !this.bossBullets || !this.player) return;
 
-      // 플레이어를 향해 미사일 발사
-      const angle = Phaser.Math.Angle.Between(this.boss.x, this.boss.y, this.player.x, this.player.y);
-      const speed = 4 + Math.floor(this.stage * 0.5); // 스테이지별 속도 증가
+      // 스테이지별 미사일 개수 및 속도 증가
+      const baseMissileCount = 1;
+      const stageMissileBonus = Math.min(5, Math.floor(this.stage / 2)); // 2스테이지마다 미사일 1개 추가, 최대 5개
+      const missileCount = baseMissileCount + stageMissileBonus;
       
-      const bullet = this.add.rectangle(this.boss.x - 30, this.boss.y, 12, 6, 0xff3300);
-      bullet.setData('speedX', Math.cos(angle) * speed);
-      bullet.setData('speedY', Math.sin(angle) * speed);
-      bullet.setData('damage', 1);
+      const baseSpeed = 4;
+      const stageSpeedBonus = Math.floor(this.stage * 0.8); // 스테이지당 0.8배 속도 증가
+      const missileSpeed = baseSpeed + stageSpeedBonus;
       
-      this.bossBullets.add(bullet);
+      // 여러 미사일 발사 (부채꼴 패턴)
+      for (let i = 0; i < missileCount; i++) {
+        let targetX = this.player.x;
+        let targetY = this.player.y;
+        
+        if (missileCount > 1) {
+          // 여러 미사일일 때는 플레이어 주변으로 분산 발사
+          const spreadAngle = (missileCount - 1) * 15; // 총 확산 각도
+          const angleStep = spreadAngle / (missileCount - 1);
+          const currentAngle = -spreadAngle / 2 + (i * angleStep);
+          
+          // 플레이어 위치에서 각도만큼 오프셋
+          const distance = 100;
+          targetX += Math.cos(currentAngle * Math.PI / 180) * distance;
+          targetY += Math.sin(currentAngle * Math.PI / 180) * distance;
+        }
+        
+        const angle = Phaser.Math.Angle.Between(this.boss.x, this.boss.y, targetX, targetY);
+        
+        // 미사일 크기도 스테이지별 증가
+        const missileSize = Math.max(6, Math.min(16, 8 + this.stage));
+        const bullet = this.add.rectangle(this.boss.x - 30, this.boss.y, missileSize, missileSize * 0.7, 0xff3300);
+        
+        bullet.setData('speedX', Math.cos(angle) * missileSpeed);
+        bullet.setData('speedY', Math.sin(angle) * missileSpeed);
+        bullet.setData('damage', 1);
+        bullet.setData('stage', this.stage); // 스테이지 정보 저장
+        
+        this.bossBullets.add(bullet);
+      }
+      
+      console.log(`Stage ${this.stage}: Boss fired ${missileCount} missiles at speed ${missileSpeed}`);
     }
 
     private updateBossBullets() {
@@ -1529,20 +1737,66 @@
           }
         }
       });
+
+      // 보스 미사일과 플레이어 충돌 (보스 스테이지일 때만)
+      if (this.isBossStage && this.bossBullets) {
+        this.bossBullets.children.entries.forEach(bullet => {
+          const bulletObj = bullet as Phaser.GameObjects.Rectangle;
+          
+          if (this.player && Phaser.Geom.Rectangle.Overlaps(this.player.getBounds(), bulletObj.getBounds())) {
+            // 보호막이 있으면 보호막만 제거
+            if (this.hasShield) {
+              this.hasShield = false;
+              this.shieldGraphics?.destroy();
+              this.shieldGraphics = null;
+              this.updateItemsDisplay();
+            } else {
+              // 플레이어 라이프 감소
+              this.lives--;
+              this.updateLivesDisplay();
+              
+              // 무적 시간
+              this.playerBlinkTimer = 60;
+            }
+            
+            // 미사일 제거
+            if (this.bossBullets) {
+              this.bossBullets.remove(bulletObj);
+              bulletObj.destroy();
+            }
+            
+            // 폭발 이펙트
+            if (this.player) {
+              this.createExplosion(this.player.x, this.player.y);
+            }
+            
+            // 게임 오버 체크
+            if (this.lives <= 0) {
+              this.endGame();
+            }
+          }
+        });
+      }
     }
 
     private checkBossCollisions() {
-      if (!this.player || !this.bullets || !this.boss || !this.bossBullets) return;
+      if (!this.player || !this.bullets || !this.boss || !this.bossBullets || !this.isBossStage) return;
 
       // 플레이어 총알과 보스 충돌
       this.bullets.children.entries.forEach(bullet => {
         const bulletObj = bullet as Phaser.GameObjects.Rectangle;
         
-        if (Phaser.Geom.Rectangle.Overlaps(this.boss!.getBounds(), bulletObj.getBounds())) {
+        // 보스가 아직 존재하는지 다시 확인
+        if (!this.boss) return;
+        
+        if (Phaser.Geom.Rectangle.Overlaps(this.boss.getBounds(), bulletObj.getBounds())) {
           // 보스 체력 감소
           const damage = bulletObj.getData('damage') || 1;
           this.bossCurrentHealth = Math.max(0, this.bossCurrentHealth - damage);
           this.updateBossHealthDisplay();
+          
+          // 보스 타격 효과 추가
+          this.createBossHitEffect(this.boss.x, this.boss.y, damage);
           
           // 총알 제거
           if (this.bullets) {
@@ -1554,45 +1808,10 @@
           this.score += 10;
           this.scoreText?.setText(`Score: ${this.score}`);
           
-          // 보스 처치 체크
-          if (this.bossCurrentHealth <= 0) {
+          // 보스 처치 체크 (보스가 아직 존재할 때만)
+          if (this.boss && this.bossCurrentHealth <= 0) {
             this.defeatBoss();
-          }
-        }
-      });
-
-      // 보스 미사일과 플레이어 충돌
-      this.bossBullets.children.entries.forEach(bullet => {
-        const bulletObj = bullet as Phaser.GameObjects.Rectangle;
-        
-        if (Phaser.Geom.Rectangle.Overlaps(this.player!.getBounds(), bulletObj.getBounds())) {
-          // 보호막이 있으면 보호막만 제거
-          if (this.hasShield) {
-            this.hasShield = false;
-            this.shieldGraphics?.destroy();
-            this.shieldGraphics = null;
-            this.updateItemsDisplay();
-          } else {
-            // 플레이어 라이프 감소
-            this.lives--;
-            this.updateLivesDisplay();
-            
-            // 무적 시간
-            this.playerBlinkTimer = 60;
-          }
-          
-          // 미사일 제거
-          if (this.bossBullets) {
-            this.bossBullets.remove(bulletObj);
-            bulletObj.destroy();
-          }
-          
-          // 폭발 이펙트
-          this.createExplosion(this.player!.x, this.player!.y);
-          
-          // 게임 오버 체크
-          if (this.lives <= 0) {
-            this.endGame();
+            return; // 보스가 처치되면 더 이상 충돌 체크하지 않음
           }
         }
       });
@@ -1895,15 +2114,27 @@
       const health = enemy.getData('health') || 1;
       const maxHealth = enemy.getData('maxHealth') || 1;
       const healthPercent = health / maxHealth;
+      
+      // 스테이지별 색상 가져오기
+      const stageColor = enemy.getData('stageColor') || 0xff4444;
+      const baseR = (stageColor >> 16) & 0xFF;
+      const baseG = (stageColor >> 8) & 0xFF;
+      const baseB = stageColor & 0xFF;
 
-      // 적 메인 바디 (더 악당스러운 8각형)
-      this.graphics.fillStyle(Phaser.Display.Color.GetColor(200 * pulse, 50 * pulse, 50 * pulse));
+      // 적 메인 바디 (스테이지별 색상 적용, 더 위협적인 10각형)
+      const bodyColor = Phaser.Display.Color.GetColor(
+        Math.floor(baseR * pulse), 
+        Math.floor(baseG * pulse), 
+        Math.floor(baseB * pulse)
+      );
+      
+      this.graphics.fillStyle(bodyColor);
       this.graphics.beginPath();
       
-      // 8각형으로 변경하여 더 위협적으로
-      for (let i = 0; i < 8; i++) {
-        const angle = (i * 45) * Math.PI / 180;
-        const outerSize = size + Math.sin(animTimer + i) * 2; // 각 면마다 다른 펄스
+      // 10각형으로 변경하여 더 복잡하고 위협적으로
+      for (let i = 0; i < 10; i++) {
+        const angle = (i * 36) * Math.PI / 180;
+        const outerSize = size + Math.sin(animTimer + i) * 3; // 각 면마다 다른 펄스
         const px = x + Math.cos(angle) * outerSize;
         const py = y + Math.sin(angle) * outerSize;
         
@@ -1913,65 +2144,91 @@
       this.graphics.closePath();
       this.graphics.fillPath();
 
-      // 적 장갑 레이어 (어두운 메탈릭)
-      this.graphics.fillStyle(Phaser.Display.Color.GetColor(120 * pulse, 120 * pulse, 120 * pulse));
+      // 적 중간 장갑 레이어 (스테이지별 강화된 메탈릭)
+      const armorIntensity = Math.min(255, 120 + (this.stage * 15)); // 스테이지별 장갑 강도
+      this.graphics.fillStyle(Phaser.Display.Color.GetColor(
+        Math.floor(armorIntensity * pulse), 
+        Math.floor(armorIntensity * pulse), 
+        Math.floor(armorIntensity * pulse * 1.2)
+      ));
       this.graphics.beginPath();
-      for (let i = 0; i < 6; i++) {
-        const angle = (i * 60) * Math.PI / 180;
-        const px = x + Math.cos(angle) * (size * 0.7);
-        const py = y + Math.sin(angle) * (size * 0.7);
+      for (let i = 0; i < 8; i++) {
+        const angle = (i * 45 + animTimer * this.stage * 0.1) * Math.PI / 180; // 스테이지별 회전 속도
+        const px = x + Math.cos(angle) * (size * 0.75);
+        const py = y + Math.sin(angle) * (size * 0.75);
         if (i === 0) this.graphics.moveTo(px, py);
         else this.graphics.lineTo(px, py);
       }
       this.graphics.closePath();
       this.graphics.fillPath();
 
-      // 적 코어 (위협적인 빨간 눈)
-      this.graphics.fillStyle(Phaser.Display.Color.GetColor(255, 0, 0));
-      this.graphics.fillCircle(x, y, size * 0.4);
+      // 적 코어 (스테이지별 강화된 위협적인 눈)
+      const coreR = Math.min(255, baseR + (this.stage * 20));
+      const coreColor = Phaser.Display.Color.GetColor(coreR, 0, 0);
+      this.graphics.fillStyle(coreColor);
+      this.graphics.fillCircle(x, y, size * 0.5);
       
-      // 코어 내부 펄스 (더 위협적)
-      const corePulse = Math.sin(animTimer * 2) * 0.5 + 0.5;
-      this.graphics.fillStyle(Phaser.Display.Color.GetColor(255, 100 * corePulse, 0));
-      this.graphics.fillCircle(x, y, size * 0.25);
+      // 코어 내부 펄스 (스테이지별 더 강렬한 효과)
+      const corePulse = Math.sin(animTimer * (2 + this.stage * 0.3)) * 0.5 + 0.5;
+      const innerCoreColor = Phaser.Display.Color.GetColor(
+        Math.min(255, coreR + 50), 
+        Math.floor(100 * corePulse * this.stage * 0.2), 
+        0
+      );
+      this.graphics.fillStyle(innerCoreColor);
+      this.graphics.fillCircle(x, y, size * 0.3);
 
-      // 무기 시스템 (좌우 포탑)
+      // 스테이지별 강화된 무기 시스템
+      const weaponCount = Math.min(6, 2 + Math.floor(this.stage / 2)); // 스테이지별 무기 개수 증가
       this.graphics.fillStyle(0x444444);
-      this.graphics.fillRect(x - size, y - 4, 8, 8); // 상단 포탑
-      this.graphics.fillRect(x - size, y - 12, 8, 8); // 하단 포탑
-      
-      // 포탑 무기 (빨간 레이저 포인트)
-      this.graphics.fillStyle(0xff0000);
-      this.graphics.fillCircle(x - size + 2, y, 2);
-      this.graphics.fillCircle(x - size + 2, y - 8, 2);
+      for (let i = 0; i < weaponCount; i++) {
+        const weaponAngle = (i * (360 / weaponCount)) * Math.PI / 180;
+        const weaponDistance = size * 0.9;
+        const weaponX = x + Math.cos(weaponAngle) * weaponDistance;
+        const weaponY = y + Math.sin(weaponAngle) * weaponDistance;
+        this.graphics.fillRect(weaponX - 4, weaponY - 4, 8, 8);
+        
+        // 무기 레이저 포인트 (스테이지별 색상)
+        this.graphics.fillStyle(stageColor);
+        this.graphics.fillCircle(weaponX, weaponY, 2);
+        this.graphics.fillStyle(0x444444); // 다음 무기를 위해 색상 리셋
+      }
 
-      // 적 엔진 (더 강력하고 악독한 느낌)
-      const engineColor = Phaser.Display.Color.GetColor(255, 80 * pulse, 0);
+      // 스테이지별 강화된 엔진 (더 강력하고 다채로운 색상)
+      const engineR = Math.min(255, 200 + (this.stage * 10));
+      const engineG = Math.min(255, 80 * pulse + (this.stage * 5));
+      const engineColor = Phaser.Display.Color.GetColor(engineR, engineG, 0);
+      
       this.graphics.fillStyle(engineColor);
       this.graphics.beginPath();
-      this.graphics.moveTo(x - size, y - size * 0.3);
-      this.graphics.lineTo(x - size * 1.8, y - size * 0.1);
-      this.graphics.lineTo(x - size * 2, y);
-      this.graphics.lineTo(x - size * 1.8, y + size * 0.1);
-      this.graphics.lineTo(x - size, y + size * 0.3);
+      this.graphics.moveTo(x - size, y - size * 0.4);
+      this.graphics.lineTo(x - size * (1.8 + this.stage * 0.1), y - size * 0.15); // 스테이지별 엔진 크기 증가
+      this.graphics.lineTo(x - size * (2 + this.stage * 0.1), y);
+      this.graphics.lineTo(x - size * (1.8 + this.stage * 0.1), y + size * 0.15);
+      this.graphics.lineTo(x - size, y + size * 0.4);
       this.graphics.closePath();
       this.graphics.fillPath();
 
-      // 내부 엔진 불꽃 (더 강렬한 효과)
-      this.graphics.fillStyle(Phaser.Display.Color.GetColor(255, 150 * pulse, 0));
+      // 내부 엔진 불꽃 (스테이지별 더 강렬한 효과)
+      const innerEngineColor = Phaser.Display.Color.GetColor(
+        Math.min(255, 255),
+        Math.min(255, 150 * pulse + (this.stage * 10)),
+        Math.floor(this.stage * 20)
+      );
+      this.graphics.fillStyle(innerEngineColor);
       this.graphics.beginPath();
-      this.graphics.moveTo(x - size, y - size * 0.2);
-      this.graphics.lineTo(x - size * 1.5, y - size * 0.05);
-      this.graphics.lineTo(x - size * 1.6, y);
-      this.graphics.lineTo(x - size * 1.5, y + size * 0.05);
-      this.graphics.lineTo(x - size, y + size * 0.2);
+      this.graphics.moveTo(x - size, y - size * 0.25);
+      this.graphics.lineTo(x - size * (1.5 + this.stage * 0.05), y - size * 0.08);
+      this.graphics.lineTo(x - size * (1.6 + this.stage * 0.05), y);
+      this.graphics.lineTo(x - size * (1.5 + this.stage * 0.05), y + size * 0.08);
+      this.graphics.lineTo(x - size, y + size * 0.25);
       this.graphics.closePath();
       this.graphics.fillPath();
 
-      // 체력에 따른 데미지 효과
+      // 체력에 따른 데미지 효과 (스테이지별 더 많은 스파크)
       if (healthPercent < 0.7) {
-        // 체력이 70% 이하일 때 스파크 효과
-        for (let i = 0; i < 2; i++) {
+        const sparkCount = Math.min(8, 2 + this.stage);
+        for (let i = 0; i < sparkCount; i++) {
           const sparkX = x + Phaser.Math.Between(-size, size);
           const sparkY = y + Phaser.Math.Between(-size, size);
           this.graphics.fillStyle(0xffff00);
@@ -1980,17 +2237,27 @@
       }
 
       if (healthPercent < 0.4) {
-        // 체력이 40% 이하일 때 연기와 불꽃
-        this.graphics.fillStyle(0x666666, 0.4);
-        this.graphics.fillCircle(x + 5, y - 8, 4);
-        this.graphics.fillStyle(0xff4400, 0.6);
-        this.graphics.fillCircle(x - 3, y + 6, 3);
+        // 체력이 40% 이하일 때 더 많은 연기와 불꽃
+        const smokeCount = Math.min(4, 1 + Math.floor(this.stage / 2));
+        for (let i = 0; i < smokeCount; i++) {
+          this.graphics.fillStyle(0x666666, 0.4);
+          this.graphics.fillCircle(x + Phaser.Math.Between(-8, 8), y + Phaser.Math.Between(-8, 8), 4);
+          this.graphics.fillStyle(0xff4400, 0.6);
+          this.graphics.fillCircle(x + Phaser.Math.Between(-6, 6), y + Phaser.Math.Between(-6, 6), 3);
+        }
       }
 
-      // 위협적인 외곽 글로우 (스테이지에 따라 더 강렬해짐)
-      const glowIntensity = 0.3 + (this.stage * 0.1);
-      this.graphics.lineStyle(2, 0xff0000, glowIntensity * pulse);
-      this.graphics.strokeCircle(x, y, size + 3);
+      // 스테이지별 강화된 위협적인 외곽 글로우
+      const glowIntensity = Math.min(1.0, 0.3 + (this.stage * 0.08));
+      const glowColor = stageColor;
+      this.graphics.lineStyle(Math.min(4, 2 + Math.floor(this.stage / 3)), glowColor, glowIntensity * pulse);
+      this.graphics.strokeCircle(x, y, size + 3 + this.stage);
+      
+      // 고단계에서는 추가 외곽 링
+      if (this.stage >= 5) {
+        this.graphics.lineStyle(2, glowColor, glowIntensity * pulse * 0.6);
+        this.graphics.strokeCircle(x, y, size + 8 + this.stage);
+      }
     }
 
     // 게임 크기가 변경될 때 호출되는 메서드
@@ -2035,6 +2302,81 @@
         this.itemDescriptionUI.setFontSize(Math.max(10, Math.min(12, GAME_WIDTH / 60)));
         this.itemDescriptionUI.setPosition(GAME_WIDTH / 2, GAME_HEIGHT - 40);
       }
+    }
+
+    private createBossHitEffect(x: number, y: number, damage: number) {
+      if (!this.graphics) return;
+
+      // 보스 타격 시 시각적 효과
+      const hitSize = Math.max(10, Math.min(20, damage * 8));
+      const hitColor = damage >= 5 ? 0x00ffff : 0xffff00; // 차지 어택은 청록색, 일반은 노란색
+      
+      // 타격 폭발 효과
+      const hitEffect = this.add.circle(x, y, hitSize, hitColor, 0.8);
+      
+      // 타격 점 주변에 스파크 효과
+      for (let i = 0; i < 6; i++) {
+        const sparkAngle = (i * 60) * Math.PI / 180;
+        const sparkDistance = hitSize + Phaser.Math.Between(5, 15);
+        const sparkX = x + Math.cos(sparkAngle) * sparkDistance;
+        const sparkY = y + Math.sin(sparkAngle) * sparkDistance;
+        
+        const spark = this.add.circle(sparkX, sparkY, 3, 0xffffff, 0.9);
+        
+        // 스파크 애니메이션
+        this.tweens.add({
+          targets: spark,
+          scaleX: 0,
+          scaleY: 0,
+          alpha: 0,
+          duration: 300,
+          onComplete: () => {
+            spark.destroy();
+          }
+        });
+      }
+      
+      // 메인 타격 효과 애니메이션
+      this.tweens.add({
+        targets: hitEffect,
+        scaleX: 2,
+        scaleY: 2,
+        alpha: 0,
+        duration: 400,
+        ease: 'Power2',
+        onComplete: () => {
+          hitEffect.destroy();
+        }
+      });
+      
+      // 데미지 텍스트 표시
+      const damageText = this.add.text(x, y - 30, `-${damage}`, {
+        fontSize: Math.max(14, Math.min(20, damage * 4)) + 'px',
+        color: damage >= 5 ? '#00ffff' : '#ffff00',
+        fontFamily: 'Courier New, monospace',
+        stroke: '#000000',
+        strokeThickness: 2,
+        shadow: {
+          offsetX: 2,
+          offsetY: 2,
+          color: '#000000',
+          blur: 4,
+          stroke: true,
+          fill: true
+        }
+      }).setOrigin(0.5);
+      
+      // 데미지 텍스트 애니메이션
+      this.tweens.add({
+        targets: damageText,
+        y: y - 60,
+        alpha: 0,
+        duration: 1000,
+        ease: 'Power2',
+        onComplete: () => {
+          damageText.destroy();
+        }
+      });
     }
   }
 
