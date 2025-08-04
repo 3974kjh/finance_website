@@ -19,6 +19,37 @@ from key import (
     check_environment_variables, validate_api_keys, print_config_summary
 )
 
+# 게임 스코어 저장 요청/응답 모델
+class GameScoreRequest(BaseModel):
+    gameType: str
+    userId: str
+    mode: str
+    score: int
+
+class GameScoreResponse(BaseModel):
+    success: bool
+    message: str = ""
+
+# 게임 스코어 조회 요청/응답 모델
+class GameScoresRequest(BaseModel):
+    gameType: str = ""
+
+class GameScoresResponse(BaseModel):
+    success: bool
+    data: dict
+    totalCount: int = 0
+
+# 게임 랭킹 조회 요청/응답 모델
+class GameRankingRequest(BaseModel):
+    gameType: str
+    mode: str = ""
+    limit: int = 10
+
+class GameRankingResponse(BaseModel):
+    success: bool
+    data: list
+    totalCount: int = 0
+
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -642,6 +673,76 @@ async def send_kakao_message(request: KakaoMessageRequest):
             isFail=True,
             token="",
             message=f"서버 오류: {str(e)}"
+        )
+
+# 게임 스코어 저장 엔드포인트
+@app.post("/save_game_score/", response_model=GameScoreResponse)
+async def saveGameScore(request: GameScoreRequest):
+    try:
+        isSuccess = JsonDataBase.SaveGameScore(
+            game_type=request.gameType,
+            user_id=request.userId,
+            mode=request.mode,
+            score=request.score
+        )
+
+        if isSuccess:
+            return GameScoreResponse(
+                success=True,
+                message="게임 스코어가 성공적으로 저장되었습니다."
+            )
+        else:
+            return GameScoreResponse(
+                success=False,
+                message="게임 스코어 저장에 실패했습니다."
+            )
+
+    except Exception as e:
+        return GameScoreResponse(
+            success=False,
+            message=f"서버 오류: {str(e)}"
+        )
+
+# 게임 스코어 조회 엔드포인트
+@app.post("/get_game_scores/", response_model=GameScoresResponse)
+async def getGameScores(request: GameScoresRequest):
+    try:
+        gameScores = JsonDataBase.ReadGameScores(request.gameType)
+
+        return GameScoresResponse(
+            success=True,
+            data=gameScores,
+            totalCount=len(gameScores.get(request.gameType or "all", []))
+        )
+
+    except Exception as e:
+        return GameScoresResponse(
+            success=False,
+            data={},
+            totalCount=0
+        )
+
+# 게임 랭킹 조회 엔드포인트
+@app.post("/get_game_ranking/", response_model=GameRankingResponse)
+async def getGameRanking(request: GameRankingRequest):
+    try:
+        ranking = JsonDataBase.GetGameRanking(
+            game_type=request.gameType,
+            mode=request.mode,
+            limit=request.limit
+        )
+
+        return GameRankingResponse(
+            success=True,
+            data=ranking,
+            totalCount=len(ranking)
+        )
+
+    except Exception as e:
+        return GameRankingResponse(
+            success=False,
+            data=[],
+            totalCount=0
         )
 
 if __name__ == "__main__":

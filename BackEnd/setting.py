@@ -10,3 +10,5 @@ XML_US_READPATH = 'Data/Xml_Files/US'
 JSON_HISTORY_PATH = './Data/Json_Files/history.txt'
 
 JSON_ANALYZE_FOLDER_PATH = './Data/Json_Files/Today_Analyze'
+
+JSON_GAME_SCORE_PATH = './Data/Json_Files/Game_Score/game-store-db.txt'

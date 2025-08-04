@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { SnakeGame, SpaceShootingGame } from '$lib/game-package';
+  import RankListModal from '$lib/game-package/common/RankListModal.svelte';
   
   // 게임 정보 데이터
   const gameList = [
@@ -33,6 +34,9 @@
   let isGameReady = false; // 게임이 실제로 시작할 준비가 되었는지
   let gameExpandTimer: number | null = null;
   
+  // 랭킹 모달 상태
+  let showRankingModal = false;
+  
   // CD 스크롤 관련 상태
   let cdContainer: HTMLElement;
   let scrollPosition = 0;
@@ -54,7 +58,7 @@
       isGameLoading = false;
       
       // 게임 로딩 완료 후 잠시 대기하고 전체화면으로 확장
-      gameExpandTimer = window.setTimeout(() => {
+      gameExpandTimer = window?.setTimeout(() => {
         isGameExpanded = true;
         
         // 확장 애니메이션 완료 후 게임 시작
@@ -96,6 +100,16 @@
         gameExpandTimer = null;
       }
     }
+  };
+
+  // 랭킹 모달 열기
+  const openRankingModal = () => {
+    showRankingModal = true;
+  };
+
+  // 랭킹 모달 닫기
+  const closeRankingModal = () => {
+    showRankingModal = false;
   };
 
   // CD 스크롤 함수
@@ -224,6 +238,14 @@
           <div class="monitor-bezel">
             <!-- 화면 영역 -->
             <div class="screen-area">
+              <!-- 랭킹 버튼 (모니터 화면 내 우상단) -->
+              <!-- svelte-ignore a11y-click-events-have-key-events -->
+              <!-- svelte-ignore a11y-no-static-element-interactions -->
+              <div class="monitor-ranking-button" on:click={openRankingModal}>
+                <span class="ranking-icon">🏆</span>
+                <span class="ranking-text">RANK</span>
+              </div>
+              
               {#if currentScreen === 'menu'}
                 <!-- 게임 선택 메뉴 화면 -->
                 <div class="menu-screen">
@@ -453,6 +475,12 @@
   </div>
 </div>
 
+<!-- 랭킹 모달 -->
+<RankListModal
+  bind:show={showRankingModal}
+  onClose={closeRankingModal}
+/>
+
 <style>
   /* 아케이드 게임기 스타일 */
   /* .arcade-machine 스타일은 게임 확장 시스템에서 정의됨 */
@@ -513,6 +541,116 @@
       0 2px 0 #64748b,
       0 3px 6px rgba(0,0,0,0.3);
     letter-spacing: 3px;
+  }
+
+  /* 게임 컨트롤 헤더 */
+  .game-controls-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: linear-gradient(90deg, #374151 0%, #4b5563 50%, #374151 100%);
+    border: 2px solid #1f2937;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.1),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.3),
+      0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  .game-status-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 100px;
+  }
+
+  .game-status-text {
+    font-family: 'Impact', sans-serif;
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: #e2e8f0;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    letter-spacing: 1px;
+  }
+
+  .game-status-indicator {
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: #94a3b8;
+    padding: 4px 8px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid #374151;
+    border-radius: 4px;
+    text-shadow: 0 0 4px currentColor;
+  }
+
+  .game-status-indicator.active {
+    color: #22c55e;
+    border-color: rgba(34, 197, 94, 0.5);
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.3);
+  }
+
+  /* 랭킹 버튼 (새 위치) */
+  .ranking-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: linear-gradient(145deg, rgba(34, 197, 94, 0.15), rgba(22, 163, 74, 0.25));
+    border: 2px solid rgba(34, 197, 94, 0.4);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 
+      0 3px 6px rgba(0, 0, 0, 0.2),
+      inset 0 1px 2px rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(3px);
+  }
+
+  .ranking-button:hover {
+    background: linear-gradient(145deg, rgba(34, 197, 94, 0.25), rgba(22, 163, 74, 0.35));
+    border-color: rgba(34, 197, 94, 0.6);
+    transform: translateY(-2px);
+    box-shadow: 
+      0 5px 10px rgba(0, 0, 0, 0.3),
+      inset 0 1px 2px rgba(255, 255, 255, 0.3),
+      0 0 15px rgba(34, 197, 94, 0.3);
+  }
+
+  .ranking-button:active {
+    transform: translateY(0);
+    box-shadow: 
+      0 2px 4px rgba(0, 0, 0, 0.3),
+      inset 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+
+  .ranking-icon {
+    font-size: 1.4rem;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+    animation: trophy-glow 3s ease-in-out infinite;
+  }
+
+  @keyframes trophy-glow {
+    0%, 100% {
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+    }
+    50% {
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
+    }
+  }
+
+  .ranking-text {
+    font-family: 'Impact', sans-serif;
+    font-size: 1rem;
+    font-weight: 900;
+    color: #e2e8f0;
+    text-shadow: 
+      0 1px 0 #4b5563,
+      0 2px 4px rgba(0, 0, 0, 0.5);
+    letter-spacing: 1px;
   }
 
   .power-indicator {
@@ -661,6 +799,61 @@
       inset 0 0 30px rgba(0,0,0,0.8),
       inset 0 0 60px rgba(0,100,0,0.1);
     border: 3px solid #0f172a;
+  }
+
+  /* 모니터 화면 내 랭킹 버튼 */
+  .monitor-ranking-button {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: linear-gradient(145deg, rgba(34, 197, 94, 0.2), rgba(22, 163, 74, 0.3));
+    border: 2px solid rgba(34, 197, 94, 0.5);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 
+      0 2px 8px rgba(0, 0, 0, 0.3),
+      inset 0 1px 2px rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(5px);
+    z-index: 10;
+  }
+
+  .monitor-ranking-button:hover {
+    background: linear-gradient(145deg, rgba(34, 197, 94, 0.3), rgba(22, 163, 74, 0.4));
+    border-color: rgba(34, 197, 94, 0.7);
+    transform: translateY(-2px);
+    box-shadow: 
+      0 4px 12px rgba(0, 0, 0, 0.4),
+      inset 0 1px 2px rgba(255, 255, 255, 0.3),
+      0 0 15px rgba(34, 197, 94, 0.4);
+  }
+
+  .monitor-ranking-button:active {
+    transform: translateY(0);
+    box-shadow: 
+      0 1px 4px rgba(0, 0, 0, 0.4),
+      inset 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+
+  .monitor-ranking-button .ranking-icon {
+    font-size: 1.2rem;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7));
+    animation: trophy-glow 3s ease-in-out infinite;
+  }
+
+  .monitor-ranking-button .ranking-text {
+    font-family: 'Impact', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 900;
+    color: #e2e8f0;
+    text-shadow: 
+      0 1px 0 #1f2937,
+      0 2px 4px rgba(0, 0, 0, 0.7);
+    letter-spacing: 1px;
   }
 
   /* 메뉴 화면 */
@@ -1541,6 +1734,21 @@
       font-size: 1.8rem;
       letter-spacing: 2px;
     }
+
+    .ranking-button {
+      padding: 7px 11px;
+      margin-left: 12px;
+      gap: 5px;
+    }
+
+    .ranking-icon {
+      font-size: 1.1rem;
+    }
+
+    .ranking-text {
+      font-size: 0.85rem;
+      letter-spacing: 0.8px;
+    }
     
     .logo-text {
       font-size: 2rem;
@@ -1579,36 +1787,32 @@
       letter-spacing: 1px;
     }
     
+    .game-controls-header {
+      padding: 8px 15px;
+      margin-bottom: 10px;
+    }
+
+    .game-status-text {
+      font-size: 0.75rem;
+    }
+
+    .ranking-button {
+      padding: 6px 10px;
+      gap: 4px;
+    }
+
+    .ranking-icon {
+      font-size: 1rem;
+    }
+
+    .ranking-text {
+      font-size: 0.8rem;
+      letter-spacing: 0.5px;
+    }
+    
     .logo-text {
       font-size: 1.8rem;
       letter-spacing: 2px;
-    }
-    
-    .top-panel {
-      padding: 8px 15px;
-    }
-    
-    .speaker-grille {
-      width: 80px;
-      height: 50px;
-    }
-    
-    .cd-disc {
-      width: 100px;
-      height: 100px;
-    }
-    
-    .game-icon {
-      font-size: 2rem;
-    }
-    
-    .scroll-button {
-      width: 50px;
-      height: 50px;
-    }
-    
-    .scroll-arrow {
-      font-size: 1.2rem;
     }
   }
 
@@ -1625,6 +1829,33 @@
     .arcade-title {
       font-size: 1.2rem;
       letter-spacing: 0.5px;
+    }
+
+    .game-controls-header {
+      padding: 6px 12px;
+      margin-bottom: 8px;
+    }
+
+    .game-status-text {
+      font-size: 0.7rem;
+    }
+
+    .game-status-indicator {
+      padding: 2px 6px;
+      font-size: 0.7rem;
+    }
+
+    .ranking-button {
+      padding: 4px 8px;
+      gap: 3px;
+    }
+
+    .ranking-icon {
+      font-size: 0.9rem;
+    }
+
+    .ranking-text {
+      display: none;
     }
     
     .logo-text {
@@ -2246,6 +2477,69 @@
     50% {
       opacity: 0.7;
     }
+  }
+
+  /* 모니터 랭킹 버튼 반응형 */
+  .monitor-ranking-button {
+    top: 12px;
+    right: 12px;
+    padding: 6px 10px;
+    gap: 4px;
+  }
+
+  .monitor-ranking-button .ranking-icon {
+    font-size: 1rem;
+  }
+
+  .monitor-ranking-button .ranking-text {
+    font-size: 0.8rem;
+  }
+  
+  .top-panel {
+    padding: 8px 15px;
+  }
+
+  /* 모니터 랭킹 버튼 - 매우 작은 화면 */
+  .monitor-ranking-button {
+    top: 8px;
+    right: 8px;
+    padding: 4px 6px;
+    gap: 0;
+  }
+
+  .monitor-ranking-button .ranking-icon {
+    font-size: 0.9rem;
+  }
+
+  .monitor-ranking-button .ranking-text {
+    display: none;
+  }
+
+  /* 게임 대기 화면 - 매우 작은 화면 최적화 */
+  .arcade-title {
+    font-size: 1.8rem;
+    letter-spacing: 2px;
+  }
+  
+  /* 모니터 랭킹 버튼 반응형 - 중간 화면 */
+  .monitor-ranking-button {
+    top: 14px;
+    right: 14px;
+    padding: 7px 11px;
+    gap: 5px;
+  }
+
+  .monitor-ranking-button .ranking-icon {
+    font-size: 1.1rem;
+  }
+
+  .monitor-ranking-button .ranking-text {
+    font-size: 0.85rem;
+  }
+  
+  .logo-text {
+    font-size: 2rem;
+    letter-spacing: 3px;
   }
 </style>
 

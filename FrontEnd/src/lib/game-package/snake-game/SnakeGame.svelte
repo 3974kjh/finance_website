@@ -1,9 +1,16 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import Phaser from 'phaser';
+  import AddRankModal from '../common/AddRankModal.svelte';
+	import toast from 'svelte-french-toast';
+	import { GAME_KIND_MODE } from '../enums';
 
   let gameContainer: HTMLDivElement;
   let game: Phaser.Game | null = null;
+
+  // 랭킹 등록 모달 관련 변수
+  let showRankingModal = false;
+  let modalScore = 0;
 
   // 게임 설정 (동적으로 조정될 예정)
   let GAME_WIDTH = 800;
@@ -84,6 +91,16 @@
     private poisonAppleSpawnTime: number = 0; // 독사과 생성 시간 추적
     private nextPoisonAppleSpawn: number = 0; // 다음 독사과 생성 시간
 
+    // 일시정지 시스템
+    private isPaused: boolean = false;
+    private pauseStartTime: number = 0;
+    private totalPauseTime: number = 0;
+    private pauseKey: Phaser.Input.Keyboard.Key | null = null;
+    private pauseText: Phaser.GameObjects.Text | null = null;
+
+    // 랭킹 등록 콜백
+    private onGameEnd: ((score: number) => void) | null = null;
+
     constructor() {
       super({ key: 'SnakeScene' });
     }
@@ -110,6 +127,9 @@
         
         // WASD 키 설정
         this.wasd = this.input.keyboard.addKeys('W,S,A,D');
+        
+        // 일시정지 키 설정
+        this.pauseKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.P);
         
         // 키보드 캡처 활성화
         this.input.keyboard.enableGlobalCapture();
@@ -188,6 +208,24 @@
         align: 'center'
       }).setOrigin(0.5);
 
+      // 일시정지 텍스트 UI
+      this.pauseText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'GAME PAUSED\nPress P to Resume', {
+        fontSize: Math.max(24, Math.min(36, GAME_WIDTH / 25)) + 'px',
+        color: '#ffffff',
+        fontFamily: 'Courier New, monospace',
+        stroke: '#333333',
+        strokeThickness: 3,
+        shadow: {
+          offsetX: 3,
+          offsetY: 3,
+          color: '#000000',
+          blur: 8,
+          stroke: true,
+          fill: true
+        },
+        align: 'center'
+      }).setOrigin(0.5).setVisible(false); // 기본적으로 숨김
+
       // 첫 렌더링
       this.render();
       
@@ -195,8 +233,18 @@
     }
 
     update(time: number) {
+      // 일시정지 키 처리 (게임 오버 상태가 아닐 때만)
+      if (!this.gameOver && this.pauseKey && Phaser.Input.Keyboard.JustDown(this.pauseKey)) {
+        this.togglePause(time);
+      }
+
+      // 일시정지 상태이면 게임 로직 실행하지 않음
+      if (this.isPaused) {
+        return;
+      }
+
       // 키보드 입력은 매 프레임마다 처리 (즉시 반응)
-      this.handleInput(time);
+      this.handleInput(this.getAdjustedTime(time));
       
       if (this.gameOver) {
         // 게임 오버 상태에서도 스페이스바 재시작 처리
@@ -205,21 +253,52 @@
       }
       
       // 무적 모드 업데이트
-      this.updateInvincibleMode(time);
+      this.updateInvincibleMode(this.getAdjustedTime(time));
       
       // 무적 아이템 생성 로직
-      this.updatePowerUpSpawn(time);
+      this.updatePowerUpSpawn(this.getAdjustedTime(time));
       
       // 독사과 생성 로직
-      this.updatePoisonAppleSpawn(time);
+      this.updatePoisonAppleSpawn(this.getAdjustedTime(time));
       
       // 타이머 기반 이동 (일정 시간마다만 이동)
-      if (time > this.moveTimer + this.currentMoveDelay) {
+      if (this.getAdjustedTime(time) > this.getAdjustedMoveTimer() + this.currentMoveDelay) {
         this.moveSnake();
         this.checkCollisions();
         this.render();
-        this.moveTimer = time;
+        this.moveTimer = this.getAdjustedTime(time);
       }
+    }
+
+    private togglePause(time: number) {
+      this.isPaused = !this.isPaused;
+      
+      if (this.isPaused) {
+        // 일시정지 시작
+        this.pauseStartTime = time;
+        this.pauseText?.setVisible(true);
+        console.log('🐍 Snake Game Paused');
+      } else {
+        // 일시정지 해제
+        const pauseDuration = time - this.pauseStartTime;
+        this.totalPauseTime += pauseDuration;
+        this.pauseText?.setVisible(false);
+        console.log(`🐍 Snake Game Resumed (Paused for ${Math.floor(pauseDuration/1000)}s)`);
+      }
+    }
+
+    private getAdjustedTime(currentTime: number): number {
+      // 현재 일시정지 중이라면 pauseStartTime을 반환
+      if (this.isPaused) {
+        return this.pauseStartTime - this.totalPauseTime;
+      }
+      // 일시정지 시간을 제외한 실제 게임 시간 반환
+      return currentTime - this.totalPauseTime;
+    }
+
+    private getAdjustedMoveTimer(): number {
+      // moveTimer도 일시정지 시간을 고려하여 조정
+      return this.moveTimer;
     }
 
     private drawGrid() {
@@ -267,6 +346,12 @@
       this.lastKeyPressed = '';
       this.keyPressTime = 0;
 
+      // 일시정지 시스템 초기화
+      this.isPaused = false;
+      this.pauseStartTime = 0;
+      this.totalPauseTime = 0;
+      this.pauseText?.setVisible(false);
+
       // 속도 초기화
       this.currentMoveDelay = this.baseMoveDelay;
       this.updateSpeedDisplay();
@@ -289,7 +374,7 @@
       // 무적 아이템을 빠르게 테스트할 수 있도록 타이머 설정 (5초 후 첫 아이템)
       this.powerUpSpawnTimer = this.time?.now ? this.time.now - 25000 : Date.now() - 25000; // 30초 - 25초 = 5초 후
       this.powerUpText?.setText('');
-      this.itemDescriptionUI?.setText('⏰ Invincible item spawns every 20s (auto-delete after 10s) | 🍎 5 foods available | ⚡ Invincible: +3 length | 💀 Poison apple: -3 length'); // 아이템 설명 UI 초기화
+      this.itemDescriptionUI?.setText('⏰ Invincible item spawns every 20s (auto-delete after 10s) | 🍎 5 foods available | ⚡ Invincible: 5x speed, +3 length | 💀 Poison apple: -3 length'); // 아이템 설명 UI 초기화
 
       // 음식 배열 초기화 후 5개 생성
       this.foods = [];
@@ -525,16 +610,11 @@
     }
 
     private checkCollisions() {
-      // 무적 모드에서는 벽과 자기 몸 충돌 무시
-      if (this.isInvincible) {
-        return;
-      }
-
       const head = this.snake[0];
       const gridWidth = Math.floor(GAME_WIDTH / GRID_SIZE);
       const gridHeight = Math.floor(GAME_HEIGHT / GRID_SIZE);
 
-      // 벽 충돌 시 텔레포트 처리 (게임 오버 없음)
+      // 벽 충돌 시 텔레포트 처리 (무적 모드와 관계없이 항상 적용)
       let teleported = false;
       
       if (head.x < 0) {
@@ -558,11 +638,11 @@
       }
       
       if (teleported) {
-        console.log('Snake teleported to:', head.x, head.y);
+        console.log('Snake teleported to:', head.x, head.y, this.isInvincible ? '(INVINCIBLE)' : '(NORMAL)');
       }
 
-      // 자기 몸과 충돌 검사 (뱀의 길이가 4 이상일 때만 가능)
-      if (this.snake.length >= 4) {
+      // 자기 몸과 충돌 검사 (무적 모드에서는 무시)
+      if (!this.isInvincible && this.snake.length >= 4) {
         for (let i = 1; i < this.snake.length; i++) {
           if (head.x === this.snake[i].x && head.y === this.snake[i].y) {
             console.log('Self collision detected at segment', i);
@@ -787,6 +867,11 @@
       this.gameOver = true;
       console.log('Game Over:', reason);
 
+      // 랭킹 등록 모달 호출
+      if (this.onGameEnd) {
+        this.onGameEnd(this.score);
+      }
+
       // 기존 게임 오버 텍스트들 초기화
       this.gameOverTexts = [];
 
@@ -893,7 +978,11 @@
 
       // 무적 모드 텍스트 초기화
       this.powerUpText?.setText('');
-      this.itemDescriptionUI?.setText('⏰ Invincible item spawns every 20s (auto-delete after 10s) | 🍎 5 foods available | ⚡ Invincible: +3 length | 💀 Poison apple: -3 length'); // 아이템 설명 UI 초기화
+      this.itemDescriptionUI?.setText('⏰ Invincible item spawns every 20s (auto-delete after 10s) | 🍎 5 foods available | ⚡ Invincible: 5x speed, +3 length | 💀 Poison apple: -3 length'); // 아이템 설명 UI 초기화
+
+      // 일시정지 해제
+      this.isPaused = false;
+      this.pauseText?.setVisible(false);
 
       // 게임 상태 재설정
       this.resetGame();
@@ -907,8 +996,8 @@
     }
 
     private updateSpeed() {
-      // 뱀 길이에 따른 속도 조절 (길수록 빨라짐) - 최대 3배까지
-      const maxSpeedMultiplier = 3.0;
+      // 뱀 길이에 따른 속도 조절 (길수록 빨라짐) - 최대 5배까지
+      const maxSpeedMultiplier = 5.0;
       const speedMultiplier = Math.min(maxSpeedMultiplier, 1 + (this.snake.length - 3) * 0.1);
       this.currentMoveDelay = Math.max(50, Math.floor(this.baseMoveDelay / speedMultiplier));
       this.updateSpeedDisplay();
@@ -1046,14 +1135,14 @@
           const timeLeft = Math.ceil((10000 - (time - itemLifeTime)) / 1000);
           this.itemDescriptionUI.setText(`⚡ INVINCIBLE ITEM: Eat within ${timeLeft}s for 10sec invincibility! | 🍎 Foods: ${foodCount}/5 | 💀 Poison: ${this.poisonApple ? 'Available' : `${poisonTimeRemaining}s`}`);
         } else {
-          this.itemDescriptionUI.setText(`⚡ INVINCIBLE ITEM: Eat for 10sec invincibility & 3x speed! | 🍎 Foods: ${foodCount}/5 | 💀 Poison: ${this.poisonApple ? 'Available' : `${poisonTimeRemaining}s`}`);
+          this.itemDescriptionUI.setText(`⚡ INVINCIBLE ITEM: Eat for 10sec invincibility & 5x speed! | 🍎 Foods: ${foodCount}/5 | 💀 Poison: ${this.poisonApple ? 'Available' : `${poisonTimeRemaining}s`}`);
         }
       } else {
         const timeRemaining = Math.ceil((spawnInterval - timeSinceLastSpawn) / 1000);
         if (timeRemaining > 0) {
-          this.itemDescriptionUI.setText(`⏰ Next invincible item in: ${timeRemaining}s | 🍎 Foods: ${foodCount}/5 | 💀 Poison: ${this.poisonApple ? 'Available' : `${poisonTimeRemaining}s`} | ⚡ Invincible: +3 length`);
+          this.itemDescriptionUI.setText(`⏰ Next invincible item in: ${timeRemaining}s | 🍎 Foods: ${foodCount}/5 | 💀 Poison: ${this.poisonApple ? 'Available' : `${poisonTimeRemaining}s`} | ⚡ Invincible: 5x speed, +3 length`);
         } else {
-          this.itemDescriptionUI.setText(`⏰ Invincible item spawning... | 🍎 Foods: ${foodCount}/5 | 💀 Poison: ${this.poisonApple ? 'Available' : `${poisonTimeRemaining}s`} | ⚡ Invincible: +3 length`);
+          this.itemDescriptionUI.setText(`⏰ Invincible item spawning... | 🍎 Foods: ${foodCount}/5 | 💀 Poison: ${this.poisonApple ? 'Available' : `${poisonTimeRemaining}s`} | ⚡ Invincible: 5x speed, +3 length`);
         }
       }
     }
@@ -1129,7 +1218,7 @@
       this.isInvincible = true;
       this.invincibleStartTime = this.time.now;
       this.normalSpeed = this.currentMoveDelay; // 현재 속도 저장
-      this.currentMoveDelay = Math.floor(this.baseMoveDelay / 3); // 3배 속도
+      this.currentMoveDelay = Math.floor(this.baseMoveDelay / 5); // 5배 속도
       this.blinkTimer = 0;
       this.powerUpItem = null; // 아이템 제거
       
@@ -1218,9 +1307,32 @@
       this.drawGrid(); 
       this.render(); 
     }
+
+    // 콜백 설정 메서드
+    setGameEndCallback(callback: (score: number) => void) {
+      this.onGameEnd = callback;
+    }
+  }
+
+  // 랭킹 등록 모달 함수들
+  function showRankingRegistration(score: number) {
+    modalScore = score;
+    showRankingModal = true;
+  }
+
+  function handleRankingClose() {
+    showRankingModal = false;
+  }
+
+  function handleRankingSuccess() {
+    toast.success('🏆 랭킹 등록 완료!');
   }
 
   onMount(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    
     // 게임 크기 조정
     adjustGameSize();
 
@@ -1244,6 +1356,14 @@
     };
 
     game = new Phaser.Game(config);
+
+    // Scene가 준비되면 콜백 설정
+    game.events.once('ready', () => {
+      const scene = game!.scene.getScene('SnakeScene') as SnakeScene;
+      if (scene && scene.setGameEndCallback) {
+        scene.setGameEndCallback(showRankingRegistration);
+      }
+    });
 
     // 게임 컨테이너를 포커스 가능하게 설정
     if (gameContainer) {
@@ -1283,6 +1403,18 @@
 </script>
 
 <div bind:this={gameContainer} class="w-full h-full bg-black" />
+
+<!-- 랭킹 등록 모달 -->
+<AddRankModal
+  bind:show={showRankingModal}
+  gameType="SnakeGame"
+  gameDisplayName="Snake Game"
+  score={modalScore}
+  mode={GAME_KIND_MODE.SNAKE_GAME}
+  initialUserId="guest"
+  onClose={handleRankingClose}
+  onSuccess={handleRankingSuccess}
+/>
 
 <style>
   /* 게임 컨테이너가 전체 공간을 차지하도록 설정 */

@@ -1,9 +1,13 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import Phaser from 'phaser';
+  import { saveGameScore } from '../../api-connector/GameApi';
+  import AddRankModal from '../common/AddRankModal.svelte';
+	import toast from 'svelte-french-toast';
+	import { GAME_KIND_MODE } from '../enums';
 
   let gameContainer: HTMLDivElement;
-  let game: Phaser.Game | null = null;
+  let phaserGame: Phaser.Game | null = null;
 
   // 게임 설정 (동적으로 조정될 예정)
   let GAME_WIDTH = 800;
@@ -21,11 +25,11 @@
       GAME_HEIGHT = Math.max(300, GAME_HEIGHT);
       
       // 게임이 실행 중이라면 크기 조정
-      if (game) {
-        game.scale.resize(GAME_WIDTH, GAME_HEIGHT);
+      if (phaserGame) {
+        phaserGame.scale.resize(GAME_WIDTH, GAME_HEIGHT);
         
         // 씬이 존재한다면 씬의 크기도 업데이트
-        const scene = game.scene.getScene('SpaceScene') as SpaceScene;
+        const scene = phaserGame.scene.getScene('SpaceScene') as SpaceScene;
         if (scene && scene.scene.isActive()) {
           scene.updateGameSize(GAME_WIDTH, GAME_HEIGHT);
         }
@@ -39,6 +43,7 @@
   };
 
   class SpaceScene extends Phaser.Scene {
+    private graphics: Phaser.GameObjects.Graphics | null = null;
     private player: Phaser.GameObjects.Rectangle | null = null;
     private bullets: Phaser.GameObjects.Group | null = null;
     private enemies: Phaser.GameObjects.Group | null = null;
@@ -50,6 +55,11 @@
     private wasd: any = null;
     private spaceKey: Phaser.Input.Keyboard.Key | null = null;
     private gKey: Phaser.Input.Keyboard.Key | null = null; // 궁극기 키
+    private pauseKey: Phaser.Input.Keyboard.Key | null = null; // 일시정지 키
+    
+    // 랭킹 등록 콜백
+    private onGameEnd: ((score: number) => void) | null = null;
+    
     private lastFired: number = 0;
     private score: number = 0;
     private lives: number = 3;
@@ -79,7 +89,6 @@
     private healthTimerNextSpawn: number = 0;
     private shieldTimerNextSpawn: number = 0;
     
-    private graphics: Phaser.GameObjects.Graphics | null = null;
     private level: number = 1;
     
     // 보스 관련 변수
@@ -104,6 +113,17 @@
     // 플레이어 시각 효과
     private playerBlinkTimer: number = 0;
     private shieldGraphics: Phaser.GameObjects.Graphics | null = null;
+
+    private enemiesKilledThisStage: number = 0; // 이번 스테이지에서 처치한 적 수
+    private minEnemiesForBoss: number = 10; // 보스 등장을 위한 최소 적 처치 수
+    private stageStartTime: number = 0; // 스테이지 시작 시간
+    private minStageTime: number = 15000; // 최소 스테이지 지속 시간 (15초)
+
+    // 일시정지 시스템
+    private isPaused: boolean = false;
+    private pauseStartTime: number = 0;
+    private totalPauseTime: number = 0;
+    private pauseText: Phaser.GameObjects.Text | null = null;
 
     constructor() {
       super({ key: 'SpaceScene' });
@@ -141,6 +161,7 @@
         this.wasd = this.input.keyboard.addKeys('W,S,A,D');
         this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
         this.gKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.G); // 궁극기 키 추가
+        this.pauseKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.P); // 일시정지 키 추가
       }
 
       // UI 텍스트
@@ -224,57 +245,111 @@
         }
       }).setOrigin(1, 0);
 
-      // 아이템 설명 UI 추가 (하단)
+      // 아이템 설명 UI (하단)
       this.itemDescriptionUI = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 40, '', {
-        fontSize: Math.max(10, Math.min(12, GAME_WIDTH / 60)) + 'px',
-        color: '#cccccc',
+        fontSize: Math.max(10, Math.min(14, GAME_WIDTH / 60)) + 'px',
+        color: '#ffff00',
         fontFamily: 'Courier New, monospace',
-        stroke: '#222222',
+        stroke: '#333300',
         strokeThickness: 1,
         shadow: {
           offsetX: 1,
           offsetY: 1,
           color: '#000000',
-          blur: 2,
+          blur: 3,
           stroke: true,
           fill: true
         },
         align: 'center'
       }).setOrigin(0.5);
 
+      // 일시정지 텍스트 UI
+      this.pauseText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'GAME PAUSED\nPress P to Resume', {
+        fontSize: Math.max(24, Math.min(36, GAME_WIDTH / 25)) + 'px',
+        color: '#ffff00',
+        fontFamily: 'Courier New, monospace',
+        stroke: '#333300',
+        strokeThickness: 3,
+        shadow: {
+          offsetX: 3,
+          offsetY: 3,
+          color: '#000000',
+          blur: 8,
+          stroke: true,
+          fill: true
+        },
+        align: 'center'
+      }).setOrigin(0.5).setVisible(false); // 기본적으로 숨김
+
       // 게임 리셋
       this.resetGame();
     }
 
     update(time: number) {
+      // 일시정지 키 처리 (게임 오버 상태가 아닐 때만)
+      if (!this.gameOver && this.pauseKey && Phaser.Input.Keyboard.JustDown(this.pauseKey)) {
+        this.togglePause(time);
+      }
+
+      // 일시정지 상태이면 게임 로직 실행하지 않음
+      if (this.isPaused) {
+        return;
+      }
+
       if (this.gameOver) {
         this.handleGameOverInput();
         return;
       }
 
       if (this.isStageTransition) {
-        this.handleStageTransition(time);
+        this.handleStageTransition(this.getAdjustedTime(time));
         return;
       }
 
-      this.handleInput(time);
+      this.handleInput(this.getAdjustedTime(time));
       this.updatePlayer();
       this.updateBullets();
       
       if (this.isBossStage) {
-        this.updateBoss(time);
+        this.updateBoss(this.getAdjustedTime(time));
         this.updateBossBullets();
         this.checkBossCollisions();
         this.drawBossHealthBar();
       } else {
-        this.updateEnemies(time);
+        this.updateEnemies(this.getAdjustedTime(time));
         this.checkCollisions();
         this.checkStageProgression();
       }
       
       this.updateStars();
-      this.updateItems(time);
+      this.updateItems(this.getAdjustedTime(time));
       this.checkItemCollisions();
+    }
+
+    private togglePause(time: number) {
+      this.isPaused = !this.isPaused;
+      
+      if (this.isPaused) {
+        // 일시정지 시작
+        this.pauseStartTime = time;
+        this.pauseText?.setVisible(true);
+        console.log('🎮 Game Paused');
+      } else {
+        // 일시정지 해제
+        const pauseDuration = time - this.pauseStartTime;
+        this.totalPauseTime += pauseDuration;
+        this.pauseText?.setVisible(false);
+        console.log(`🎮 Game Resumed (Paused for ${Math.floor(pauseDuration/1000)}s)`);
+      }
+    }
+
+    private getAdjustedTime(currentTime: number): number {
+      // 현재 일시정지 중이라면 pauseStartTime을 반환
+      if (this.isPaused) {
+        return this.pauseStartTime - this.totalPauseTime;
+      }
+      // 일시정지 시간을 제외한 실제 게임 시간 반환
+      return currentTime - this.totalPauseTime;
     }
 
     private createStars() {
@@ -301,67 +376,73 @@
     }
 
     private resetGame() {
-      this.score = 0;
+      // 플레이어 초기화
       this.lives = 3;
-      this.maxLives = 3;
+      this.score = 0;
       this.stage = 1;
       this.level = 1;
+      this.enemiesKilledThisStage = 0; // 스테이지별 적 처치 수 초기화
+      this.stageStartTime = this.time.now; // 스테이지 시작 시간 설정
+
+      // 게임 상태 초기화
       this.gameOver = false;
-      this.enemySpawnTimer = 0;
-      this.itemSpawnTimer = 0;
       this.isBossStage = false;
       this.isStageTransition = false;
       
-      // 아이템별 타이머 초기화
+      // 일시정지 시스템 초기화
+      this.isPaused = false;
+      this.pauseStartTime = 0;
+      this.totalPauseTime = 0;
+      this.pauseText?.setVisible(false);
+      
+      // 무기 및 아이템 상태 초기화
+      this.bulletUpgrade = 1;
+      this.ultimateCount = 0;
+      this.hasShield = false;
+      this.isCharging = false;
+      this.chargeStartTime = 0;
+      this.playerBlinkTimer = 0;
+
+      // 그룹들 초기화
+      this.enemies?.clear(true, true);
+      this.bullets?.clear(true, true);
+      this.stars?.clear(true, true);
+      this.bossBullets?.clear(true, true);
+      this.items?.clear(true, true);
+
+      // 보스 제거
+      if (this.boss) {
+        this.boss.destroy();
+        this.boss = null;
+      }
+
+      // 보스 관련 초기화
+      this.bossCurrentHealth = 0;
+      this.bossMaxHealth = 0;
+      this.bossDirection = 1;
+      this.bossLastShot = 0;
+
+      // 아이템 타이머 초기화
       this.bulletUpgradeTimer = 0;
       this.ultimateTimer = 0;
       this.healthTimer = 0;
       this.shieldTimer = 0;
-      
-      // 첫 스폰 시간 초기화 (resetGame 호출 시점에서는 아직 정확한 시간을 알 수 없음)
       this.bulletUpgradeTimerNextSpawn = 0;
       this.ultimateTimerNextSpawn = 0;
       this.healthTimerNextSpawn = 0;
       this.shieldTimerNextSpawn = 0;
-      
-      // 새로운 게임 시스템 초기화
-      this.bulletUpgrade = 1;
-      this.ultimateCount = 0;
-      this.hasShield = false;
-      
-      // 차지 어택 시스템 초기화
-      this.isCharging = false;
-      this.chargeStartTime = 0;
-      this.playerBlinkTimer = 0;
-      
-      // 그래픽 객체 정리
-      this.shieldGraphics?.destroy();
-      this.shieldGraphics = null;
-      this.chargeEffect?.destroy();
-      this.chargeEffect = null;
-      
-      // UI 업데이트
+
+      // UI 텍스트 업데이트
       this.scoreText?.setText('Score: 0');
-      this.updateLivesDisplay();
+      this.livesText?.setText('');
       this.stageText?.setText('Stage: 1');
-      this.bossHealthText?.setVisible(false);
+      this.updateLivesDisplay();
       this.updateItemsDisplay();
 
-      // 아이템 설명 UI 초기화
-      this.itemDescriptionUI?.setText('Active Items: 0\n🟢BULLET+ | 🔴ULTIMATE | 🔵HEALTH+ | 🟡SHIELD - Spawning...');
+      // 별 생성
+      this.createStars();
 
-      // 플레이어 위치 리셋 (좌측)
-      if (this.player) {
-        this.player.setPosition(100, GAME_HEIGHT / 2);
-        this.player.setVisible(true);
-      }
-
-      // 게임 오브젝트들 정리
-      this.bullets?.clear(true, true);
-      this.enemies?.clear(true, true);
-      this.bossBullets?.clear(true, true);
-      this.items?.clear(true, true);
-      this.clearBoss();
+      console.log('Game reset successfully');
     }
 
     private handleInput(time: number) {
@@ -383,9 +464,15 @@
       // 차지 어택 시스템 개선
       if (this.spaceKey?.isDown) {
         if (!this.isCharging) {
-          // 차지 시작
+          // 차지 시작 + 즉시 첫 번째 총알 발사
           this.isCharging = true;
           this.chargeStartTime = time;
+          
+          // 즉시 일반 총알 발사 (딜레이 없이)
+          if (time > this.lastFired + 150) { // 0.15초 간격 유지
+            this.fireBullet();
+            this.lastFired = time;
+          }
         }
       } else if (this.isCharging) {
         // 스페이스 키를 떼었을 때
@@ -393,9 +480,6 @@
         
         if (chargeDuration >= 2000) { // 2초 이상 충전했으면 차지 어택
           this.fireChargedBullet();
-        } else if (time > this.lastFired + 150) { // 일반 발사 (0.15초 간격)
-          this.fireBullet();
-          this.lastFired = time;
         }
         
         this.isCharging = false;
@@ -511,10 +595,8 @@
       this.graphics.closePath();
       this.graphics.fillPath();
 
-      // 보호막 시각 효과 업데이트
-      if (this.hasShield) {
-        this.updateShieldVisual();
-      }
+      // 보호막 시각 효과 업데이트 (상태에 관계없이 항상 체크)
+      this.updateShieldVisual();
 
       // 플레이어 깜빡임 효과 (무적 시간)
       if (this.playerBlinkTimer > 0) {
@@ -857,11 +939,30 @@
         itemDescriptions.push(`${itemIcon}${itemName}${countInfo}:${timerInfo}`);
       });
 
-      // 최종 UI 텍스트 구성 - 2줄로 표시
+      // 최종 UI 텍스트 구성 - 3줄로 표시 (스테이지 진행률 포함)
       const totalInfo = `Active Items: ${totalActiveItems}`;
       const itemsInfo = itemDescriptions.join(' | ');
       
-      this.itemDescriptionUI.setText(`${totalInfo}\n${itemsInfo}`);
+      // 스테이지 진행률 정보 추가 (보스 스테이지가 아닐 때만)
+      let stageProgressInfo = '';
+      if (!this.isBossStage && !this.isStageTransition) {
+        const requiredScore = this.stage * 500;
+        const stageEnemiesRequired = Math.max(10, this.stage * 5);
+        const timeSinceStageStart = this.time.now - this.stageStartTime;
+        const timeRemaining = Math.max(0, this.minStageTime - timeSinceStageStart);
+        
+        const scoreProgress = `${this.score}/${requiredScore}`;
+        const enemyProgress = `${this.enemiesKilledThisStage}/${stageEnemiesRequired}`;
+        const timeProgress = timeRemaining > 0 ? `${Math.ceil(timeRemaining/1000)}s` : 'OK';
+        
+        stageProgressInfo = `🏆 Boss: Score:${scoreProgress} | Enemies:${enemyProgress} | Time:${timeProgress}`;
+      }
+      
+      const finalText = stageProgressInfo 
+        ? `${totalInfo}\n${itemsInfo}\n${stageProgressInfo}`
+        : `${totalInfo}\n${itemsInfo}`;
+      
+      this.itemDescriptionUI.setText(finalText);
     }
 
     private updateShieldEffect(item: Phaser.GameObjects.Rectangle) {
@@ -900,6 +1001,7 @@
         
         if (enemyObj.getData('health') <= 0) {
           this.score += 50;
+          this.enemiesKilledThisStage++; // 적 처치 카운터 증가
           this.enemies?.remove(enemyObj);
           enemyObj.destroy();
           this.createExplosion(enemyObj.x, enemyObj.y);
@@ -942,8 +1044,8 @@
       const totalChargedBullets = baseChargedBullets + upgradeBonusBullets;
       
       // 탄 강화 레벨에 따른 데미지 증가
-      const baseDamage = 5;
-      const upgradeDamageBonus = this.bulletUpgrade * 2; // 레벨당 +2 데미지
+      const baseDamage = 3; // 5에서 3으로 감소
+      const upgradeDamageBonus = this.bulletUpgrade * 1; // 레벨당 +1 데미지 (기존 +2에서 감소)
       const chargedDamage = baseDamage + upgradeDamageBonus;
       
       // 탄 강화 레벨에 따른 총알 크기 증가
@@ -1156,9 +1258,28 @@
       }
 
       const requiredScore = this.stage * 500; // 스테이지마다 500점 필요 (증가)
-      if (this.score >= requiredScore) {
-        console.log(`Score threshold reached for stage ${this.stage + 1}. Starting boss stage.`);
+      const timeSinceStageStart = this.time.now - this.stageStartTime;
+      const stageEnemiesRequired = Math.max(10, this.stage * 5); // 스테이지별 최소 적 처치 수 (스테이지 1: 10마리, 스테이지 2: 15마리...)
+
+      // 보스 등장 조건: 1) 점수 조건 만족 2) 최소 적 처치 수 만족 3) 최소 시간 경과
+      const scoreCondition = this.score >= requiredScore;
+      const enemyCondition = this.enemiesKilledThisStage >= stageEnemiesRequired;
+      const timeCondition = timeSinceStageStart >= this.minStageTime;
+      
+      if (scoreCondition && enemyCondition && timeCondition) {
+        console.log(`🏆 Boss conditions met for stage ${this.stage}:`);
+        console.log(`  - Score: ${this.score}/${requiredScore} ✓`);
+        console.log(`  - Enemies killed: ${this.enemiesKilledThisStage}/${stageEnemiesRequired} ✓`);
+        console.log(`  - Time elapsed: ${Math.floor(timeSinceStageStart/1000)}s/${Math.floor(this.minStageTime/1000)}s ✓`);
         this.startBossStage();
+      } else {
+        // 진행률 로그 (디버깅용)
+        if (this.time.now % 3000 < 16) { // 3초마다 한 번씩 출력
+          console.log(`📊 Stage ${this.stage} progress:`);
+          console.log(`  - Score: ${this.score}/${requiredScore} ${scoreCondition ? '✓' : '✗'}`);
+          console.log(`  - Enemies: ${this.enemiesKilledThisStage}/${stageEnemiesRequired} ${enemyCondition ? '✓' : '✗'}`);
+          console.log(`  - Time: ${Math.floor(timeSinceStageStart/1000)}s/${Math.floor(this.minStageTime/1000)}s ${timeCondition ? '✓' : '✗'}`);
+        }
       }
     }
 
@@ -1485,7 +1606,13 @@
       this.isStageTransition = true;
       this.stageTransitionTimer = this.time.now + 2000; // 2초 대기
       
+      // 새 스테이지 초기화
+      this.enemiesKilledThisStage = 0; // 적 처치 수 리셋
+      this.stageStartTime = this.time.now + 2000; // 스테이지 전환 후 시작 시간 설정
+      
       this.stageText?.setText(`Stage: ${this.stage}`);
+      
+      console.log(`🚀 Advancing to Stage ${this.stage}. Reset enemy kills and stage timer.`);
       
       // 스테이지 클리어 메시지
       const stageCompleteText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2, `STAGE ${this.stage - 1} COMPLETE!`, {
@@ -1585,6 +1712,11 @@
     private endGame() {
       this.gameOver = true;
 
+      // 랭킹 등록 모달 호출
+      if (this.onGameEnd) {
+        this.onGameEnd(this.score);
+      }
+
       // 게임 오버 오버레이
       const overlay = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.7);
 
@@ -1683,6 +1815,10 @@
             
             enemyObj.setData('health', newHealth);
             
+            // 적 맞은 모션 + 넉백 효과 추가
+            this.createEnemyHitEffect(enemyObj.x, enemyObj.y, damage);
+            this.createEnemyKnockback(enemyObj, damage);
+            
             // 총알 제거
             if (this.bullets) {
               this.bullets.remove(bulletObj);
@@ -1692,9 +1828,11 @@
             // 적 처치
             if (newHealth <= 0) {
               this.score += 25 * this.stage; // 스테이지별 점수 증가
+              this.enemiesKilledThisStage++; // 적 처치 카운터 증가
               this.scoreText?.setText(`Score: ${this.score}`);
               
               if (this.enemies) {
+                this.enemiesKilledThisStage++; // 적 처치 카운터 증가 (플레이어 충돌)
                 this.enemies.remove(enemyObj);
                 enemyObj.destroy();
                 this.createExplosion(enemyObj.x, enemyObj.y);
@@ -1726,6 +1864,7 @@
           
           // 적 제거
           if (this.enemies) {
+            this.enemiesKilledThisStage++; // 적 처치 카운터 증가 (플레이어 충돌)
             this.enemies.remove(enemyObj);
             enemyObj.destroy();
             this.createExplosion(enemyObj.x, enemyObj.y);
@@ -1738,45 +1877,7 @@
         }
       });
 
-      // 보스 미사일과 플레이어 충돌 (보스 스테이지일 때만)
-      if (this.isBossStage && this.bossBullets) {
-        this.bossBullets.children.entries.forEach(bullet => {
-          const bulletObj = bullet as Phaser.GameObjects.Rectangle;
-          
-          if (this.player && Phaser.Geom.Rectangle.Overlaps(this.player.getBounds(), bulletObj.getBounds())) {
-            // 보호막이 있으면 보호막만 제거
-            if (this.hasShield) {
-              this.hasShield = false;
-              this.shieldGraphics?.destroy();
-              this.shieldGraphics = null;
-              this.updateItemsDisplay();
-            } else {
-              // 플레이어 라이프 감소
-              this.lives--;
-              this.updateLivesDisplay();
-              
-              // 무적 시간
-              this.playerBlinkTimer = 60;
-            }
-            
-            // 미사일 제거
-            if (this.bossBullets) {
-              this.bossBullets.remove(bulletObj);
-              bulletObj.destroy();
-            }
-            
-            // 폭발 이펙트
-            if (this.player) {
-              this.createExplosion(this.player.x, this.player.y);
-            }
-            
-            // 게임 오버 체크
-            if (this.lives <= 0) {
-              this.endGame();
-            }
-          }
-        });
-      }
+      // 보스 미사일과 플레이어 충돌은 이제 checkBossCollisions()에서 처리됨
     }
 
     private checkBossCollisions() {
@@ -1812,6 +1913,45 @@
           if (this.boss && this.bossCurrentHealth <= 0) {
             this.defeatBoss();
             return; // 보스가 처치되면 더 이상 충돌 체크하지 않음
+          }
+        }
+      });
+
+      // 보스 미사일과 플레이어 충돌 (⚠️ 이 부분이 누락되어 있었음!)
+      this.bossBullets.children.entries.forEach(bullet => {
+        const bulletObj = bullet as Phaser.GameObjects.Rectangle;
+        
+        if (this.player && Phaser.Geom.Rectangle.Overlaps(this.player.getBounds(), bulletObj.getBounds())) {
+          // 보호막이 있으면 보호막만 제거
+          if (this.hasShield) {
+            this.hasShield = false;
+            this.shieldGraphics?.destroy();
+            this.shieldGraphics = null;
+            this.updateItemsDisplay();
+            console.log('🛡️ Shield destroyed by boss missile!');
+          } else {
+            // 플레이어 라이프 감소
+            this.lives--;
+            this.updateLivesDisplay();
+            
+            // 무적 시간
+            this.playerBlinkTimer = 60;
+          }
+          
+          // 미사일 제거
+          if (this.bossBullets) {
+            this.bossBullets.remove(bulletObj);
+            bulletObj.destroy();
+          }
+          
+          // 폭발 이펙트
+          if (this.player) {
+            this.createExplosion(this.player.x, this.player.y);
+          }
+          
+          // 게임 오버 체크
+          if (this.lives <= 0) {
+            this.endGame();
           }
         }
       });
@@ -1856,6 +1996,15 @@
           if (!this.hasShield) { // 이미 보호막이 있으면 무시
             this.hasShield = true;
             this.createShieldEffect();
+            this.updateItemsDisplay(); // 즉시 UI 업데이트
+            this.createShieldActivationEffect(); // 즉시 시각적 피드백
+            
+            // 쉴드 즉시 렌더링 강제 실행
+            if (this.shieldGraphics) {
+              this.updateShieldVisual();
+            }
+            
+            console.log('🛡️ Shield item collected - activated instantly!');
           }
           break;
       }
@@ -1877,17 +2026,43 @@
     }
 
     private createShieldEffect() {
+      // 기존 쉴드 그래픽스 제거 (더 빠른 처리)
       if (this.shieldGraphics) {
         this.shieldGraphics.destroy();
+        this.shieldGraphics = null;
       }
       
+      // 즉시 새 쉴드 그래픽스 생성
       this.shieldGraphics = this.add.graphics();
+      
+      // 즉시 쉴드 표시
       this.updateShieldVisual();
+      
+      console.log('🛡️ Shield activated instantly!');
     }
 
     private updateShieldVisual() {
-      if (!this.shieldGraphics || !this.player) return;
+      // 쉴드가 없거나 플레이어가 없으면 즉시 리턴
+      if (!this.player) return;
+      
+      // 쉴드 그래픽스가 없고 쉴드가 활성화되어 있으면 즉시 생성
+      if (!this.shieldGraphics && this.hasShield) {
+        this.shieldGraphics = this.add.graphics();
+      }
+      
+      // 쉴드가 비활성화되어 있으면 그래픽스 제거
+      if (!this.hasShield) {
+        if (this.shieldGraphics) {
+          this.shieldGraphics.destroy();
+          this.shieldGraphics = null;
+        }
+        return;
+      }
+      
+      // 쉴드 그래픽스가 여전히 없으면 리턴
+      if (!this.shieldGraphics) return;
 
+      // 쉴드 시각 효과 렌더링
       this.shieldGraphics.clear();
       
       const shieldRadius = 30;
@@ -2309,7 +2484,7 @@
 
       // 보스 타격 시 시각적 효과
       const hitSize = Math.max(10, Math.min(20, damage * 8));
-      const hitColor = damage >= 5 ? 0x00ffff : 0xffff00; // 차지 어택은 청록색, 일반은 노란색
+      const hitColor = damage >= 3 ? 0x00ffff : 0xffff00; // 차지 어택은 청록색, 일반은 노란색 (3으로 조정)
       
       // 타격 폭발 효과
       const hitEffect = this.add.circle(x, y, hitSize, hitColor, 0.8);
@@ -2352,7 +2527,7 @@
       // 데미지 텍스트 표시
       const damageText = this.add.text(x, y - 30, `-${damage}`, {
         fontSize: Math.max(14, Math.min(20, damage * 4)) + 'px',
-        color: damage >= 5 ? '#00ffff' : '#ffff00',
+        color: damage >= 3 ? '#00ffff' : '#ffff00',
         fontFamily: 'Courier New, monospace',
         stroke: '#000000',
         strokeThickness: 2,
@@ -2378,9 +2553,179 @@
         }
       });
     }
+
+    private createShieldActivationEffect() {
+      if (!this.player) return;
+      
+      // 쉴드 활성화 즉시 시각적 임팩트 효과
+      const activationEffect = this.add.graphics();
+      
+      // 밝은 원형 플래시 효과
+      const flashRadius = 50;
+      activationEffect.fillStyle(0x00ff88, 0.8);
+      activationEffect.fillCircle(this.player.x, this.player.y, flashRadius);
+      
+      // 확장되는 에너지 링
+      for (let i = 0; i < 3; i++) {
+        const ringRadius = 20 + (i * 15);
+        activationEffect.lineStyle(4 - i, 0x00ffaa, 0.9 - (i * 0.2));
+        activationEffect.strokeCircle(this.player.x, this.player.y, ringRadius);
+      }
+      
+      // 빠른 애니메이션으로 효과 확장 후 사라짐
+      this.tweens.add({
+        targets: activationEffect,
+        scaleX: 2,
+        scaleY: 2,
+        alpha: 0,
+        duration: 300,
+        ease: 'Power2',
+        onComplete: () => {
+          activationEffect.destroy();
+        }
+      });
+      
+      // 작은 파티클 효과
+      for (let i = 0; i < 8; i++) {
+        const angle = (i * 45) * Math.PI / 180;
+        const distance = 25;
+        const particleX = this.player.x + Math.cos(angle) * distance;
+        const particleY = this.player.y + Math.sin(angle) * distance;
+        
+        const particle = this.add.graphics();
+        particle.fillStyle(0x44ff88, 1);
+        particle.fillCircle(0, 0, 3);
+        particle.setPosition(particleX, particleY);
+        
+        // 파티클이 바깥쪽으로 날아가며 사라짐
+        this.tweens.add({
+          targets: particle,
+          x: particleX + Math.cos(angle) * 40,
+          y: particleY + Math.sin(angle) * 40,
+          alpha: 0,
+          duration: 400,
+          ease: 'Power2',
+          onComplete: () => {
+            particle.destroy();
+          }
+        });
+      }
+    }
+
+    private createEnemyHitEffect(x: number, y: number, damage: number) {
+      if (!this.graphics) return;
+
+      // 적 맞은 모션 효과
+      const hitSize = Math.max(10, Math.min(20, damage * 8));
+      const hitColor = damage >= 3 ? 0x00ffff : 0xffff00; // 차지 어택은 청록색, 일반은 노란색 (3으로 조정)
+      
+      // 타격 폭발 효과
+      const hitEffect = this.add.circle(x, y, hitSize, hitColor, 0.8);
+      
+      // 타격 점 주변에 스파크 효과
+      for (let i = 0; i < 6; i++) {
+        const sparkAngle = (i * 60) * Math.PI / 180;
+        const sparkDistance = hitSize + Phaser.Math.Between(5, 15);
+        const sparkX = x + Math.cos(sparkAngle) * sparkDistance;
+        const sparkY = y + Math.sin(sparkAngle) * sparkDistance;
+        
+        const spark = this.add.circle(sparkX, sparkY, 3, 0xffffff, 0.9);
+        
+        // 스파크 애니메이션
+        this.tweens.add({
+          targets: spark,
+          scaleX: 0,
+          scaleY: 0,
+          alpha: 0,
+          duration: 300,
+          onComplete: () => {
+            spark.destroy();
+          }
+        });
+      }
+      
+      // 메인 타격 효과 애니메이션
+      this.tweens.add({
+        targets: hitEffect,
+        scaleX: 2,
+        scaleY: 2,
+        alpha: 0,
+        duration: 400,
+        ease: 'Power2',
+        onComplete: () => {
+          hitEffect.destroy();
+        }
+      });
+      
+      // 데미지 텍스트 표시
+      const damageText = this.add.text(x, y - 30, `-${damage}`, {
+        fontSize: Math.max(14, Math.min(20, damage * 4)) + 'px',
+        color: damage >= 3 ? '#00ffff' : '#ffff00',
+        fontFamily: 'Courier New, monospace',
+        stroke: '#000000',
+        strokeThickness: 2,
+        shadow: {
+          offsetX: 2,
+          offsetY: 2,
+          color: '#000000',
+          blur: 4,
+          stroke: true,
+          fill: true
+        }
+      }).setOrigin(0.5);
+      
+      // 데미지 텍스트 애니메이션
+      this.tweens.add({
+        targets: damageText,
+        y: y - 60,
+        alpha: 0,
+        duration: 1000,
+        ease: 'Power2',
+        onComplete: () => {
+          damageText.destroy();
+        }
+      });
+    }
+
+    private createEnemyKnockback(enemy: Phaser.GameObjects.Rectangle, damage: number) {
+      if (!this.player || !this.enemies) return;
+
+      const enemyObj = enemy as Phaser.GameObjects.Rectangle;
+      const originalX = enemyObj.x;
+      const enemyX = enemyObj.x;
+      const enemyY = enemyObj.y;
+      const playerX = this.player!.x;
+      const playerY = this.player!.y;
+
+      const knockbackDistance = 50;
+      const knockbackAngle = Phaser.Math.Angle.Between(playerX, playerY, enemyX, enemyY);
+
+      const knockbackX = playerX + Math.cos(knockbackAngle) * knockbackDistance;
+      const knockbackY = playerY + Math.sin(knockbackAngle) * knockbackDistance;
+
+      this.tweens.add({
+        targets: enemyObj,
+        x: knockbackX,
+        y: knockbackY,
+        duration: 200,
+        ease: 'Sine.easeInOut',
+        onComplete: () => {
+          enemyObj.setPosition(enemyX, enemyY);
+        }
+      });
+    }
+
+    // 콜백 설정 메서드
+    setGameEndCallback(callback: (score: number) => void) {
+      this.onGameEnd = callback;
+    }
   }
 
   onMount(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    
     // 게임 크기 조정
     adjustGameSize();
 
@@ -2404,36 +2749,75 @@
       }
     };
 
-    game = new Phaser.Game(config);
+    phaserGame = new Phaser.Game(config);
+
+    // Scene가 준비되면 콜백 설정
+    phaserGame.events.once('ready', () => {
+      const scene = phaserGame!.scene.getScene('SpaceScene') as SpaceScene;
+      if (scene && scene.setGameEndCallback) {
+        scene.setGameEndCallback(showRankingRegistration);
+      }
+    });
 
     // 리사이즈 이벤트 리스너 추가
     window.addEventListener('resize', handleResize);
 
     return () => {
-      if (game) {
-        game.destroy(true);
-        game = null;
+      if (phaserGame) {
+        phaserGame.destroy(true);
+        phaserGame = null;
       }
       window.removeEventListener('resize', handleResize);
     };
   });
 
   onDestroy(() => {
-    if (game) {
-      game.destroy(true);
-      game = null;
+    if (phaserGame) {
+      phaserGame.destroy(true);
+      phaserGame = null;
     }
     window.removeEventListener('resize', handleResize);
   });
+
+  // 랭킹 등록 모달 관련 변수
+  let showRankingModal = false;
+  let modalScore = 0;
+
+  // 랭킹 등록 모달 함수들
+  function showRankingRegistration(score: number) {
+    modalScore = score;
+    showRankingModal = true;
+  }
+
+  function handleRankingClose() {
+    showRankingModal = false;
+  }
+
+  function handleRankingSuccess() {
+    toast.success('🏆 랭킹 등록 완료!');
+  }
 </script>
 
+<!-- 게임 컨테이너 -->
 <div bind:this={gameContainer} class="w-full h-full bg-black" />
+
+<!-- 랭킹 등록 모달 -->
+<AddRankModal
+  bind:show={showRankingModal}
+  gameType="SpaceShootingGame"
+  gameDisplayName="Space Shooting Game"
+  score={modalScore}
+  mode={GAME_KIND_MODE.SPACE_SHOOTING_GAME}
+  initialUserId="guest"
+  onClose={handleRankingClose}
+  onSuccess={handleRankingSuccess}
+/>
 
 <style>
   /* 게임 컨테이너가 전체 공간을 차지하도록 설정 */
   :global(.w-full.h-full) {
     width: 100% !important;
     height: 100% !important;
-    min-height: 100%;
+    min-height: 100% !important;
   }
 </style>
