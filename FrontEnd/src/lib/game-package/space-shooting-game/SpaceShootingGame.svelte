@@ -8,8 +8,8 @@
   let gameContainer: HTMLDivElement;
   let phaserGame: Phaser.Game | null = null;
 
-  const STAGE_ENEMY_COUNT = 1;
-  const STAGE_SCORE_COUNT = 10;
+  const STAGE_ENEMY_COUNT = 10;
+  const STAGE_SCORE_COUNT = 500;
 
   // 게임 설정 (동적으로 조정될 예정)
   let GAME_WIDTH = 800;
@@ -66,6 +66,8 @@
     private lastFired: number = 0;
     private score: number = 0;
     private lives: number = 3;
+    private maxUltimate: number = 3;
+    private maxBullet: number = 5;
     private maxLives: number = 3; // 최대 체력
     private stage: number = 1;
     private scoreText: Phaser.GameObjects.Text | null = null;
@@ -188,23 +190,7 @@
         }
       });
 
-      this.livesText = this.add.text(20, 50, '', {
-        fontSize: Math.max(14, Math.min(20, GAME_WIDTH / 40)) + 'px',
-        color: '#ff3333',
-        fontFamily: 'Courier New, monospace',
-        stroke: '#330000',
-        strokeThickness: 2,
-        shadow: {
-          offsetX: 2,
-          offsetY: 2,
-          color: '#000000',
-          blur: 6,
-          stroke: true,
-          fill: true
-        }
-      });
-
-      this.stageText = this.add.text(20, 80, 'Stage: 1', {
+      this.stageText = this.add.text(20, 50, 'Stage: 1', {
         fontSize: Math.max(14, Math.min(20, GAME_WIDTH / 40)) + 'px',
         color: '#ffff00',
         fontFamily: 'Courier New, monospace',
@@ -235,29 +221,72 @@
           fill: true
         }
       }).setOrigin(0.5).setVisible(false);
+
+      this.livesText = this.add.text(20, 90, '', {
+        fontSize: Math.max(14, Math.min(20, GAME_WIDTH / 40)) + 'px',
+        color: '#ff3333', // 실제 라이프 아이템 메시지 색상 (#ff3333)
+        fontFamily: 'Courier New, monospace',
+        stroke: '#330000',
+        strokeThickness: 2,
+        shadow: {
+          offsetX: 2,
+          offsetY: 2,
+          color: '#000000',
+          blur: 6,
+          stroke: true,
+          fill: true
+        }
+      });
       
-      // Bullet UI (미사일 레벨 표시)  
-      this.bulletUI = this.add.text(20, 100, '', {
+      // Bullet UI (미사일 레벨 표시) - 실제 미사일 아이템 색상과 동일
+      this.bulletUI = this.add.text(20, 120, '', {
         fontSize: '18px',
-        color: '#00ffff',
-        fontFamily: 'Arial',
-        fontStyle: 'bold'
+        color: '#00ffff', // 실제 미사일 아이템 메시지 색상 (#00ffff, 청록색)
+        fontFamily: 'Courier New, monospace',
+        stroke: '#333300',
+        strokeThickness: 2,
+        shadow: {
+          offsetX: 2,
+          offsetY: 2,
+          color: '#000000',
+          blur: 6,
+          stroke: true,
+          fill: true
+        }
       });
 
-      // Ultimate UI (궁극기 표시)
-      this.ultimateUI = this.add.text(20, 130, '', {
+      // Ultimate UI (궁극기 표시) - 실제 궁극기 아이템 색상과 동일
+      this.ultimateUI = this.add.text(20, 150, '', {
         fontSize: '18px',
-        color: '#ff4444',
-        fontFamily: 'Arial',
-        fontStyle: 'bold'
+        color: '#ff6600', // 실제 궁극기 아이템 메시지 색상 (#ff6600, 주황색)
+        fontFamily: 'Courier New, monospace',
+        stroke: '#333300',
+        strokeThickness: 2,
+        shadow: {
+          offsetX: 2,
+          offsetY: 2,
+          color: '#000000',
+          blur: 6,
+          stroke: true,
+          fill: true
+        }
       });
 
-      // Shield UI (쉴드 표시)
-      this.shieldUI = this.add.text(20, 155, '', {
+      // Shield UI (쉴드 표시) - 실제 쉴드 아이템 색상과 동일
+      this.shieldUI = this.add.text(20, 180, '', {
         fontSize: '18px',
-        color: '#00ffff',
-        fontFamily: 'Arial',
-        fontStyle: 'bold'
+        color: '#00ff00', // 실제 쉴드 아이템 메시지 색상 (#00ff00, 초록색)
+        fontFamily: 'Courier New, monospace',
+        stroke: '#333300',
+        strokeThickness: 2,
+        shadow: {
+          offsetX: 2,
+          offsetY: 2,
+          color: '#000000',
+          blur: 6,
+          stroke: true,
+          fill: true
+        }
       });
 
       // 아이템 설명 UI (하단)
@@ -1062,8 +1091,8 @@
       // 스테이지 진행률 정보 추가 (보스 스테이지가 아닐 때만)
       let stageProgressInfo = '';
       if (!this.isBossStage && !this.isStageTransition) {
-        const requiredScore = this.stage === 1 ? STAGE_SCORE_COUNT : this.stage * STAGE_SCORE_COUNT; // 실제 보스전 진입 조건과 동일하게 수정
-        const stageEnemiesRequired = Math.max(STAGE_ENEMY_COUNT, this.stage * STAGE_ENEMY_COUNT);
+        const requiredScore = this.stage === 1 ? STAGE_SCORE_COUNT : (this.stage * STAGE_SCORE_COUNT) + 500; // 스테이지 별 최소 점수
+        const stageEnemiesRequired = Math.max(STAGE_ENEMY_COUNT, this.stage * STAGE_ENEMY_COUNT); // 스테이지별 최소 적 처치 수
         const timeSinceStageStart = this.time.now - this.stageStartTime;
         const timeRemaining = Math.max(0, this.minStageTime - timeSinceStageStart);
         
@@ -1079,28 +1108,6 @@
         : `${totalInfo}\n${itemsInfo}`;
       
       this.itemDescriptionUI.setText(finalText);
-    }
-
-    private updateShieldEffect(item: Phaser.GameObjects.Rectangle) {
-      if (!this.player || !this.shieldGraphics) return;
-
-      const itemDuration = item.getData('duration');
-      if (this.time.now > itemDuration) {
-        this.hasShield = false;
-        this.shieldGraphics.destroy();
-        this.shieldGraphics = null;
-        item.destroy();
-        return;
-      }
-
-      this.shieldGraphics.clear();
-      this.shieldGraphics.fillStyle(0x00ff00); // 초록색
-      this.shieldGraphics.beginPath();
-      this.shieldGraphics.moveTo(this.player!.x - 15, this.player!.y - 10);
-      this.shieldGraphics.lineTo(this.player!.x - 15 - 10, this.player!.y);
-      this.shieldGraphics.lineTo(this.player!.x - 15, this.player!.y + 10);
-      this.shieldGraphics.closePath();
-      this.shieldGraphics.fillPath();
     }
 
     private useUltimate() {
@@ -1462,16 +1469,25 @@
     private updateItemsDisplay() {
       // 궁극기 표시 - 보유 개수만큼 불꽃 아이콘 표시
       let ultDisplay = 'Ultimate: ';
-      for (let i = 0; i < this.ultimateCount; i++) {
-        ultDisplay += '🔥';
+
+      for (let i = 0; i < this.maxUltimate; i++) {
+        if (i < this.ultimateCount) {
+          ultDisplay += '🔥 ';
+        } else {
+          ultDisplay += '☉ ';
+        }
       }
       this.ultimateUI?.setText(ultDisplay);
       this.ultimateUI?.setVisible(true);
       
       // 미사일 레벨 표시 - 레벨만큼 미사일 아이콘 표시
-      let bulletDisplay = 'Lv. ●';
-      for (let i = 1; i < this.bulletUpgrade; i++) {
-        bulletDisplay += '●';
+      let bulletDisplay = 'Lv: ';
+      for (let i = 0; i < this.maxBullet; i++) {
+        if (i < this.bulletUpgrade) {
+          bulletDisplay += '⚡ ';
+        } else {
+          bulletDisplay += '☉ ';
+        }
       }
       this.bulletUI?.setText(bulletDisplay);
       this.bulletUI?.setVisible(true);
@@ -1490,11 +1506,10 @@
       let livesDisplay = 'LIVES: ';
       for (let i = 0; i < this.maxLives; i++) {
         if (i < this.lives) {
-          livesDisplay += '🚀'; // 살아있는 라이프
+          livesDisplay += '🚀 '; // 살아있는 라이프
         } else {
-          // livesDisplay += '💥'; // 잃은 라이프
+          livesDisplay += '☉ '; // 잃은 라이프
         }
-        if (i < this.maxLives - 1) livesDisplay += ' ';
       }
       this.livesText?.setText(livesDisplay);
     }
@@ -1506,8 +1521,8 @@
       }
 
       // 스테이지별 필요 점수 대폭 상향 조정
-      const requiredScore = this.stage === 1 ? STAGE_SCORE_COUNT : this.stage * STAGE_SCORE_COUNT; // 1스테이지: 500점, 2스테이지: 1500점, 3스테이지: 2250점 등
-      const stageEnemiesRequired = Math.max(STAGE_ENEMY_COUNT, this.stage * STAGE_ENEMY_COUNT); // 스테이지별 최소 적 처치 수 (스테이지 1: 10마리, 스테이지 2: 20마리...)
+      const requiredScore = this.stage === 1 ? STAGE_SCORE_COUNT : (this.stage * STAGE_SCORE_COUNT) + 500; // 스테이지 별 최소 점수
+      const stageEnemiesRequired = Math.max(STAGE_ENEMY_COUNT, this.stage * STAGE_ENEMY_COUNT); // 스테이지별 최소 적 처치 수
 
       // 보스 등장 조건: 1) 점수 조건 만족 2) 최소 적 처치 수 만족 (시간 조건 제거)
       const scoreCondition = this.score >= requiredScore;
@@ -2269,7 +2284,7 @@
       
       switch (type) {
         case 'bulletUpgrade':
-          if (this.bulletUpgrade < 5) { // 최대 5레벨
+          if (this.bulletUpgrade < this.maxBullet) { // 최대 5레벨
             this.bulletUpgrade++;
             this.showItemMessage(`🚀 Missile Level ${this.bulletUpgrade}!`, '#00ffff');
             console.log(`🚀 Bullet upgraded to level ${this.bulletUpgrade}`);
@@ -2279,9 +2294,9 @@
           break;
           
         case 'ultimate':
-          if (this.ultimateCount < 3) { // 최대 3개
+          if (this.ultimateCount < this.maxUltimate) { // 최대 3개
             this.ultimateCount++;
-            this.showItemMessage(`⚡ Ultimate +1 (${this.ultimateCount}/3)!`, '#ff6600');
+            this.showItemMessage(`⚡ Ultimate +1 (${this.ultimateCount}/${this.maxUltimate})!`, '#ff6600');
             console.log(`⚡ Ultimate count: ${this.ultimateCount}`);
           } else {
             this.showItemMessage('⚡ Ultimate Full!', '#ffff00');
