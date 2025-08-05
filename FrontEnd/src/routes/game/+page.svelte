@@ -80,7 +80,7 @@
       setTimeout(() => {
         currentScreen = 'menu';
         showGameScreen = false;
-        selectedGame = null;
+    selectedGame = null;
         
         // 타이머 정리
         if (gameExpandTimer) {
@@ -228,8 +228,8 @@
               {#each Array(12) as _, i}
                 <div class="speaker-hole" style="animation-delay: {i * 0.1 + 0.6}s;"></div>
               {/each}
-            </div>
-          </div>
+        </div>
+      </div>
         </div>
         
         <!-- 모니터 영역 -->
@@ -260,7 +260,7 @@
                     <p class="menu-subtitle crt-text">
                       SELECT YOUR GAME
                     </p>
-                  </div>
+      </div>
 
                   <!-- CD 게임 선택 영역 -->
                   <div class="cd-selection-area">
@@ -270,36 +270,36 @@
                       <!-- svelte-ignore a11y-no-static-element-interactions -->
                       <div class="scroll-button left" on:click={() => scrollCDs('left')}>
                         <div class="scroll-arrow">◀</div>
-                      </div>
+    </div>
                     {/if}
-                    
+
                     <!-- CD 컨테이너 -->
                     <div class="cd-container" bind:this={cdContainer}>
-                      {#each gameList as game}
-                        <!-- svelte-ignore a11y-click-events-have-key-events -->
-                        <!-- svelte-ignore a11y-no-static-element-interactions -->
-                        <div 
+      {#each gameList as game}
+        <!-- svelte-ignore a11y-click-events-have-key-events -->
+        <!-- svelte-ignore a11y-no-static-element-interactions -->
+        <div 
                           class="cd-case"
-                          on:click={() => selectGame(game)}
+          on:click={() => selectGame(game)}
                         >
                           <!-- CD 디스크 -->
                           <div class="cd-disc {game.color}">
                             <!-- CD 중앙 홀 -->
                             <div class="cd-hole"></div>
-                            
-                            <!-- CD 반사 효과 -->
+            
+            <!-- CD 반사 효과 -->
                             <div class="cd-reflection"></div>
                             <div class="cd-shine"></div>
-                            
-                            <!-- 게임 아이콘 -->
+            
+            <!-- 게임 아이콘 -->
                             <div class="game-icon">
-                              {game.icon}
-                            </div>
-                            
+              {game.icon}
+            </div>
+            
                             <!-- CD 회전 라인들 -->
                             <div class="cd-lines"></div>
-                          </div>
-                          
+          </div>
+          
                           <!-- CD 레이블 -->
                           <div class="cd-label">
                             <h3 class="game-title crt-text">{game.name}</h3>
@@ -307,8 +307,8 @@
                           </div>
                         </div>
                       {/each}
-                    </div>
-                    
+          </div>
+          
                     <!-- 우측 스크롤 버튼 -->
                     {#if canScrollRight}
                       <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -316,8 +316,8 @@
                       <div class="scroll-button right" on:click={() => scrollCDs('right')}>
                         <div class="scroll-arrow">▶</div>
                       </div>
-                    {/if}
-                  </div>
+          {/if}
+        </div>
 
                   <!-- 하단 안내 -->
                   <div class="menu-footer">
@@ -325,8 +325,8 @@
                       🎮 CLICK CD TO START GAME • ESC TO EXIT 🎮
                     </p>
                   </div>
-                </div>
-                
+    </div>
+
               {:else if currentScreen === 'game' && selectedGame}
                 <!-- 게임 플레이 화면 -->
                 <div class="game-screen relative">
@@ -350,26 +350,26 @@
                         </div>
                         <p class="expansion-text crt-text">
                           PREPARING FULL SCREEN...
-                        </p>
-                      </div>
-                    </div>
+      </p>
+    </div>
+  </div>
                   </div>
                 </div>
               {/if}
-              
+
               <!-- 모니터 내부 로딩 오버레이 -->
-              {#if isGameLoading}
+  {#if isGameLoading}
                 <div class="monitor-loading-overlay">
                   <div class="loading-content">
                     <div class="loading-spinner">
                       <div class="spinner-ring"></div>
-                    </div>
+        </div>
                     <p class="loading-text crt-text">
                       LOADING GAME...
-                    </p>
-                  </div>
-                </div>
-              {/if}
+        </p>
+      </div>
+    </div>
+  {/if}
             </div>
           </div>
         </div>
@@ -401,16 +401,16 @@
                 <div class="joystick-base"></div>
                 <div class="joystick-stick"></div>
               </div>
-            </div>
-            
+        </div>
+        
             <!-- 버튼 영역 -->
             <div class="button-area">
               <div class="buttons-grid">
                 <div class="action-button red" data-label="A"></div>
                 <div class="action-button blue" data-label="B"></div>
-              </div>
-            </div>
-            
+          </div>
+        </div>
+        
             <!-- 시스템 버튼들 -->
             <div class="system-buttons">
               <div class="coin-slot">
@@ -465,10 +465,10 @@
                 <div class="start-countdown">
                   <div class="countdown-spinner"></div>
                   <p class="countdown-text">STARTING GAME...</p>
-                </div>
-              </div>
-            </div>
-          {/if}
+        </div>
+      </div>
+    </div>
+  {/if}
         </div>
       </div>
     {/if}
@@ -2134,7 +2134,7 @@
       max-width: 1400px;
     }
   }
-
+  
   /* 사용자 정의 스크롤바 */
   :global(::-webkit-scrollbar) {
     width: 8px;

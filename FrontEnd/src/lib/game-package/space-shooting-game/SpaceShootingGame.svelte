@@ -47,6 +47,7 @@
     private player: Phaser.GameObjects.Rectangle | null = null;
     private bullets: Phaser.GameObjects.Group | null = null;
     private enemies: Phaser.GameObjects.Group | null = null;
+    private enemyBullets: Phaser.GameObjects.Group | null = null; // 적 미사일 그룹 추가
     private stars: Phaser.GameObjects.Group | null = null;
     private boss: Phaser.GameObjects.Rectangle | null = null;
     private bossBullets: Phaser.GameObjects.Group | null = null;
@@ -68,14 +69,16 @@
     private scoreText: Phaser.GameObjects.Text | null = null;
     private livesText: Phaser.GameObjects.Text | null = null;
     private stageText: Phaser.GameObjects.Text | null = null;
-    private gameOverText: Phaser.GameObjects.Text | null = null;
+    private gameOverText: Phaser.GameObjects.Text | null = null; // linter 에러 수정을 위해 다시 추가
     private bossHealthBar: Phaser.GameObjects.Graphics | null = null;
     private bossHealthText: Phaser.GameObjects.Text | null = null;
-    private itemsUI: Phaser.GameObjects.Text | null = null; // 아이템 상태 표시
+    private ultimateUI: Phaser.GameObjects.Text | null = null; // 궁극기 상태 표시
+    private bulletUI: Phaser.GameObjects.Text | null = null; // 미사일 업그레이드 상태 표시
+    private shieldUI: Phaser.GameObjects.Text | null = null; // 쉴드 상태 표시
+    private pauseText: Phaser.GameObjects.Text | null = null;
     private itemDescriptionUI: Phaser.GameObjects.Text | null = null; // 아이템 설명 UI
     private gameOver: boolean = false;
     private enemySpawnTimer: number = 0;
-    private itemSpawnTimer: number = 0; // 아이템 생성 타이머 (레거시)
     
     // 아이템별 독립적인 타이머 시스템
     private bulletUpgradeTimer: number = 0;
@@ -123,7 +126,6 @@
     private isPaused: boolean = false;
     private pauseStartTime: number = 0;
     private totalPauseTime: number = 0;
-    private pauseText: Phaser.GameObjects.Text | null = null;
 
     constructor() {
       super({ key: 'SpaceScene' });
@@ -153,6 +155,7 @@
       this.enemies = this.add.group();
       this.bossBullets = this.add.group();
       this.items = this.add.group(); // 아이템 그룹 추가
+      this.enemyBullets = this.add.group(); // 적 미사일 그룹 추가
 
       // 키보드 입력 설정
       this.cursors = this.input.keyboard?.createCursorKeys() || null;
@@ -228,22 +231,30 @@
           fill: true
         }
       }).setOrigin(0.5).setVisible(false);
-
-      this.itemsUI = this.add.text(GAME_WIDTH - 150, 20, '', {
-        fontSize: Math.max(14, Math.min(20, GAME_WIDTH / 40)) + 'px',
+      
+      // Bullet UI (미사일 레벨 표시)  
+      this.bulletUI = this.add.text(20, 100, '', {
+        fontSize: '18px',
         color: '#00ffff',
-        fontFamily: 'Courier New, monospace',
-        stroke: '#003333',
-        strokeThickness: 2,
-        shadow: {
-          offsetX: 2,
-          offsetY: 2,
-          color: '#000000',
-          blur: 6,
-          stroke: true,
-          fill: true
-        }
-      }).setOrigin(1, 0);
+        fontFamily: 'Arial',
+        fontStyle: 'bold'
+      });
+
+      // Ultimate UI (궁극기 표시)
+      this.ultimateUI = this.add.text(20, 130, '', {
+        fontSize: '18px',
+        color: '#ff4444',
+        fontFamily: 'Arial',
+        fontStyle: 'bold'
+      });
+
+      // Shield UI (쉴드 표시)
+      this.shieldUI = this.add.text(20, 155, '', {
+        fontSize: '18px',
+        color: '#00ffff',
+        fontFamily: 'Arial',
+        fontStyle: 'bold'
+      });
 
       // 아이템 설명 UI (하단)
       this.itemDescriptionUI = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 40, '', {
@@ -283,6 +294,11 @@
 
       // 게임 리셋
       this.resetGame();
+      
+      // UI 초기 상태 설정 및 즉시 업데이트
+      this.updateItemsDisplay();
+      this.updateLivesDisplay();
+      console.log('🎮 Game UI initialized successfully');
     }
 
     update(time: number) {
@@ -310,20 +326,21 @@
       this.updatePlayer();
       this.updateBullets();
       
+      this.updateStars();
+      this.updateEnemies(this.getAdjustedTime(time));
+      this.updateItems(this.getAdjustedTime(time));
+      this.updateEnemyBullets(this.getAdjustedTime(time)); // 적 미사일 업데이트 추가
+      
       if (this.isBossStage) {
         this.updateBoss(this.getAdjustedTime(time));
-        this.updateBossBullets();
+        this.updateBossBullets(); // 보스 미사일 업데이트 추가
+        this.drawBossHealthBar(); // 보스 체력바 그리기 추가
         this.checkBossCollisions();
-        this.drawBossHealthBar();
-      } else {
-        this.updateEnemies(this.getAdjustedTime(time));
-        this.checkCollisions();
-        this.checkStageProgression();
       }
       
-      this.updateStars();
-      this.updateItems(this.getAdjustedTime(time));
-      this.checkItemCollisions();
+      this.checkCollisions();
+      this.checkItemCollisions(); // 아이템 충돌 감지 추가
+      this.checkStageProgression();
     }
 
     private togglePause(time: number) {
@@ -409,6 +426,7 @@
       this.stars?.clear(true, true);
       this.bossBullets?.clear(true, true);
       this.items?.clear(true, true);
+      this.enemyBullets?.clear(true, true);
 
       // 보스 제거
       if (this.boss) {
@@ -470,7 +488,7 @@
           
           // 즉시 일반 총알 발사 (딜레이 없이)
           if (time > this.lastFired + 150) { // 0.15초 간격 유지
-            this.fireBullet();
+        this.fireBullet();
             this.lastFired = time;
           }
         }
@@ -636,7 +654,7 @@
         bullet.setData('speed', Math.max(6, Math.min(10, GAME_WIDTH / 80)));
         bullet.setData('damage', 1);
         bullet.setData('upgradeLevel', this.bulletUpgrade);
-        this.bullets.add(bullet);
+      this.bullets.add(bullet);
       }
     }
 
@@ -665,7 +683,7 @@
       if (time > this.enemySpawnTimer + baseSpawnInterval) {
         // 여러 마리 동시 생성
         for (let i = 0; i < enemiesPerWave; i++) {
-          this.spawnEnemy();
+        this.spawnEnemy();
         }
         this.enemySpawnTimer = time;
       }
@@ -677,6 +695,18 @@
         const stageSpeedBonus = Math.floor(this.stage * 1.2); // 스테이지당 1.2배 속도 증가
         const speed = baseSpeed + stageSpeedBonus;
         enemyObj.x -= speed;
+
+        // 4단계 이후 적 미사일 발사 시스템 (돌진 기믹 대신)
+        if (this.stage >= 4) {
+          const lastShot = enemyObj.getData('lastShot') || 0;
+          const currentTime = this.time.now;
+          const shootInterval = Math.max(1500, 3000 - (this.stage * 200)); // 스테이지가 높을수록 더 자주 발사
+          
+          if (currentTime > lastShot + shootInterval) {
+            this.fireEnemyMissile(enemyObj);
+            enemyObj.setData('lastShot', currentTime);
+          }
+        }
 
         // 적 시각 효과 개선 (스테이지별 색상 적용)
         this.drawEnhancedEnemy(enemyObj);
@@ -744,6 +774,73 @@
       console.log(`Stage ${this.stage}: Enemy spawned with ${enemyHealth} HP, color: ${enemyColor.toString(16)}`);
       
       this.enemies.add(enemy);
+    }
+
+    private fireEnemyMissile(enemy: Phaser.GameObjects.Rectangle) {
+      if (!this.enemyBullets || !this.player) return;
+
+      // 적 미사일 생성
+      const bulletSpeed = 4 + Math.floor(this.stage * 0.5); // 스테이지별 미사일 속도 증가
+      const bullet = this.add.rectangle(enemy.x, enemy.y + 15, 8, 15, 0xff6666); // 적 아래쪽에서 생성
+      
+      // 미사일 데이터 설정
+      bullet.setData('speed', bulletSpeed);
+      bullet.setData('damage', 1);
+      bullet.setData('enemyBullet', true);
+      
+      this.enemyBullets.add(bullet);
+      
+      console.log(`Enemy fired missile from stage ${this.stage}`);
+    }
+
+    private updateEnemyBullets(time: number) {
+      if (!this.enemyBullets) return;
+
+      // 적 미사일과 플레이어 충돌 검사
+      this.enemyBullets.children.entries.forEach(bullet => {
+        const bulletObj = bullet as Phaser.GameObjects.Rectangle;
+        
+        // 미사일을 아래쪽으로 이동
+        const speed = bulletObj.getData('speed') || 4;
+        bulletObj.y += speed;
+        
+        // 화면 아래로 나간 미사일 제거
+        if (bulletObj.y > GAME_HEIGHT + 50) {
+          this.enemyBullets?.remove(bulletObj);
+          bulletObj.destroy();
+          return;
+        }
+
+        // 플레이어와 충돌 검사
+        if (this.player && 
+            Phaser.Geom.Rectangle.Overlaps(
+              new Phaser.Geom.Rectangle(this.player.x - this.player.width/2, this.player.y - this.player.height/2, this.player.width, this.player.height),
+              new Phaser.Geom.Rectangle(bulletObj.x - bulletObj.width/2, bulletObj.y - bulletObj.height/2, bulletObj.width, bulletObj.height)
+            )) {
+          
+          // 보호막이 있으면 보호막으로 방어
+          if (this.hasShield) {
+            this.hasShield = false;
+            this.updateItemsDisplay();
+            this.createShieldActivationEffect(); // 기존 함수 사용
+            console.log('Enemy missile blocked by shield!');
+          } else {
+            // 플레이어 피해
+            this.lives--;
+            this.updateItemsDisplay(); // updateUI 대신 기존 함수 사용
+            console.log('Player hit by enemy missile!');
+            
+            if (this.lives <= 0) {
+              this.endGame();
+              return;
+            }
+          }
+          
+          // 미사일 제거
+          this.enemyBullets?.remove(bulletObj);
+          bulletObj.destroy();
+        }
+      });
     }
 
     private updateStars() {
@@ -946,7 +1043,7 @@
       // 스테이지 진행률 정보 추가 (보스 스테이지가 아닐 때만)
       let stageProgressInfo = '';
       if (!this.isBossStage && !this.isStageTransition) {
-        const requiredScore = this.stage * 500;
+        const requiredScore = this.stage === 1 ? 500 : this.stage * 500; // 실제 보스전 진입 조건과 동일하게 수정
         const stageEnemiesRequired = Math.max(10, this.stage * 5);
         const timeSinceStageStart = this.time.now - this.stageStartTime;
         const timeRemaining = Math.max(0, this.minStageTime - timeSinceStageStart);
@@ -994,8 +1091,8 @@
       this.updateItemsDisplay();
 
       // 모든 몬스터에게 2 데미지
-      this.enemies?.children.entries.forEach(enemy => {
-        const enemyObj = enemy as Phaser.GameObjects.Rectangle;
+        this.enemies?.children.entries.forEach(enemy => {
+          const enemyObj = enemy as Phaser.GameObjects.Rectangle;
         const currentHealth = enemyObj.getData('health') || 1;
         enemyObj.setData('health', currentHealth - 2);
         
@@ -1018,21 +1115,133 @@
         }
       }
 
-      this.scoreText?.setText(`Score: ${this.score}`);
-
+            this.scoreText?.setText(`Score: ${this.score}`);
+            
       // 궁극기 시각 효과
       this.createUltimateEffect();
     }
 
     private createUltimateEffect() {
-      // 화면 전체에 궁극기 효과
-      const effectGraphics = this.add.graphics();
-      effectGraphics.fillStyle(0xff0000, 0.3);
-      effectGraphics.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-      
-      this.time.delayedCall(200, () => {
-        effectGraphics.destroy();
+      // 궁극기 발사 시 화려한 시각 효과
+      if (!this.player) return;
+
+      const playerX = this.player.x;
+      const playerY = this.player.y;
+
+      console.log('🔥 ULTIMATE ATTACK ACTIVATED! 🔥');
+
+      // 1. 중앙 폭발 플래시 효과
+      const flashEffect = this.add.graphics();
+      flashEffect.fillStyle(0xffffff, 0.8);
+      flashEffect.fillCircle(playerX, playerY, 100);
+      flashEffect.fillStyle(0xffff00, 0.6);
+      flashEffect.fillCircle(playerX, playerY, 80);
+      flashEffect.fillStyle(0xff6600, 0.4);
+      flashEffect.fillCircle(playerX, playerY, 60);
+
+      // 2. 확산 충격파 효과
+      for (let wave = 0; wave < 5; wave++) {
+        this.time.delayedCall(wave * 100, () => {
+          const waveEffect = this.add.graphics();
+          const waveRadius = 50 + (wave * 80);
+          const waveColors = [0xff0000, 0xff6600, 0xffff00, 0xff00ff, 0x00ffff];
+          
+          waveEffect.lineStyle(6 - wave, waveColors[wave], 0.8 - (wave * 0.15));
+          waveEffect.strokeCircle(playerX, playerY, waveRadius);
+          
+          // 충격파 확장 애니메이션
+          this.tweens.add({
+            targets: waveEffect,
+            scaleX: 3,
+            scaleY: 3,
+            alpha: 0,
+            duration: 800,
+            ease: 'Power2',
+            onComplete: () => waveEffect.destroy()
+          });
+        });
+      }
+
+      // 3. 파티클 폭발 효과
+      for (let i = 0; i < 50; i++) {
+        this.time.delayedCall(i * 20, () => {
+          const particle = this.add.graphics();
+          const angle = (i / 50) * Math.PI * 2;
+          const distance = Phaser.Math.Between(30, 150);
+          const startX = playerX + Math.cos(angle) * 20;
+          const startY = playerY + Math.sin(angle) * 20;
+          const endX = playerX + Math.cos(angle) * distance;
+          const endY = playerY + Math.sin(angle) * distance;
+          
+          const particleColors = [0xff0000, 0xff6600, 0xffff00, 0x00ff00, 0x0066ff, 0xff00ff];
+          const color = particleColors[i % particleColors.length];
+          
+          particle.fillStyle(color, 0.9);
+          particle.fillCircle(0, 0, Phaser.Math.Between(3, 8));
+          particle.setPosition(startX, startY);
+          
+          // 파티클 비행 애니메이션
+          this.tweens.add({
+            targets: particle,
+            x: endX,
+            y: endY,
+            scaleX: 0.1,
+            scaleY: 0.1,
+            alpha: 0,
+            duration: 1000,
+            ease: 'Power3',
+            onComplete: () => particle.destroy()
+        });
       });
+      }
+
+      // 4. 화면 전체 플래시 효과 (여러 번)
+      for (let flash = 0; flash < 6; flash++) {
+        this.time.delayedCall(flash * 150, () => {
+          const screenFlash = this.add.graphics();
+          const flashColors = [0xffffff, 0xffff00, 0xff0000, 0xff6600, 0x00ffff, 0xff00ff];
+          const intensity = 0.6 - (flash * 0.1);
+          
+          screenFlash.fillStyle(flashColors[flash], intensity);
+          screenFlash.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+          
+          this.time.delayedCall(80, () => screenFlash.destroy());
+        });
+      }
+
+      // 5. 십자 레이저 효과
+      const laserEffect = this.add.graphics();
+      laserEffect.lineStyle(8, 0xffffff, 0.8);
+      laserEffect.lineBetween(0, playerY, GAME_WIDTH, playerY); // 수평 레이저
+      laserEffect.lineBetween(playerX, 0, playerX, GAME_HEIGHT); // 수직 레이저
+      
+      laserEffect.lineStyle(4, 0xffff00, 0.6);
+      laserEffect.lineBetween(0, playerY, GAME_WIDTH, playerY);
+      laserEffect.lineBetween(playerX, 0, playerX, GAME_HEIGHT);
+
+      // 6. 에너지 오라 효과 (플레이어 주변)
+      const auraEffect = this.add.graphics();
+      for (let ring = 0; ring < 8; ring++) {
+        this.time.delayedCall(ring * 50, () => {
+          const ringRadius = 30 + (ring * 15);
+          const ringColor = ring % 2 === 0 ? 0x00ffff : 0xff00ff;
+          
+          auraEffect.lineStyle(4, ringColor, 0.7 - (ring * 0.08));
+          auraEffect.strokeCircle(playerX, playerY, ringRadius);
+        });
+      }
+
+      // 7. 최종 정리 (모든 효과 제거)
+      this.time.delayedCall(1500, () => {
+        if (flashEffect.active) flashEffect.destroy();
+        if (laserEffect.active) laserEffect.destroy();
+        if (auraEffect.active) auraEffect.destroy();
+      });
+
+      // 8. 카메라 진동 효과
+      this.cameras.main.shake(1000, 0.02);
+      
+      console.log('🌟 Ultimate visual effects complete!');
     }
 
     private fireChargedBullet() {
@@ -1197,8 +1406,37 @@
     }
 
     private updateItemsDisplay() {
-      const shieldStatus = this.hasShield ? '🛡️' : '';
-      this.itemsUI?.setText(`ULT: ${this.ultimateCount} | LV${this.bulletUpgrade} ${shieldStatus}`);
+      // 궁극기 표시 - 보유 개수만큼 불꽃 아이콘 표시
+      if (this.ultimateCount > 0) {
+        let ultDisplay = '⚡ ';
+        for (let i = 0; i < this.ultimateCount; i++) {
+          ultDisplay += '🔥';
+        }
+        this.ultimateUI?.setText(ultDisplay);
+        this.ultimateUI?.setVisible(true);
+      } else {
+        this.ultimateUI?.setVisible(false);
+      }
+      
+      // 미사일 레벨 표시 - 레벨만큼 미사일 아이콘 표시
+      if (this.bulletUpgrade > 0) {
+        let bulletDisplay = '●';
+        for (let i = 1; i < this.bulletUpgrade; i++) {
+          bulletDisplay += '●';
+        }
+        this.bulletUI?.setText(bulletDisplay);
+        this.bulletUI?.setVisible(true);
+      } else {
+        this.bulletUI?.setVisible(false);
+      }
+      
+      // 보호막 표시 - 활성화 시에만 표시
+      if (this.hasShield) {
+        this.shieldUI?.setText('🛡️ ✨');
+        this.shieldUI?.setVisible(true);
+      } else {
+        this.shieldUI?.setVisible(false);
+      }
     }
 
     private updateLivesDisplay() {
@@ -1257,20 +1495,18 @@
         return;
       }
 
-      const requiredScore = this.stage * 500; // 스테이지마다 500점 필요 (증가)
-      const timeSinceStageStart = this.time.now - this.stageStartTime;
+      // 스테이지별 필요 점수 대폭 상향 조정
+      const requiredScore = this.stage === 1 ? 500 : this.stage * 500; // 1스테이지: 500점, 2스테이지: 1000점, 3스테이지: 1500점 등
       const stageEnemiesRequired = Math.max(10, this.stage * 5); // 스테이지별 최소 적 처치 수 (스테이지 1: 10마리, 스테이지 2: 15마리...)
 
-      // 보스 등장 조건: 1) 점수 조건 만족 2) 최소 적 처치 수 만족 3) 최소 시간 경과
+      // 보스 등장 조건: 1) 점수 조건 만족 2) 최소 적 처치 수 만족 (시간 조건 제거)
       const scoreCondition = this.score >= requiredScore;
       const enemyCondition = this.enemiesKilledThisStage >= stageEnemiesRequired;
-      const timeCondition = timeSinceStageStart >= this.minStageTime;
       
-      if (scoreCondition && enemyCondition && timeCondition) {
+      if (scoreCondition && enemyCondition) {
         console.log(`🏆 Boss conditions met for stage ${this.stage}:`);
         console.log(`  - Score: ${this.score}/${requiredScore} ✓`);
         console.log(`  - Enemies killed: ${this.enemiesKilledThisStage}/${stageEnemiesRequired} ✓`);
-        console.log(`  - Time elapsed: ${Math.floor(timeSinceStageStart/1000)}s/${Math.floor(this.minStageTime/1000)}s ✓`);
         this.startBossStage();
       } else {
         // 진행률 로그 (디버깅용)
@@ -1278,7 +1514,6 @@
           console.log(`📊 Stage ${this.stage} progress:`);
           console.log(`  - Score: ${this.score}/${requiredScore} ${scoreCondition ? '✓' : '✗'}`);
           console.log(`  - Enemies: ${this.enemiesKilledThisStage}/${stageEnemiesRequired} ${enemyCondition ? '✓' : '✗'}`);
-          console.log(`  - Time: ${Math.floor(timeSinceStageStart/1000)}s/${Math.floor(this.minStageTime/1000)}s ${timeCondition ? '✓' : '✗'}`);
         }
       }
     }
@@ -1578,8 +1813,8 @@
       // 보스 처치 점수
       this.score += 300 * this.stage;
       this.scoreText?.setText(`Score: ${this.score}`);
-      
-      // 폭발 이펙트
+
+          // 폭발 이펙트
       this.createExplosion(this.boss.x, this.boss.y);
       
       // 보스 제거
@@ -1971,17 +2206,30 @@
 
     private collectItem(item: Phaser.GameObjects.Rectangle) {
       const type = item.getData('type');
+      const itemX = item.x;
+      const itemY = item.y;
+      
+      // 아이템 수집 시각 효과 (공통)
+      this.createItemCollectionEffect(itemX, itemY, type);
       
       switch (type) {
         case 'bulletUpgrade':
           if (this.bulletUpgrade < 5) { // 최대 5레벨
             this.bulletUpgrade++;
+            this.showItemMessage(`🚀 Missile Level ${this.bulletUpgrade}!`, '#00ffff');
+            console.log(`🚀 Bullet upgraded to level ${this.bulletUpgrade}`);
+          } else {
+            this.showItemMessage('🚀 Max Level!', '#ffff00');
           }
           break;
           
         case 'ultimate':
           if (this.ultimateCount < 3) { // 최대 3개
             this.ultimateCount++;
+            this.showItemMessage(`⚡ Ultimate +1 (${this.ultimateCount}/3)!`, '#ff6600');
+            console.log(`⚡ Ultimate count: ${this.ultimateCount}`);
+          } else {
+            this.showItemMessage('⚡ Ultimate Full!', '#ffff00');
           }
           break;
           
@@ -1989,6 +2237,10 @@
           if (this.lives < this.maxLives) { // 최대 체력까지만
             this.lives++;
             this.updateLivesDisplay();
+            this.showItemMessage(`❤️ Life +1 (${this.lives}/${this.maxLives})!`, '#ff3333');
+            console.log(`❤️ Life restored: ${this.lives}/${this.maxLives}`);
+          } else {
+            this.showItemMessage('❤️ Life Full!', '#ffff00');
           }
           break;
           
@@ -1996,8 +2248,8 @@
           if (!this.hasShield) { // 이미 보호막이 있으면 무시
             this.hasShield = true;
             this.createShieldEffect();
-            this.updateItemsDisplay(); // 즉시 UI 업데이트
             this.createShieldActivationEffect(); // 즉시 시각적 피드백
+            this.showItemMessage('🛡️ Shield Activated!', '#00ff00');
             
             // 쉴드 즉시 렌더링 강제 실행
             if (this.shieldGraphics) {
@@ -2005,10 +2257,13 @@
             }
             
             console.log('🛡️ Shield item collected - activated instantly!');
+          } else {
+            this.showItemMessage('🛡️ Shield Active!', '#ffff00');
           }
           break;
       }
       
+      // 즉시 UI 업데이트 (강제)
       this.updateItemsDisplay();
       
       // 연결된 라벨 텍스트 제거
@@ -2467,9 +2722,17 @@
       if (this.bossHealthText) {
         this.bossHealthText.setPosition(GAME_WIDTH / 2, 30);
       }
-      if (this.itemsUI) {
-        this.itemsUI.setFontSize(Math.max(14, Math.min(20, GAME_WIDTH / 40)));
-        this.itemsUI.setPosition(GAME_WIDTH - 150, 20);
+      if (this.ultimateUI) {
+        this.ultimateUI.setFontSize(Math.max(14, Math.min(20, GAME_WIDTH / 40)));
+        this.ultimateUI.setPosition(20, 110); // 왼쪽 위치로 변경
+      }
+      if (this.bulletUI) {
+        this.bulletUI.setFontSize(Math.max(14, Math.min(20, GAME_WIDTH / 40)));
+        this.bulletUI.setPosition(20, 140); // 왼쪽 위치로 변경
+      }
+      if (this.shieldUI) {
+        this.shieldUI.setFontSize(Math.max(14, Math.min(20, GAME_WIDTH / 40)));
+        this.shieldUI.setPosition(20, 170); // 왼쪽 위치로 변경
       }
       
       // 아이템 설명 UI 위치 업데이트
@@ -2718,6 +2981,86 @@
     // 콜백 설정 메서드
     setGameEndCallback(callback: (score: number) => void) {
       this.onGameEnd = callback;
+    }
+
+    private createItemCollectionEffect(x: number, y: number, itemType: string) {
+      // 아이템 수집 시 폭발 효과
+      const effect = this.add.graphics();
+      
+      // 아이템 타입별 색상
+      const colors = {
+        bulletUpgrade: [0x00ffff, 0x0099ff, 0x0066ff],
+        ultimate: [0xff6600, 0xff9900, 0xffcc00],
+        health: [0xff3333, 0xff6666, 0xff9999],
+        shield: [0x00ff00, 0x66ff66, 0x99ff99]
+      };
+      
+      const itemColors = colors[itemType as keyof typeof colors] || [0xffffff, 0xcccccc, 0x999999];
+      
+      // 확산하는 원 효과
+      for (let i = 0; i < 3; i++) {
+        this.time.delayedCall(i * 100, () => {
+          const radius = 20 + (i * 15);
+          const alpha = 0.8 - (i * 0.2);
+          
+          effect.lineStyle(4 - i, itemColors[i], alpha);
+          effect.strokeCircle(x, y, radius);
+        });
+      }
+      
+      // 파티클 효과
+      for (let j = 0; j < 8; j++) {
+        const angle = (j / 8) * Math.PI * 2;
+        const particle = this.add.graphics();
+        
+        particle.fillStyle(itemColors[0], 0.9);
+        particle.fillCircle(0, 0, 3);
+        particle.setPosition(x, y);
+        
+        this.tweens.add({
+          targets: particle,
+          x: x + Math.cos(angle) * 40,
+          y: y + Math.sin(angle) * 40,
+          alpha: 0,
+          duration: 400,
+          ease: 'Power2',
+          onComplete: () => particle.destroy()
+        });
+      }
+      
+      // 효과 정리
+      this.time.delayedCall(500, () => {
+        if (effect.active) effect.destroy();
+      });
+    }
+
+    private showItemMessage(message: string, color: string) {
+      // 화면 중앙에 메시지 표시
+      const messageText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 50, message, {
+        fontSize: Math.max(18, Math.min(24, GAME_WIDTH / 35)) + 'px',
+        color: color,
+        fontFamily: 'Courier New, monospace',
+        stroke: '#000000',
+        strokeThickness: 3,
+        shadow: {
+          offsetX: 2,
+          offsetY: 2,
+          color: '#000000',
+          blur: 4,
+          stroke: true,
+          fill: true
+        }
+      }).setOrigin(0.5);
+      
+      // 메시지 애니메이션 (위로 올라가면서 사라짐)
+      this.tweens.add({
+        targets: messageText,
+        y: messageText.y - 30,
+        alpha: 0,
+        duration: 1500,
+        ease: 'Power2',
+        onComplete: () => messageText.destroy()
+      });
     }
   }
 

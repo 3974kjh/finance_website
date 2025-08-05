@@ -15,7 +15,7 @@
   // 게임 설정 (동적으로 조정될 예정)
   let GAME_WIDTH = 800;
   let GAME_HEIGHT = 600;
-  const GRID_SIZE = 20;
+  const GRID_SIZE = 25; // 20에서 25로 증가 (더 큰 격자)
 
   // 컨테이너 크기에 맞춰 게임 크기 조정
   function adjustGameSize() {
@@ -54,7 +54,7 @@
     private snake: Phaser.Geom.Point[] = [];
     private foods: Phaser.Geom.Point[] = []; // 음식 배열로 변경 (5개)
     private powerUpItem: Phaser.Geom.Point | null = null; // 무적 아이템
-    private poisonApple: Phaser.Geom.Point | null = null; // 독사과 아이템
+    private poisonApples: Phaser.Geom.Point[] = []; // 독사과 아이템들 (최대 5개)
     private direction: Phaser.Geom.Point = new Phaser.Geom.Point();
     private newDirection: Phaser.Geom.Point = new Phaser.Geom.Point();
     private directionQueue: Phaser.Geom.Point[] = []; // 방향 큐 시스템
@@ -65,6 +65,7 @@
     private gameOverText: Phaser.GameObjects.Text | null = null;
     private gameOverTexts: Phaser.GameObjects.Text[] = []; // 게임 오버 텍스트들 추적
     private speedText: Phaser.GameObjects.Text | null = null; // 속도 표시
+    private lengthText: Phaser.GameObjects.Text | null = null; // 지렁이 길이 표시
     private powerUpText: Phaser.GameObjects.Text | null = null; // 무적 모드 표시
     private itemDescriptionUI: Phaser.GameObjects.Text | null = null; // 아이템 설명 UI
     private graphics: Phaser.GameObjects.Graphics | null = null;
@@ -124,8 +125,8 @@
       // 키보드 입력 설정 (강화된 버전)
       if (this.input && this.input.keyboard) {
         this.cursors = this.input.keyboard.createCursorKeys();
-        
-        // WASD 키 설정
+      
+      // WASD 키 설정
         this.wasd = this.input.keyboard.addKeys('W,S,A,D');
         
         // 일시정지 키 설정
@@ -173,8 +174,25 @@
         }
       });
 
+      // 지렁이 길이 텍스트 추가
+      this.lengthText = this.add.text(20, 80, 'Length: 3', {
+        fontSize: Math.max(14, Math.min(20, GAME_WIDTH / 45)) + 'px',
+        color: '#00ffff',
+        fontFamily: 'Courier New, monospace',
+        stroke: '#003333',
+        strokeThickness: 2,
+        shadow: {
+          offsetX: 2,
+          offsetY: 2,
+          color: '#000000',
+          blur: 4,
+          stroke: true,
+          fill: true
+        }
+      });
+
       // 무적 모드 텍스트 추가
-      this.powerUpText = this.add.text(20, 80, '', {
+      this.powerUpText = this.add.text(20, 110, '', {
         fontSize: Math.max(16, Math.min(22, GAME_WIDTH / 40)) + 'px',
         color: '#ffffff',
         fontFamily: 'Courier New, monospace',
@@ -355,6 +373,7 @@
       // 속도 초기화
       this.currentMoveDelay = this.baseMoveDelay;
       this.updateSpeedDisplay();
+      this.updateLengthDisplay();
 
       // 무적 모드 관련 초기화
       this.isInvincible = false;
@@ -366,7 +385,7 @@
       this.powerUpItemSpawnTime = 0; // 아이템 생성 시간 초기화
       
       // 독사과 관련 초기화
-      this.poisonApple = null;
+      this.poisonApples = [];
       this.poisonAppleSpawnTimer = this.time?.now ? this.time.now - 3000 : Date.now() - 3000; // 첫 독사과는 2초 후에 스폰 가능
       this.poisonAppleSpawnTime = 0;
       this.nextPoisonAppleSpawn = 0;
@@ -384,6 +403,9 @@
       if (this.scoreText) {
         this.scoreText.setText('Score: 0');
       }
+
+      // 뱀 길이 표시 업데이트
+      this.updateLengthDisplay();
 
       console.log('Snake game reset:', {
         snakeLength: this.snake.length,
@@ -417,7 +439,7 @@
             console.log('Failed to generate food item after', maxAttempts, 'attempts');
             return;
           }
-        } while (this.isSnakePosition(foodX, foodY));
+      } while (this.isSnakePosition(foodX, foodY));
         this.foods.push(new Phaser.Geom.Point(foodX, foodY));
       }
     }
@@ -451,7 +473,7 @@
       return this.snake.some(segment => segment.x === x && segment.y === y) ||
              this.foods.some(food => food.x === x && food.y === y) ||
              this.powerUpItem?.x === x && this.powerUpItem?.y === y ||
-             this.poisonApple?.x === x && this.poisonApple?.y === y;
+             this.poisonApples.some(apple => apple.x === x && apple.y === y);
     }
 
     private handleInput(time: number) {
@@ -568,6 +590,9 @@
         if (!this.isInvincible) {
           this.updateSpeed();
         }
+        
+        // 길이 표시 업데이트
+        this.updateLengthDisplay();
       }
 
       // 무적 아이템을 먹었는지 확인
@@ -577,27 +602,35 @@
       }
 
       // 독사과를 먹었는지 확인
-      if (this.poisonApple && newHead.x === this.poisonApple.x && newHead.y === this.poisonApple.y) {
-        if (!this.isInvincible) {
-          // 무적 상태가 아닐 때만 독사과 효과 적용
-          this.poisonApple = null; // 독사과 제거
+      if (this.poisonApples.some(apple => newHead.x === apple.x && newHead.y === apple.y)) {
+        const eatenApple = this.poisonApples.find(apple => newHead.x === apple.x && newHead.y === apple.y);
+        if (eatenApple) {
+          // 먹은 독사과 제거 (무적 상태와 관계없이)
+          this.poisonApples = this.poisonApples.filter(apple => apple.x !== eatenApple.x || apple.y !== eatenApple.y);
           
-          // 뱀 길이 3 줄이기
-          for (let i = 0; i < 3 && this.snake.length > 1; i++) {
-            this.snake.pop();
-          }
-          
-          // 길이가 3 미만이 되면 게임 오버
-          if (this.snake.length < 3) {
-            this.endGame('독사과를 먹어 뱀이 너무 짧아졌습니다!');
+          if (!this.isInvincible) {
+            // 무적 상태가 아닐 때만 독사과 효과 적용
+            
+            // 뱀 길이 2 줄이기
+            for (let i = 0; i < 3 && this.snake.length > 0; i++) {
+              this.snake.pop();
+            }
+            
+            // 길이 표시 업데이트
+            this.updateLengthDisplay();
+
+            // 길이가 3 미만이 되면 게임 오버
+            if (this.snake.length < 3) {
+              this.endGame('독사과를 먹어 뱀이 너무 짧아졌습니다!');
+              return;
+            }
+            
+            // 독사과 효과 적용 후 일반 이동 로직 건너뛰기
             return;
+          } else {
+            // 무적 상태에서는 독사과 효과 없음
+            console.log('Poison apple eaten but no effect due to invincibility!');
           }
-          
-          console.log('Poison apple eaten! Snake length reduced to:', this.snake.length);
-        } else {
-          // 무적 상태에서는 독사과 효과 없음
-          this.poisonApple = null;
-          console.log('Poison apple eaten but no effect due to invincibility!');
         }
       }
 
@@ -606,6 +639,7 @@
         this.snake.pop();
       } else {
         this.addNew--; // 카운터 감소
+        this.updateLengthDisplay(); // 길이가 증가할 때마다 업데이트
       }
     }
 
@@ -691,9 +725,11 @@
       }
 
       // 독사과 그리기 (빨간색, 번쩍이는 효과)
-      if (this.poisonApple) {
-        const poisonAppleX = this.poisonApple.x * GRID_SIZE;
-        const poisonAppleY = this.poisonApple.y * GRID_SIZE;
+      this.poisonApples.forEach(apple => {
+        if (!this.graphics) return; // null 체크 추가
+        
+        const appleX = apple.x * GRID_SIZE;
+        const appleY = apple.y * GRID_SIZE;
 
         const poisonBlink = Math.sin(this.time.now * 0.015) * 0.4 + 0.6; // 더 강한 번쩍임
         const poisonColor = Phaser.Display.Color.GetColor(255 * poisonBlink, 0, 0); // 빨간색 번쩍임
@@ -701,20 +737,20 @@
 
         // 외곽 위험 표시 (번쩍이는 테두리)
         this.graphics.lineStyle(4, poisonColor, 0.8);
-        this.graphics.strokeRect(poisonAppleX - 3, poisonAppleY - 3, GRID_SIZE + 6, GRID_SIZE + 6);
+        this.graphics.strokeRect(appleX - 3, appleY - 3, GRID_SIZE + 6, GRID_SIZE + 6);
 
         // 독사과 메인 바디 (어두운 빨강)
         this.graphics.fillStyle(darkRed);
-        this.graphics.fillRoundedRect(poisonAppleX + 1, poisonAppleY + 1, GRID_SIZE - 2, GRID_SIZE - 2, 6);
+        this.graphics.fillRoundedRect(appleX + 1, appleY + 1, GRID_SIZE - 2, GRID_SIZE - 2, 6);
 
         // 독사과 표면 (번쩍이는 빨강)
         this.graphics.fillStyle(poisonColor);
-        this.graphics.fillRoundedRect(poisonAppleX + 2, poisonAppleY + 2, GRID_SIZE - 4, GRID_SIZE - 4, 4);
+        this.graphics.fillRoundedRect(appleX + 2, appleY + 2, GRID_SIZE - 4, GRID_SIZE - 4, 4);
 
         // 해골 표시 (X 마크로 위험 표시)
         this.graphics.lineStyle(3, 0x000000, 1);
-        const centerX = poisonAppleX + GRID_SIZE / 2;
-        const centerY = poisonAppleY + GRID_SIZE / 2;
+        const centerX = appleX + GRID_SIZE / 2;
+        const centerY = appleY + GRID_SIZE / 2;
         const crossSize = GRID_SIZE / 3;
         
         // X 표시 (위험 기호)
@@ -733,10 +769,10 @@
 
         // 독사과 주변 경고 효과
         this.graphics.lineStyle(2, poisonColor, 0.4 * poisonBlink);
-        this.graphics.strokeRect(poisonAppleX - 1, poisonAppleY - 1, GRID_SIZE + 2, GRID_SIZE + 2);
+        this.graphics.strokeRect(appleX - 1, appleY - 1, GRID_SIZE + 2, GRID_SIZE + 2);
 
-        console.log('Rendering poison apple at pixel position:', poisonAppleX, poisonAppleY);
-      }
+        console.log('Rendering poison apple at pixel position:', appleX, appleY);
+      });
 
       // 음식 그리기 (개선된 디자인)
       this.foods.forEach(food => {
@@ -974,7 +1010,7 @@
       this.gameOverTexts = [];
 
       // gameOverText 참조 초기화
-      this.gameOverText = null;
+        this.gameOverText = null;
 
       // 무적 모드 텍스트 초기화
       this.powerUpText?.setText('');
@@ -1009,6 +1045,10 @@
       this.speedText?.setText(speedText);
     }
 
+    private updateLengthDisplay() {
+      this.lengthText?.setText(`Length: ${this.snake.length}`);
+    }
+
     private updateInvincibleMode(time: number) {
       if (this.isInvincible) {
         this.invincibleTimeLeft = Math.max(0, 10000 - (time - this.invincibleStartTime));
@@ -1019,6 +1059,7 @@
           this.currentMoveDelay = this.normalSpeed;
           this.powerUpText?.setText('');
           this.updateSpeedDisplay();
+          this.updateLengthDisplay(); // 무적 모드 해제 시 길이 표시 업데이트
         } else {
           // 무적 모드 타이머 표시
           const secondsLeft = Math.ceil(this.invincibleTimeLeft / 1000);
@@ -1080,7 +1121,7 @@
       const spawnInterval = 5000; // 5초로 설정
       const timeSinceLastSpawn = time - this.poisonAppleSpawnTimer;
       
-      if (!this.poisonApple && timeSinceLastSpawn >= spawnInterval) {
+      if (this.poisonApples.length < 5 && timeSinceLastSpawn >= spawnInterval) {
         console.log('💀 Attempting to spawn poison apple...');
         console.log('Time since last spawn:', Math.floor(timeSinceLastSpawn / 1000), 'seconds');
         console.log('Game size:', GAME_WIDTH, 'x', GAME_HEIGHT);
@@ -1089,14 +1130,10 @@
         this.generatePoisonApple();
         this.poisonAppleSpawnTimer = time;
         
-        if (this.poisonApple) {
-          console.log('✅ Poison apple successfully spawned!');
-          // 아이템 생성 시간 기록 (30초 후 자동 삭제용)
+        if (this.poisonApples.length > 0) { // 독사과가 생성되었으면 시간 기록
           this.poisonAppleSpawnTime = time;
-        } else {
-          console.log('❌ Failed to spawn poison apple - check game area size');
         }
-      } else if (!this.poisonApple && timeSinceLastSpawn < spawnInterval) {
+      } else if (this.poisonApples.length < 5 && timeSinceLastSpawn < spawnInterval) {
         const timeRemaining = Math.ceil((spawnInterval - timeSinceLastSpawn) / 1000);
         if (timeRemaining > 0 && timeRemaining <= 3) {
           console.log('⏰ Next poison apple in', timeRemaining, 'seconds');
@@ -1104,15 +1141,15 @@
       }
       
       // 아이템 생성 후 30초가 지나면 자동 삭제
-      if (this.poisonApple) {
+      this.poisonApples.forEach((apple, index) => {
         const itemSpawnTime = this.poisonAppleSpawnTime;
         if (itemSpawnTime && time - itemSpawnTime >= 30000) { // 30초 후 삭제
           console.log('⚠️ Poison apple auto-deleted after 30 seconds');
-          this.poisonApple = null;
+          this.poisonApples.splice(index, 1); // 배열에서 제거
           // 새로운 스폰 주기 시작
           this.poisonAppleSpawnTimer = time;
         }
-      }
+      });
       
       // 아이템 설명 UI 업데이트
       this.updateItemDescriptionUI(time, spawnInterval);
@@ -1123,6 +1160,7 @@
 
       const timeSinceLastSpawn = time - this.powerUpSpawnTimer;
       const foodCount = this.foods.length;
+      const poisonAppleCount = this.poisonApples.length;
       
       // 독사과 정보
       const poisonAppleSpawnInterval = 5000; // 5초
@@ -1133,16 +1171,16 @@
         const itemLifeTime = this.powerUpItemSpawnTime;
         if (itemLifeTime) {
           const timeLeft = Math.ceil((10000 - (time - itemLifeTime)) / 1000);
-          this.itemDescriptionUI.setText(`⚡ INVINCIBLE ITEM: Eat within ${timeLeft}s for 10sec invincibility! | 🍎 Foods: ${foodCount}/5 | 💀 Poison: ${this.poisonApple ? 'Available' : `${poisonTimeRemaining}s`}`);
+          this.itemDescriptionUI.setText(`⚡ INVINCIBLE ITEM: Eat within ${timeLeft}s for 10sec invincibility! | 🍎 Foods: ${foodCount}/5 | 💀 Poison: ${poisonAppleCount}/5`);
         } else {
-          this.itemDescriptionUI.setText(`⚡ INVINCIBLE ITEM: Eat for 10sec invincibility & 5x speed! | 🍎 Foods: ${foodCount}/5 | 💀 Poison: ${this.poisonApple ? 'Available' : `${poisonTimeRemaining}s`}`);
+          this.itemDescriptionUI.setText(`⚡ INVINCIBLE ITEM: Eat for 10sec invincibility & 5x speed! | 🍎 Foods: ${foodCount}/5 | 💀 Poison: ${poisonAppleCount}/5`);
         }
       } else {
         const timeRemaining = Math.ceil((spawnInterval - timeSinceLastSpawn) / 1000);
         if (timeRemaining > 0) {
-          this.itemDescriptionUI.setText(`⏰ Next invincible item in: ${timeRemaining}s | 🍎 Foods: ${foodCount}/5 | 💀 Poison: ${this.poisonApple ? 'Available' : `${poisonTimeRemaining}s`} | ⚡ Invincible: 5x speed, +3 length`);
+          this.itemDescriptionUI.setText(`⏰ Next invincible item in: ${timeRemaining}s | 🍎 Foods: ${foodCount}/5 | 💀 Poison: ${poisonAppleCount}/5 | ⚡ Invincible: 5x speed, +3 length`);
         } else {
-          this.itemDescriptionUI.setText(`⏰ Invincible item spawning... | 🍎 Foods: ${foodCount}/5 | 💀 Poison: ${this.poisonApple ? 'Available' : `${poisonTimeRemaining}s`} | ⚡ Invincible: 5x speed, +3 length`);
+          this.itemDescriptionUI.setText(`⏰ Invincible item spawning... | 🍎 Foods: ${foodCount}/5 | 💀 Poison: ${poisonAppleCount}/5 | ⚡ Invincible: 5x speed, +3 length`);
         }
       }
     }
@@ -1174,7 +1212,7 @@
         }
       } while (this.isSnakePosition(powerUpX, powerUpY) || 
                this.foods.some(food => powerUpX === food.x && powerUpY === food.y) ||
-               (this.poisonApple && powerUpX === this.poisonApple.x && powerUpY === this.poisonApple.y)); // 모든 아이템과의 충돌 체크
+               this.poisonApples.some(apple => powerUpX === apple.x && powerUpY === apple.y)); // 모든 아이템과의 충돌 체크
 
       this.powerUpItem = new Phaser.Geom.Point(powerUpX, powerUpY);
       console.log('Power-up item generated at:', powerUpX, powerUpY, 'Grid size:', gridWidth, 'x', gridHeight);
@@ -1188,7 +1226,6 @@
       // 유효한 게임 영역 확인 (더 엄격한 체크)
       if (gridWidth <= 4 || gridHeight <= 4) {
         console.log('Game area too small for poison apple:', gridWidth, gridHeight);
-        this.poisonApple = null;
         return;
       }
 
@@ -1202,14 +1239,13 @@
         
         if (attempts > maxAttempts) {
           console.log('Failed to generate poison apple after', maxAttempts, 'attempts');
-          this.poisonApple = null;
           return;
         }
       } while (this.isSnakePosition(poisonAppleX, poisonAppleY) || 
                this.foods.some(food => poisonAppleX === food.x && poisonAppleY === food.y) ||
-               (this.powerUpItem && poisonAppleX === this.powerUpItem.x && poisonAppleY === this.powerUpItem.y)); // 모든 아이템과의 충돌 체크
+               this.poisonApples.some(apple => poisonAppleX === apple.x && poisonAppleY === apple.y)); // 모든 아이템과의 충돌 체크
 
-      this.poisonApple = new Phaser.Geom.Point(poisonAppleX, poisonAppleY);
+      this.poisonApples.push(new Phaser.Geom.Point(poisonAppleX, poisonAppleY));
       console.log('Poison apple generated at:', poisonAppleX, poisonAppleY, 'Grid size:', gridWidth, 'x', gridHeight);
     }
 
@@ -1244,10 +1280,15 @@
         this.speedText.setFontSize(Math.max(14, Math.min(20, GAME_WIDTH / 45)));
         this.speedText.setPosition(20, 50);
       }
+
+      if (this.lengthText) {
+        this.lengthText.setFontSize(Math.max(14, Math.min(20, GAME_WIDTH / 45)));
+        this.lengthText.setPosition(20, 80);
+      }
       
       if (this.powerUpText) {
         this.powerUpText.setFontSize(Math.max(16, Math.min(22, GAME_WIDTH / 40)));
-        this.powerUpText.setPosition(20, 80);
+        this.powerUpText.setPosition(20, 110);
       }
 
       if (this.itemDescriptionUI) {
@@ -1293,19 +1334,21 @@
       }
 
       // 독사과가 화면 밖에 있으면 다시 생성
-      if (this.poisonApple) {
-        const gridWidth = Math.floor(GAME_WIDTH / GRID_SIZE);
-        const gridHeight = Math.floor(GAME_HEIGHT / GRID_SIZE);
-        
-        if (this.poisonApple.x >= gridWidth || this.poisonApple.y >= gridHeight || 
-            this.poisonApple.x < 0 || this.poisonApple.y < 0) {
-          this.generatePoisonApple();
+      this.poisonApples.forEach((apple, index) => {
+        if (apple.x >= gridWidth || apple.y >= gridHeight || 
+            apple.x < 0 || apple.y < 0) {
+          this.poisonApples.splice(index, 1); // 잘못된 위치의 독사과 제거
+          needsNewFood = true; // 독사과 생성 로직에 포함
         }
-      }
+      });
       
+      if (needsNewFood) {
+        this.generatePoisonApple(); // 새로운 독사과 추가
+      }
+
       // 그리드와 게임 요소들 다시 그리기
       this.drawGrid(); 
-      this.render(); 
+      this.render();
     }
 
     // 콜백 설정 메서드

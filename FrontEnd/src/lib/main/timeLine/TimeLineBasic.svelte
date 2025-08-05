@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { onMount, tick } from 'svelte';
+  import { onMount } from 'svelte';
   import { getFinanceDataListByChartMode, setUpDownColor, setUpDownRatioTag, SingleChartBasic } from '$lib/main';
+  import { ProgressCircle } from '$lib/component';
   import { CalenderContent } from '$lib/main/timeLine';
   import { AddTimeLinePopup } from '$lib/main/timeLine';
   import { createComponent, formatIncludeComma } from '$lib/utils/CommonHelper';
@@ -86,6 +87,11 @@
   let refreshRealInvestContentFlag: boolean = false;
 
   /**
+   * 프로그레스 플래그
+   */
+  let isProgress: boolean = false;
+
+  /**
    * 행 레이아웃 사이즈 초기화
    */
   const initialRowSplitLayoutSize = () => {
@@ -117,7 +123,12 @@
     return investItemObject;
   }
 
+  /**
+   * 모든 투자 항목 갱신
+   */
   const refreshAllInvestBindingItems = async () => {
+    isProgress = true;
+
     const getInvestHistoryObject = await getHistoryInfo();
 
     virtualInvestItemObject = getInvestHistoryObject?.data?.virtualInvestItemObject ?? {};
@@ -128,6 +139,8 @@
 
     virtualTotalInvestInfo = setTotalInvestInfo(virtualInvestItemObject);
     realTotalInvestInfo = setTotalInvestInfo(realInvestItemObject);
+
+    isProgress = false;
   }
 
   onMount(async () => {
@@ -350,7 +363,7 @@
           </div>
         </div>
         
-        {#if Object.keys(virtualInvestItemObject).length > 0}
+        {#if Object.keys(virtualInvestItemObject).length > 0 && !isProgress}
           {#key refreshVirtualInvestContentFlag}
             <div 
               class="flex flex-col w-full h-full bg-slate-800/40 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-inner p-4 space-y-4 overflow-auto modern-scrollbar"
@@ -367,6 +380,16 @@
               {/each}
             </div>
           {/key}
+        {:else if isProgress}
+          <div class="flex w-full h-full justify-center items-center">
+            <ProgressCircle
+              size={100}
+              thickness={10}
+              isLarge={true}
+              isTextBlack={false}
+              text={'가상 투자 종목 데이터를 가져옵니다.'}
+            />
+          </div>
         {:else}
           <div class="flex w-full h-full justify-center items-center bg-slate-800/40 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-inner">
             <div class="text-center space-y-3">
@@ -420,7 +443,7 @@
           </div>
         </div>
         
-        {#if Object.keys(realInvestItemObject).length > 0}
+        {#if Object.keys(realInvestItemObject).length > 0 && !isProgress}
           {#key refreshRealInvestContentFlag}
             <div 
               class="flex flex-col w-full h-full bg-slate-800/40 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-inner p-4 space-y-4 overflow-auto modern-scrollbar"
@@ -437,6 +460,16 @@
               {/each}
             </div>
           {/key}
+        {:else if isProgress}
+          <div class="flex w-full h-full justify-center items-center">
+            <ProgressCircle
+              size={100}
+              thickness={10}
+              isLarge={true}
+              isTextBlack={false}
+              text={'실제 투자 종목 데이터를 가져옵니다.'}
+            />
+          </div>
         {:else}
           <div class="flex w-full h-full justify-center items-center bg-slate-800/40 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-inner">
             <div class="text-center space-y-3">
