@@ -1,13 +1,15 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import Phaser from 'phaser';
-  import { saveGameScore } from '../../api-connector/GameApi';
   import AddRankModal from '../common/AddRankModal.svelte';
 	import toast from 'svelte-french-toast';
 	import { GAME_KIND_MODE } from '../enums';
 
   let gameContainer: HTMLDivElement;
   let phaserGame: Phaser.Game | null = null;
+
+  const STAGE_ENEMY_COUNT = 1;
+  const STAGE_SCORE_COUNT = 10;
 
   // 게임 설정 (동적으로 조정될 예정)
   let GAME_WIDTH = 800;
@@ -126,6 +128,8 @@
     private isPaused: boolean = false;
     private pauseStartTime: number = 0;
     private totalPauseTime: number = 0;
+
+    private playerInvulnerable: boolean = false; // 플레이어 무적 상태
 
     constructor() {
       super({ key: 'SpaceScene' });
@@ -418,6 +422,12 @@
       this.hasShield = false;
       this.isCharging = false;
       this.chargeStartTime = 0;
+      this.playerInvulnerable = false; // 무적 상태 초기화
+      
+      // 플레이어 투명도 초기화
+      if (this.player) {
+        this.player.setAlpha(1);
+      }
       this.playerBlinkTimer = 0;
 
       // 그룹들 초기화
@@ -663,7 +673,10 @@
 
       this.bullets.children.entries.forEach(bullet => {
         const bulletObj = bullet as Phaser.GameObjects.Rectangle;
-        bulletObj.x += bulletObj.getData('speed'); // 우측으로 이동
+        
+        // 총알 속도를 강제로 적용 (간섭 방지) 🚀
+        const speed = bulletObj.getData('speed') || 6;
+        bulletObj.x += speed; // 우측으로 이동
 
         // 화면 밖으로 나간 총알 제거
         if (bulletObj.x > GAME_WIDTH) {
@@ -676,31 +689,34 @@
     private updateEnemies(time: number) {
       if (!this.enemies) return;
 
-      // 적 생성 간격을 스테이지에 따라 더 적극적으로 조정 (더 빠르게, 더 많이)
-      const baseSpawnInterval = Math.max(400, 1800 - (this.stage * 150)); // 스테이지당 150ms 감소, 최소 400ms
-      const enemiesPerWave = Math.min(3, 1 + Math.floor(this.stage / 2)); // 2스테이지마다 적 1마리씩 추가 (최대 3마리)
-      
-      if (time > this.enemySpawnTimer + baseSpawnInterval) {
-        // 여러 마리 동시 생성
-        for (let i = 0; i < enemiesPerWave; i++) {
-        this.spawnEnemy();
+      // 보스 스테이지 중에는 적 스폰 중단
+      if (!this.isBossStage) {
+        // 적 생성 간격을 조금 늘려서 생성빈도 조정 (더 여유있게)
+        const baseSpawnInterval = Math.max(400, 2000 - (this.stage * 150)); // 스테이지당 150ms 감소, 최소 400ms (이전보다 500ms 증가)
+        const enemiesPerWave = Math.min(6, 1 + Math.floor(this.stage * 0.8)); // 스테이지마다 0.8마리씩 추가, 최대 6마리
+        
+        if (time > this.enemySpawnTimer + baseSpawnInterval) {
+          // 여러 마리 동시 생성
+          for (let i = 0; i < enemiesPerWave; i++) {
+            this.spawnEnemy();
+          }
+          this.enemySpawnTimer = time;
         }
-        this.enemySpawnTimer = time;
       }
 
-      // 적 이동 및 업데이트 - 스테이지별 속도 대폭 증가
+      // 적 이동 및 업데이트 - 스테이지별 속도 증가
       this.enemies.children.entries.forEach(enemy => {
         const enemyObj = enemy as Phaser.GameObjects.Rectangle;
-        const baseSpeed = 2.5; // 기본 속도 증가
-        const stageSpeedBonus = Math.floor(this.stage * 1.2); // 스테이지당 1.2배 속도 증가
+        const baseSpeed = 2.5; // 기본 속도
+        const stageSpeedBonus = Math.floor(this.stage * 0.5); // 스테이지당 0.5 속도 증가 (부드럽게)
         const speed = baseSpeed + stageSpeedBonus;
         enemyObj.x -= speed;
 
-        // 4단계 이후 적 미사일 발사 시스템 (돌진 기믹 대신)
-        if (this.stage >= 4) {
+        // 4단계 이후 적 미사일 발사 시스템 (보스전 중에는 발사 안 함)
+        if (this.stage >= 4 && !this.isBossStage) {
           const lastShot = enemyObj.getData('lastShot') || 0;
           const currentTime = this.time.now;
-          const shootInterval = Math.max(1500, 3000 - (this.stage * 200)); // 스테이지가 높을수록 더 자주 발사
+          const shootInterval = Math.max(1000, 2500 - (this.stage * 150)); // 스테이지가 높을수록 더 자주 발사 (더 빈번하게)
           
           if (currentTime > lastShot + shootInterval) {
             this.fireEnemyMissile(enemyObj);
@@ -779,18 +795,19 @@
     private fireEnemyMissile(enemy: Phaser.GameObjects.Rectangle) {
       if (!this.enemyBullets || !this.player) return;
 
-      // 적 미사일 생성
+      // 적 미사일 생성 (적의 왼쪽에서 생성하여 오른쪽→왼쪽으로 발사)
       const bulletSpeed = 4 + Math.floor(this.stage * 0.5); // 스테이지별 미사일 속도 증가
-      const bullet = this.add.rectangle(enemy.x, enemy.y + 15, 8, 15, 0xff6666); // 적 아래쪽에서 생성
+      const bullet = this.add.rectangle(enemy.x - 15, enemy.y, 15, 8, 0xff6666); // 적 왼쪽에서 생성, 가로형 미사일
       
-      // 미사일 데이터 설정
-      bullet.setData('speed', bulletSpeed);
+      // 미사일 데이터 설정 (오른쪽→왼쪽 이동)
+      bullet.setData('speedX', -bulletSpeed); // 왼쪽으로 이동
+      bullet.setData('speedY', 0); // 세로 이동 없음
       bullet.setData('damage', 1);
       bullet.setData('enemyBullet', true);
       
       this.enemyBullets.add(bullet);
       
-      console.log(`Enemy fired missile from stage ${this.stage}`);
+      console.log(`Enemy fired horizontal missile from stage ${this.stage}`);
     }
 
     private updateEnemyBullets(time: number) {
@@ -800,12 +817,14 @@
       this.enemyBullets.children.entries.forEach(bullet => {
         const bulletObj = bullet as Phaser.GameObjects.Rectangle;
         
-        // 미사일을 아래쪽으로 이동
-        const speed = bulletObj.getData('speed') || 4;
-        bulletObj.y += speed;
+        // 미사일을 왼쪽으로 이동 (speedX, speedY 강제 적용으로 간섭 방지) 🚀
+        const speedX = bulletObj.getData('speedX') || -4;
+        const speedY = bulletObj.getData('speedY') || 0;
+        bulletObj.x += speedX;
+        bulletObj.y += speedY;
         
-        // 화면 아래로 나간 미사일 제거
-        if (bulletObj.y > GAME_HEIGHT + 50) {
+        // 화면 왼쪽으로 나간 미사일 제거
+        if (bulletObj.x < -50) {
           this.enemyBullets?.remove(bulletObj);
           bulletObj.destroy();
           return;
@@ -1043,8 +1062,8 @@
       // 스테이지 진행률 정보 추가 (보스 스테이지가 아닐 때만)
       let stageProgressInfo = '';
       if (!this.isBossStage && !this.isStageTransition) {
-        const requiredScore = this.stage === 1 ? 500 : this.stage * 500; // 실제 보스전 진입 조건과 동일하게 수정
-        const stageEnemiesRequired = Math.max(10, this.stage * 5);
+        const requiredScore = this.stage === 1 ? STAGE_SCORE_COUNT : this.stage * STAGE_SCORE_COUNT; // 실제 보스전 진입 조건과 동일하게 수정
+        const stageEnemiesRequired = Math.max(STAGE_ENEMY_COUNT, this.stage * STAGE_ENEMY_COUNT);
         const timeSinceStageStart = this.time.now - this.stageStartTime;
         const timeRemaining = Math.max(0, this.minStageTime - timeSinceStageStart);
         
@@ -1090,32 +1109,67 @@
       this.ultimateCount--;
       this.updateItemsDisplay();
 
-      // 모든 몬스터에게 2 데미지
-        this.enemies?.children.entries.forEach(enemy => {
-          const enemyObj = enemy as Phaser.GameObjects.Rectangle;
+      // 모든 몬스터에게 20 데미지 (안전한 배열 처리) 🔥
+      const enemiesToDestroy: Phaser.GameObjects.Rectangle[] = [];
+      
+      // 1단계: 모든 적에게 데미지 적용 (제거하지 않음)
+      this.enemies?.children.entries.forEach(enemy => {
+        const enemyObj = enemy as Phaser.GameObjects.Rectangle;
         const currentHealth = enemyObj.getData('health') || 1;
-        enemyObj.setData('health', currentHealth - 2);
+        const newHealth = currentHealth - 20; // 20 데미지 적용
+        enemyObj.setData('health', newHealth);
         
-        if (enemyObj.getData('health') <= 0) {
-          this.score += 50;
-          this.enemiesKilledThisStage++; // 적 처치 카운터 증가
-          this.enemies?.remove(enemyObj);
+        // 죽은 적을 제거 목록에 추가
+        if (newHealth <= 0) {
+          enemiesToDestroy.push(enemyObj);
+        }
+        
+        console.log(`🔥 Ultimate hit enemy: ${currentHealth} → ${newHealth} HP`);
+      });
+      
+      // 2단계: 죽은 적들을 일괄 제거하고 점수/효과 처리
+      enemiesToDestroy.forEach(enemyObj => {
+        this.score += 50;
+        this.enemiesKilledThisStage++; // 적 처치 카운터 증가
+        
+        // 폭발 효과 (제거 전에 위치 저장)
+        const explosionX = enemyObj.x;
+        const explosionY = enemyObj.y;
+        
+        if (this.enemies) {
+          this.enemies.remove(enemyObj);
           enemyObj.destroy();
-          this.createExplosion(enemyObj.x, enemyObj.y);
+          this.createExplosion(explosionX, explosionY);
         }
       });
+      
+      console.log(`🔥 Ultimate: Damaged ${this.enemies?.children.entries.length || 0} enemies, destroyed ${enemiesToDestroy.length} enemies`);
 
-      // 보스에게도 2 데미지
+      // 보스에게도 20 데미지 (2 → 20으로 변경) 🔥
       if (this.boss && this.isBossStage) {
-        this.bossCurrentHealth = Math.max(0, this.bossCurrentHealth - 2);
+        const oldHealth = this.bossCurrentHealth;
+        this.bossCurrentHealth = Math.max(0, this.bossCurrentHealth - 20); // 2 → 20으로 변경
         this.updateBossHealthDisplay();
+        
+        console.log(`🔥 Ultimate hit boss: ${oldHealth} → ${this.bossCurrentHealth} HP`);
         
         if (this.bossCurrentHealth <= 0) {
           this.defeatBoss();
         }
       }
 
-            this.scoreText?.setText(`Score: ${this.score}`);
+      // 모든 적 미사일과 보스 미사일 초기화 🚀
+      if (this.enemyBullets) {
+        this.enemyBullets.clear(true, true);
+        console.log('🔥 Ultimate: All enemy missiles cleared!');
+      }
+      
+      if (this.bossBullets) {
+        this.bossBullets.clear(true, true);
+        console.log('🔥 Ultimate: All boss missiles cleared!');
+      }
+
+      this.scoreText?.setText(`Score: ${this.score}`);
             
       // 궁극기 시각 효과
       this.createUltimateEffect();
@@ -1407,36 +1461,28 @@
 
     private updateItemsDisplay() {
       // 궁극기 표시 - 보유 개수만큼 불꽃 아이콘 표시
-      if (this.ultimateCount > 0) {
-        let ultDisplay = '⚡ ';
-        for (let i = 0; i < this.ultimateCount; i++) {
-          ultDisplay += '🔥';
-        }
-        this.ultimateUI?.setText(ultDisplay);
-        this.ultimateUI?.setVisible(true);
-      } else {
-        this.ultimateUI?.setVisible(false);
+      let ultDisplay = 'Ultimate: ';
+      for (let i = 0; i < this.ultimateCount; i++) {
+        ultDisplay += '🔥';
       }
+      this.ultimateUI?.setText(ultDisplay);
+      this.ultimateUI?.setVisible(true);
       
       // 미사일 레벨 표시 - 레벨만큼 미사일 아이콘 표시
-      if (this.bulletUpgrade > 0) {
-        let bulletDisplay = '●';
-        for (let i = 1; i < this.bulletUpgrade; i++) {
-          bulletDisplay += '●';
-        }
-        this.bulletUI?.setText(bulletDisplay);
-        this.bulletUI?.setVisible(true);
-      } else {
-        this.bulletUI?.setVisible(false);
+      let bulletDisplay = 'Lv. ●';
+      for (let i = 1; i < this.bulletUpgrade; i++) {
+        bulletDisplay += '●';
       }
+      this.bulletUI?.setText(bulletDisplay);
+      this.bulletUI?.setVisible(true);
       
       // 보호막 표시 - 활성화 시에만 표시
+      let shieldDisplay = 'Shield: ';
       if (this.hasShield) {
-        this.shieldUI?.setText('🛡️ ✨');
-        this.shieldUI?.setVisible(true);
-      } else {
-        this.shieldUI?.setVisible(false);
+        shieldDisplay += '🛡️';
       }
+      this.shieldUI?.setText(shieldDisplay);
+      this.shieldUI?.setVisible(true);
     }
 
     private updateLivesDisplay() {
@@ -1446,47 +1492,11 @@
         if (i < this.lives) {
           livesDisplay += '🚀'; // 살아있는 라이프
         } else {
-          livesDisplay += '💥'; // 잃은 라이프
+          // livesDisplay += '💥'; // 잃은 라이프
         }
         if (i < this.maxLives - 1) livesDisplay += ' ';
       }
       this.livesText?.setText(livesDisplay);
-    }
-
-    private drawLifeIcon(x: number, y: number, isAlive: boolean = true) {
-      if (!this.graphics) return;
-
-      const iconSize = 12;
-      
-      if (isAlive) {
-        // 살아있는 우주선 아이콘 (초록색)
-        this.graphics.fillStyle(0x00ff00);
-        this.graphics.beginPath();
-        this.graphics.moveTo(x + iconSize, y); // 앞쪽 끝
-        this.graphics.lineTo(x - iconSize * 0.5, y - iconSize * 0.4); // 왼쪽 위
-        this.graphics.lineTo(x - iconSize * 0.2, y); // 중간
-        this.graphics.lineTo(x - iconSize * 0.5, y + iconSize * 0.4); // 왼쪽 아래
-        this.graphics.closePath();
-        this.graphics.fillPath();
-        
-        // 엔진 불꽃
-        this.graphics.fillStyle(0xff6600);
-        this.graphics.beginPath();
-        this.graphics.moveTo(x - iconSize * 0.5, y - iconSize * 0.2);
-        this.graphics.lineTo(x - iconSize, y);
-        this.graphics.lineTo(x - iconSize * 0.5, y + iconSize * 0.2);
-        this.graphics.closePath();
-        this.graphics.fillPath();
-      } else {
-        // 파괴된 우주선 아이콘 (빨간색 X)
-        this.graphics.lineStyle(3, 0xff0000);
-        this.graphics.beginPath();
-        this.graphics.moveTo(x - iconSize * 0.5, y - iconSize * 0.5);
-        this.graphics.lineTo(x + iconSize * 0.5, y + iconSize * 0.5);
-        this.graphics.moveTo(x + iconSize * 0.5, y - iconSize * 0.5);
-        this.graphics.lineTo(x - iconSize * 0.5, y + iconSize * 0.5);
-        this.graphics.strokePath();
-      }
     }
 
     private checkStageProgression() {
@@ -1496,8 +1506,8 @@
       }
 
       // 스테이지별 필요 점수 대폭 상향 조정
-      const requiredScore = this.stage === 1 ? 500 : this.stage * 500; // 1스테이지: 500점, 2스테이지: 1000점, 3스테이지: 1500점 등
-      const stageEnemiesRequired = Math.max(10, this.stage * 5); // 스테이지별 최소 적 처치 수 (스테이지 1: 10마리, 스테이지 2: 15마리...)
+      const requiredScore = this.stage === 1 ? STAGE_SCORE_COUNT : this.stage * STAGE_SCORE_COUNT; // 1스테이지: 500점, 2스테이지: 1500점, 3스테이지: 2250점 등
+      const stageEnemiesRequired = Math.max(STAGE_ENEMY_COUNT, this.stage * STAGE_ENEMY_COUNT); // 스테이지별 최소 적 처치 수 (스테이지 1: 10마리, 스테이지 2: 20마리...)
 
       // 보스 등장 조건: 1) 점수 조건 만족 2) 최소 적 처치 수 만족 (시간 조건 제거)
       const scoreCondition = this.score >= requiredScore;
@@ -1534,10 +1544,10 @@
       const bossSize = Math.max(80, Math.min(120, GAME_HEIGHT / 8));
       this.boss = this.add.rectangle(GAME_WIDTH - 150, GAME_HEIGHT / 2, bossSize, bossSize, 0x8800ff);
       
-      // 보스 체력 설정 - 스테이지별 대폭 증가
-      const baseHealth = 30; // 기본 체력 증가
-      const stageHealthMultiplier = this.stage * 15; // 스테이지당 15씩 증가
-      const exponentialBonus = Math.floor(Math.pow(this.stage, 1.5) * 5); // 지수적 증가 요소
+      // 보스 체력 설정 - 스테이지별 대폭 증가 (더 높게 설정)
+      const baseHealth = 60; // 기본 체력 대폭 증가 (30 → 60)
+      const stageHealthMultiplier = this.stage * 25; // 스테이지당 증가량 증가 (15 → 25)
+      const exponentialBonus = Math.floor(Math.pow(this.stage, 1.8) * 8); // 지수적 증가 요소 강화 (1.5*5 → 1.8*8)
       this.bossMaxHealth = baseHealth + stageHealthMultiplier + exponentialBonus;
       this.bossCurrentHealth = this.bossMaxHealth;
       this.bossDirection = 1;
@@ -1793,8 +1803,12 @@
 
       this.bossBullets.children.entries.forEach(bullet => {
         const bulletObj = bullet as Phaser.GameObjects.Rectangle;
-        bulletObj.x += bulletObj.getData('speedX');
-        bulletObj.y += bulletObj.getData('speedY');
+        
+        // 미사일 방향과 속도를 강제로 유지 (간섭 방지) 🚀
+        const speedX = bulletObj.getData('speedX') || 0;
+        const speedY = bulletObj.getData('speedY') || 0;
+        bulletObj.x += speedX;
+        bulletObj.y += speedY;
 
         // 화면 밖으로 나간 미사일 제거
         if (bulletObj.x < -50 || bulletObj.x > GAME_WIDTH + 50 || 
@@ -2035,9 +2049,15 @@
     private checkCollisions() {
       if (!this.player || !this.bullets || !this.enemies) return;
 
-      // 총알과 적 충돌
+      // 총알과 적 충돌 (안전한 배열 복사로 중복 처리 방지)
+      const bulletsToRemove: Phaser.GameObjects.Rectangle[] = [];
+      const enemiesToUpdate: { enemy: Phaser.GameObjects.Rectangle, damage: number }[] = [];
+
       this.bullets.children.entries.forEach(bullet => {
         const bulletObj = bullet as Phaser.GameObjects.Rectangle;
+        
+        // 이미 제거 예정인 총알은 건너뛰기
+        if (bulletsToRemove.includes(bulletObj)) return;
         
         this.enemies?.children.entries.forEach(enemy => {
           const enemyObj = enemy as Phaser.GameObjects.Rectangle;
@@ -2050,36 +2070,55 @@
             
             enemyObj.setData('health', newHealth);
             
-            // 적 맞은 모션 + 넉백 효과 추가
+            // 효과 생성 (위치 고정)
             this.createEnemyHitEffect(enemyObj.x, enemyObj.y, damage);
-            this.createEnemyKnockback(enemyObj, damage);
             
-            // 총알 제거
-            if (this.bullets) {
-              this.bullets.remove(bulletObj);
-              bulletObj.destroy();
-            }
-            
-            // 적 처치
+            // 적 처치 체크
             if (newHealth <= 0) {
               this.score += 25 * this.stage; // 스테이지별 점수 증가
               this.enemiesKilledThisStage++; // 적 처치 카운터 증가
               this.scoreText?.setText(`Score: ${this.score}`);
               
               if (this.enemies) {
-                this.enemiesKilledThisStage++; // 적 처치 카운터 증가 (플레이어 충돌)
                 this.enemies.remove(enemyObj);
                 enemyObj.destroy();
                 this.createExplosion(enemyObj.x, enemyObj.y);
               }
+            } else {
+              // 살아있는 적에게만 knockback 적용 (한 번만)
+              enemiesToUpdate.push({ enemy: enemyObj, damage });
             }
+            
+            // 총알을 제거 목록에 추가 (즉시 제거하지 않고 나중에 일괄 처리)
+            if (!bulletsToRemove.includes(bulletObj)) {
+              bulletsToRemove.push(bulletObj);
+            }
+            return; // 하나의 총알은 하나의 적만 맞출 수 있음
           }
         });
       });
 
-      // 플레이어와 적 충돌
+      // 총알 일괄 제거 (중복 제거 방지)
+      bulletsToRemove.forEach(bullet => {
+        if (this.bullets && this.bullets.children.entries.includes(bullet)) {
+          this.bullets.remove(bullet);
+          bullet.destroy();
+        }
+      });
+
+      // knockback 효과 일괄 적용 (적당한 지연으로 자연스럽게)
+      enemiesToUpdate.forEach(({ enemy, damage }) => {
+        if (enemy.active && this.enemies?.children.entries.includes(enemy)) {
+          this.createEnemyKnockback(enemy, damage);
+        }
+      });
+
+      // 플레이어와 적 충돌 (기존 로직 유지)
       this.enemies.children.entries.forEach(enemy => {
         const enemyObj = enemy as Phaser.GameObjects.Rectangle;
+        
+        // 무적 상태일 때는 충돌 체크 안 함
+        if (this.playerInvulnerable) return;
         
         if (Phaser.Geom.Rectangle.Overlaps(this.player!.getBounds(), enemyObj.getBounds())) {
           // 보호막이 있으면 보호막만 제거
@@ -2094,7 +2133,19 @@
             this.updateLivesDisplay();
             
             // 무적 시간 (깜빡임 효과)
-            this.playerBlinkTimer = 60; // 1초간 깜빡임
+            this.playerInvulnerable = true;
+            this.player!.setAlpha(0.5);
+            
+            // 1초 후 무적 해제
+            this.time.delayedCall(1000, () => {
+              this.playerInvulnerable = false;
+              this.player!.setAlpha(1);
+            });
+            
+            if (this.lives <= 0) {
+              this.endGame();
+              return;
+            }
           }
           
           // 적 제거
@@ -2102,17 +2153,9 @@
             this.enemiesKilledThisStage++; // 적 처치 카운터 증가 (플레이어 충돌)
             this.enemies.remove(enemyObj);
             enemyObj.destroy();
-            this.createExplosion(enemyObj.x, enemyObj.y);
-          }
-          
-          // 게임 오버 체크
-          if (this.lives <= 0) {
-            this.endGame();
           }
         }
       });
-
-      // 보스 미사일과 플레이어 충돌은 이제 checkBossCollisions()에서 처리됨
     }
 
     private checkBossCollisions() {
@@ -2156,6 +2199,9 @@
       this.bossBullets.children.entries.forEach(bullet => {
         const bulletObj = bullet as Phaser.GameObjects.Rectangle;
         
+        // 무적 상태일 때는 충돌 체크 안 함 ✅
+        if (this.playerInvulnerable) return;
+        
         if (this.player && Phaser.Geom.Rectangle.Overlaps(this.player.getBounds(), bulletObj.getBounds())) {
           // 보호막이 있으면 보호막만 제거
           if (this.hasShield) {
@@ -2169,8 +2215,17 @@
             this.lives--;
             this.updateLivesDisplay();
             
-            // 무적 시간
-            this.playerBlinkTimer = 60;
+            // 무적 시간 설정 (새로운 시스템 사용) ✅
+            this.playerInvulnerable = true;
+            this.player!.setAlpha(0.5);
+            
+            // 1초 후 무적 해제
+            this.time.delayedCall(1000, () => {
+              this.playerInvulnerable = false;
+              if (this.player) this.player.setAlpha(1);
+            });
+            
+            console.log(`💥 Player hit by boss missile! Lives: ${this.lives}`);
           }
           
           // 미사일 제거
@@ -2954,27 +3009,26 @@
       if (!this.player || !this.enemies) return;
 
       const enemyObj = enemy as Phaser.GameObjects.Rectangle;
-      const originalX = enemyObj.x;
       const enemyX = enemyObj.x;
       const enemyY = enemyObj.y;
       const playerX = this.player!.x;
       const playerY = this.player!.y;
 
-      const knockbackDistance = 50;
+      // 더 부드럽고 자연스러운 knockback (원래 위치로 되돌리지 않음)
+      const knockbackDistance = Math.min(15, damage * 5); // 더 작은 knockback
       const knockbackAngle = Phaser.Math.Angle.Between(playerX, playerY, enemyX, enemyY);
 
-      const knockbackX = playerX + Math.cos(knockbackAngle) * knockbackDistance;
-      const knockbackY = playerY + Math.sin(knockbackAngle) * knockbackDistance;
+      const knockbackX = Math.cos(knockbackAngle) * knockbackDistance;
+      const knockbackY = Math.sin(knockbackAngle) * knockbackDistance;
 
+      // 현재 위치에서 knockback 방향으로 살짝만 이동 (원래 위치로 되돌리지 않음)
       this.tweens.add({
         targets: enemyObj,
-        x: knockbackX,
-        y: knockbackY,
-        duration: 200,
-        ease: 'Sine.easeInOut',
-        onComplete: () => {
-          enemyObj.setPosition(enemyX, enemyY);
-        }
+        x: enemyX + knockbackX,
+        y: enemyY + knockbackY,
+        duration: 100, // 더 짧은 duration
+        ease: 'Sine.easeOut'
+        // onComplete 제거: 원래 위치로 되돌리지 않음
       });
     }
 
