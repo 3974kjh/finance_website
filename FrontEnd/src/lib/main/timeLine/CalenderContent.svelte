@@ -87,30 +87,30 @@
 
 <div class="flex flex-col w-full min-h-[420px] max-h-[600px] h-auto bg-slate-800/40 backdrop-blur-xl rounded-2xl border border-slate-600/40 shadow-lg shadow-black/10 p-4 overflow-hidden">
   <!-- 헤더 섹션 -->
-  <div class="flex flex-row w-full h-[60px] items-center justify-between mb-4 bg-slate-700/60 backdrop-blur-sm rounded-xl border border-slate-500/30 px-4 py-3 shadow-inner flex-shrink-0">
+  <div class="flex flex-col lg:flex-row w-full min-h-[60px] items-center justify-between mb-4 bg-slate-700/60 backdrop-blur-sm rounded-xl border border-slate-500/30 px-3 lg:px-4 py-3 shadow-inner flex-shrink-0 gap-3 lg:gap-0">
     <!-- 좌측: 삭제 버튼과 종목 정보 -->
-    <div class="flex items-center space-x-4">
-      <button class="w-10 h-10 bg-gradient-to-r from-red-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg shadow-red-500/30 transition-all duration-200 hover:scale-110 hover:shadow-xl hover:shadow-red-500/40 border border-red-400/50 group"
+    <div class="flex items-center space-x-2 lg:space-x-4 w-full lg:w-auto">
+      <button class="w-8 h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-red-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg shadow-red-500/30 transition-all duration-200 hover:scale-110 hover:shadow-xl hover:shadow-red-500/40 border border-red-400/50 group flex-shrink-0"
         on:click={() => dispatch('onDeleteStockInfoCallback', investItemInfo)}
       >
-        <svg class="w-4 h-4 text-white group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-3 h-3 lg:w-4 lg:h-4 text-white group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
         </svg>
       </button>
       
-      <div class="flex items-center space-x-3 cursor-pointer bg-slate-600/60 backdrop-blur-sm rounded-lg px-4 py-2 border border-slate-500/30 transition-all duration-200 hover:bg-slate-500/60 hover:shadow-lg"
+      <div class="flex items-center space-x-2 lg:space-x-3 cursor-pointer bg-slate-600/60 backdrop-blur-sm rounded-lg px-2 lg:px-4 py-2 border border-slate-500/30 transition-all duration-200 hover:bg-slate-500/60 hover:shadow-lg flex-shrink-0"
         on:click={() => dispatch('onShowDetailStockInfoCallback', investItemInfo)}
       >
-        <div class="w-14 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-sm">
+        <div class="w-10 h-6 lg:w-14 lg:h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-sm">
           <span class="text-white text-xs font-bold">{investItemInfo.code}</span>
         </div>
-        <span class="text-white font-bold text-lg">{investItemInfo.name}</span>
+        <span class="text-white font-bold text-sm lg:text-lg truncate">{investItemInfo.name}</span>
       </div>
       
       <!-- 외부 링크 버튼들 -->
-      <div class="flex space-x-2">
+      <div class="hidden sm:flex space-x-2 flex-shrink-0">
         <a 
-          class="w-8 h-8 rounded-lg border border-slate-400/50 shadow-sm transition-all duration-200 hover:scale-110 hover:shadow-md"
+          class="w-6 h-6 lg:w-8 lg:h-8 rounded-lg border border-slate-400/50 shadow-sm transition-all duration-200 hover:scale-110 hover:shadow-md"
           href="{`https://comp.fnguide.com/SVO2/ASP/SVD_Main.asp?pGB=1&gicode=A${investItemInfo.code ?? ''}`}"
           title="FnGuide_{investItemInfo?.name}"
           target="_blank"
@@ -121,7 +121,7 @@
           "
         />
         <a
-          class="w-8 h-8 rounded-lg border border-slate-400/50 shadow-sm transition-all duration-200 hover:scale-110 hover:shadow-md"
+          class="w-6 h-6 lg:w-8 lg:h-8 rounded-lg border border-slate-400/50 shadow-sm transition-all duration-200 hover:scale-110 hover:shadow-md"
           href="{`https://finance.naver.com/item/main.naver?code=${investItemInfo.code ?? ''}`}"
           title="NAVER_{investItemInfo?.name}"
           target="_blank"
@@ -135,50 +135,56 @@
     </div>
 
     <!-- 우측: 투자 정보 카드들 -->
-    <div class="flex items-center space-x-4">
-      <div class="flex items-center space-x-2 bg-slate-600/80 backdrop-blur-sm rounded-lg px-3 py-2 border border-slate-500/30">
-        <span class="text-slate-300 font-medium text-sm">현재가:</span>
-        <span class="text-white font-bold text-sm">{`${formatIncludeComma(investItemInfo.todayAmount) ?? '-'} ₩`}</span>
+    <div class="flex flex-col sm:flex-row items-center gap-2 lg:gap-4 w-full lg:w-auto overflow-x-auto modern-scrollbar">
+      <!-- 첫 번째 줄: 현재가와 평단가 -->
+      <div class="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto min-w-fit">
+        <div class="flex items-center space-x-1 lg:space-x-2 bg-slate-600/80 backdrop-blur-sm rounded-lg px-2 lg:px-3 py-1.5 lg:py-2 border border-slate-500/30 min-w-fit flex-shrink-0">
+          <span class="text-slate-300 font-medium text-xs lg:text-sm whitespace-nowrap">현재가:</span>
+          <span class="text-white font-bold text-xs lg:text-sm whitespace-nowrap">{`${formatIncludeComma(investItemInfo.todayAmount) ?? '-'} ₩`}</span>
+        </div>
+        
+        <div class="flex items-center space-x-1 lg:space-x-2 bg-slate-600/80 backdrop-blur-sm rounded-lg px-2 lg:px-3 py-1.5 lg:py-2 border border-slate-500/30 min-w-fit flex-shrink-0">
+          <span class="text-slate-300 font-medium text-xs lg:text-sm whitespace-nowrap">평단가:</span>
+          <span class="text-white font-bold text-xs lg:text-sm whitespace-nowrap">{`${formatIncludeComma(investItemInfo.haveAmount / investItemInfo.totalShares) ?? '-'} ₩`}</span>
+        </div>
       </div>
       
-      <div class="flex items-center space-x-2 bg-slate-600/80 backdrop-blur-sm rounded-lg px-3 py-2 border border-slate-500/30">
-        <span class="text-slate-300 font-medium text-sm">평단가:</span>
-        <span class="text-white font-bold text-sm">{`${formatIncludeComma(investItemInfo.haveAmount / investItemInfo.totalShares) ?? '-'} ₩`}</span>
-      </div>
-      
-      <div class="flex items-center space-x-2 bg-slate-600/80 backdrop-blur-sm rounded-lg px-3 py-2 border border-slate-500/30">
-        <span class="text-slate-300 font-medium text-sm">투자액:</span>
-        {#if investItemInfo.totalShares > 0}
-          <span class="text-white font-bold text-sm">{`${formatIncludeComma(investItemInfo.haveAmount) ?? '-'} ₩`}</span>
-        {:else}
-          <span class="text-white font-bold text-sm">- ₩</span>
-        {/if}
-      </div>
-      
-      <div class="flex items-center space-x-2 bg-slate-200/90 backdrop-blur-sm rounded-lg px-3 py-2 border border-slate-300/50 shadow-sm">
-        {#if investItemInfo.totalShares > 0}
-          {@const totalProfitLossAmount = (investItemInfo.todayAmount - (investItemInfo.haveAmount / investItemInfo.totalShares)) * investItemInfo.totalShares}
-          <span class="text-slate-700 font-medium text-sm">{setProfitLossTitleText(totalProfitLossAmount)}:</span>
-          <span class="font-bold text-sm drop-shadow-sm" style="color: {setUpDownColor(totalProfitLossAmount)};">
-            {`${formatIncludeComma(totalProfitLossAmount) ?? '-'} ₩`}
-          </span>
-          <span class="text-slate-600 font-medium text-xs">
-            <span>{'('}</span>
-            {@html setUpDownRatioTag(investItemInfo?.haveAmount, investItemInfo?.haveAmount + totalProfitLossAmount)}
-            <span>{')'}</span>
-          </span>
-        {:else}
-          {@const totalProfitLossAmount = -investItemInfo.haveAmount}
-          <span class="text-slate-700 font-medium text-sm">{setProfitLossTitleText(totalProfitLossAmount)}:</span>
-          <span class="font-bold text-sm drop-shadow-sm" style="color: {setUpDownColor(totalProfitLossAmount)};">
-            {`${formatIncludeComma(totalProfitLossAmount) ?? '-'} ₩`}
-          </span>
-          <span class="text-slate-600 font-medium text-xs">
-            <span>{'('}</span>
-            {@html setUpDownRatioTag(investItemInfo?.haveAmount, investItemInfo?.haveAmount + totalProfitLossAmount)}
-            <span>{')'}</span>
-          </span>
-        {/if}
+      <!-- 두 번째 줄: 투자액과 손익 -->
+      <div class="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto min-w-fit">
+        <div class="flex items-center space-x-1 lg:space-x-2 bg-slate-600/80 backdrop-blur-sm rounded-lg px-2 lg:px-3 py-1.5 lg:py-2 border border-slate-500/30 min-w-fit flex-shrink-0">
+          <span class="text-slate-300 font-medium text-xs lg:text-sm whitespace-nowrap">투자액:</span>
+          {#if investItemInfo.totalShares > 0}
+            <span class="text-white font-bold text-xs lg:text-sm whitespace-nowrap">{`${formatIncludeComma(investItemInfo.haveAmount) ?? '-'} ₩`}</span>
+          {:else}
+            <span class="text-white font-bold text-xs lg:text-sm whitespace-nowrap">- ₩</span>
+          {/if}
+        </div>
+        
+        <div class="flex items-center space-x-1 lg:space-x-2 bg-slate-200/90 backdrop-blur-sm rounded-lg px-2 lg:px-3 py-1.5 lg:py-2 border border-slate-300/50 shadow-sm min-w-fit flex-shrink-0">
+          {#if investItemInfo.totalShares > 0}
+            {@const totalProfitLossAmount = (investItemInfo.todayAmount - (investItemInfo.haveAmount / investItemInfo.totalShares)) * investItemInfo.totalShares}
+            <span class="text-slate-700 font-medium text-xs lg:text-sm whitespace-nowrap">{setProfitLossTitleText(totalProfitLossAmount)}:</span>
+            <span class="font-bold text-xs lg:text-sm drop-shadow-sm whitespace-nowrap" style="color: {setUpDownColor(totalProfitLossAmount)};">
+              {`${formatIncludeComma(totalProfitLossAmount) ?? '-'} ₩`}
+            </span>
+            <span class="text-slate-600 font-medium text-xs whitespace-nowrap">
+              <span>{'('}</span>
+              {@html setUpDownRatioTag(investItemInfo?.haveAmount, investItemInfo?.haveAmount + totalProfitLossAmount)}
+              <span>{')'}</span>
+            </span>
+          {:else}
+            {@const totalProfitLossAmount = -investItemInfo.haveAmount}
+            <span class="text-slate-700 font-medium text-xs lg:text-sm whitespace-nowrap">{setProfitLossTitleText(totalProfitLossAmount)}:</span>
+            <span class="font-bold text-xs lg:text-sm drop-shadow-sm whitespace-nowrap" style="color: {setUpDownColor(totalProfitLossAmount)};">
+              {`${formatIncludeComma(totalProfitLossAmount) ?? '-'} ₩`}
+            </span>
+            <span class="text-slate-600 font-medium text-xs whitespace-nowrap">
+              <span>{'('}</span>
+              {@html setUpDownRatioTag(investItemInfo?.haveAmount, investItemInfo?.haveAmount + totalProfitLossAmount)}
+              <span>{')'}</span>
+            </span>
+          {/if}
+        </div>
       </div>
     </div>
   </div>

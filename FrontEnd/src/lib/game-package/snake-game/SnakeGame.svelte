@@ -68,6 +68,9 @@
     private lengthText: Phaser.GameObjects.Text | null = null; // 지렁이 길이 표시
     private powerUpText: Phaser.GameObjects.Text | null = null; // 무적 모드 표시
     private itemDescriptionUI: Phaser.GameObjects.Text | null = null; // 아이템 설명 UI
+    // 무적 모드 상태바 관련 변수들
+    private invincibleStatusBar: Phaser.GameObjects.Graphics | null = null; // 상태바 배경
+    private invincibleStatusBarText: Phaser.GameObjects.Text | null = null; // 상태바 텍스트
     private graphics: Phaser.GameObjects.Graphics | null = null;
     private cursors: Phaser.Types.Input.Keyboard.CursorKeys | null = null;
     private wasd: any = null;
@@ -244,6 +247,28 @@
         align: 'center'
       }).setOrigin(0.5).setVisible(false); // 기본적으로 숨김
 
+      // 무적 모드 상태바 생성 (투명도 적용)
+      this.invincibleStatusBar = this.add.graphics();
+      this.invincibleStatusBar.setDepth(1000); // 높은 depth로 설정하여 다른 요소들 위에 표시
+      this.invincibleStatusBar.setVisible(false); // 기본적으로 숨김
+
+      this.invincibleStatusBarText = this.add.text(GAME_WIDTH / 2, 25, '', {
+        fontSize: Math.max(12, Math.min(16, GAME_WIDTH / 50)) + 'px',
+        color: '#ffffff',
+        fontFamily: 'Courier New, monospace',
+        stroke: '#000000',
+        strokeThickness: 2,
+        shadow: {
+          offsetX: 2,
+          offsetY: 2,
+          color: '#000000',
+          blur: 4,
+          stroke: true,
+          fill: true
+        },
+        align: 'center'
+      }).setOrigin(0.5).setDepth(1001).setVisible(false); // 기본적으로 숨김, 더 높은 depth
+
       // 첫 렌더링
       this.render();
       
@@ -383,6 +408,11 @@
       this.blinkTimer = 0;
       this.powerUpItem = null;
       this.powerUpItemSpawnTime = 0; // 아이템 생성 시간 초기화
+      
+      // 상태바 숨기기 및 초기화
+      this.invincibleStatusBar?.setVisible(false);
+      this.invincibleStatusBarText?.setVisible(false);
+      this.invincibleStatusBar?.clear();
       
       // 독사과 관련 초기화
       this.poisonApples = [];
@@ -1058,19 +1088,97 @@
           this.isInvincible = false;
           this.currentMoveDelay = this.normalSpeed;
           this.powerUpText?.setText('');
+          // 상태바 숨기기
+          this.invincibleStatusBar?.setVisible(false);
+          this.invincibleStatusBarText?.setVisible(false);
+          // 상태바 완전 초기화
+          this.invincibleStatusBar?.clear();
           this.updateSpeedDisplay();
           this.updateLengthDisplay(); // 무적 모드 해제 시 길이 표시 업데이트
+          console.log('🛡️ Invincible mode ended');
         } else {
           // 무적 모드 타이머 표시
           const secondsLeft = Math.ceil(this.invincibleTimeLeft / 1000);
           this.powerUpText?.setText(`INVINCIBLE: ${secondsLeft}s`);
           this.powerUpText?.setColor('#ffffff');
           
+          // 상태바 업데이트
+          this.updateInvincibleStatusBar(this.invincibleTimeLeft);
+          
           // 번쩍이는 효과
           this.blinkTimer += 0.1;
           if (this.blinkTimer > 1) this.blinkTimer = 0;
         }
       }
+    }
+
+    private updateInvincibleStatusBar(timeLeft: number) {
+      if (!this.invincibleStatusBar || !this.invincibleStatusBarText) return;
+
+      const totalTime = 10000; // 무적 모드 지속 시간 (ms)
+      const progress = 1 - (timeLeft / totalTime); // 진행률 계산 수정
+
+      // 상태바 위치와 크기 설정
+      const barWidth = 250;
+      const barHeight = 16;
+      const barX = GAME_WIDTH / 2 - barWidth / 2;
+      const barY = 15;
+
+      // 상태바 배경 업데이트
+      this.invincibleStatusBar.clear();
+      
+      // 외곽 테두리 (더 눈에 띄게)
+      this.invincibleStatusBar.lineStyle(2, 0xffffff, 0.8);
+      this.invincibleStatusBar.strokeRoundedRect(barX - 2, barY - 2, barWidth + 4, barHeight + 4, 8);
+      
+      // 배경 (어두운 반투명)
+      this.invincibleStatusBar.fillStyle(0x000000, 0.6);
+      this.invincibleStatusBar.fillRoundedRect(barX, barY, barWidth, barHeight, 6);
+
+      // 남은 시간에 따른 색상 변화
+      let barColor = 0x00ff00; // 초록색 (안전)
+      let barAlpha = 0.9;
+      
+      if (timeLeft <= 3000) { // 3초 이하
+        barColor = 0xff0000; // 빨간색 (위험)
+        barAlpha = 0.9 + Math.sin(this.time.now * 0.01) * 0.1; // 깜빡임 효과
+      } else if (timeLeft <= 5000) { // 5초 이하
+        barColor = 0xffaa00; // 주황색 (경고)
+        barAlpha = 0.9;
+      }
+
+      // 상태바 진행률 업데이트 (남은 시간 표시)
+      const remainingWidth = barWidth * (timeLeft / totalTime);
+      this.invincibleStatusBar.fillStyle(barColor, barAlpha);
+      this.invincibleStatusBar.fillRoundedRect(barX, barY, remainingWidth, barHeight, 6);
+
+      // 상태바 위에 글로우 효과
+      this.invincibleStatusBar.lineStyle(1, barColor, 0.5);
+      this.invincibleStatusBar.strokeRoundedRect(barX, barY, remainingWidth, barHeight, 6);
+
+      // 상태바 텍스트 업데이트 (더 명확하게)
+      const secondsLeft = Math.ceil(timeLeft / 1000);
+      this.invincibleStatusBarText.setText(`⚡ INVINCIBLE: ${secondsLeft}s ⚡`);
+      this.invincibleStatusBarText.setPosition(GAME_WIDTH / 2, barY + barHeight / 2);
+      this.invincibleStatusBarText.setOrigin(0.5, 0.5);
+      
+      // 텍스트 색상도 상황에 따라 변경
+      if (timeLeft <= 3000) {
+        this.invincibleStatusBarText.setColor('#ff0000');
+        this.invincibleStatusBarText.setStroke('#330000', 3);
+      } else if (timeLeft <= 5000) {
+        this.invincibleStatusBarText.setColor('#ffaa00');
+        this.invincibleStatusBarText.setStroke('#332200', 3);
+      } else {
+        this.invincibleStatusBarText.setColor('#ffffff');
+        this.invincibleStatusBarText.setStroke('#000000', 3);
+      }
+      
+      this.invincibleStatusBarText.setAlpha(1.0); // 텍스트는 완전 불투명
+      
+      // 상태바 표시 확실히 하기
+      this.invincibleStatusBar.setVisible(true);
+      this.invincibleStatusBarText.setVisible(true);
     }
 
     private updatePowerUpSpawn(time: number) {
@@ -1257,6 +1365,13 @@
       this.currentMoveDelay = Math.floor(this.baseMoveDelay / 5); // 5배 속도
       this.blinkTimer = 0;
       this.powerUpItem = null; // 아이템 제거
+      
+      // 상태바 표시 (즉시 활성화)
+      this.invincibleStatusBar?.setVisible(true);
+      this.invincibleStatusBarText?.setVisible(true);
+      
+      // 초기 상태바 업데이트
+      this.updateInvincibleStatusBar(10000); // 최대 시간으로 시작
       
       // 다음 아이템이 더 빨리 나오도록 타이머 조정 (15초 후)
       this.powerUpSpawnTimer = this.time.now - 15000; // 30초 - 15초 = 15초 후 생성

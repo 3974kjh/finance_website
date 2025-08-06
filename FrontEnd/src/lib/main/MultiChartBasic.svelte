@@ -39,11 +39,30 @@
    */
   let nowDisplayMode: any = displayModeObject['5×4'];
 
+  /**
+   * 브라우저 크기에 따른 최적 보기모드 결정
+   */
+  const getOptimalDisplayMode = (width: number, height: number) => {
+    // 화면 크기별 최적 보기모드 설정
+    if (width >= 2560 && height >= 1080) {
+      return displayModeObject['5×4']; // 초대형 모니터 (2560x1080+)
+    } else if (width >= 1920 && height >= 1080) {
+      return displayModeObject['4×2']; // 대형 모니터 (1920x1080)
+    } else if (width >= 1600 && height >= 900) {
+      return displayModeObject['3×2']; // 중대형 모니터 (1600x900)
+    } else if (width >= 1366 && height >= 768) {
+      return displayModeObject['2×2']; // 일반 노트북 (1366x768)
+    } else {
+      return displayModeObject['2×1']; // 소형 화면 또는 모바일
+    }
+  };
+
 	let chartModeObject: any = {
 		'S&P500'			: {name: 'S&P500', key: 'US500', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
 		'나스닥'			 : {name: '나스닥', key: 'IXIC', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
     '다우존스'		 : {name: '다우존스', key: 'DJI', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
 		'코스피'			 : {name: '코스피', key: 'KS11', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
+		'코스피200'		 : {name: '코스피200', key: 'KS200', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
     '코스닥'			 : {name: '코스닥', key: 'KQ11', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
     '상해'			   : {name: '상해', key: 'SSEC', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
     '항셍'			   : {name: '항셍', key: 'HSI', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
@@ -51,10 +70,13 @@
     '영국'			   : {name: '영국', key: 'FTSE', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
     '프랑스'			 : {name: '프랑스', key: 'FCHI', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
     '독일'			   : {name: '독일', key: 'GDAXI', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
-    '비트코인'		 : {name: '비트코인', key: 'BTC/USD', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
-    'VIX'					: {name: 'VIX', key: 'VIX', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
-		'달러'			   : {name: '달러', key: 'USD/KRW', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
+    '비트코인'		 : {name: '비트코인', key: 'BTC/KRW', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
+    '이더리움'		 : {name: '이더리움', key: 'ETH/KRW', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
+    '리플'		    : {name: '리플', key: 'XRP/KRW', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
+		'엔화'			  : {name: '엔화', key: 'JPY/KRW', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
+		'달러'			  : {name: '달러', key: 'USD/KRW', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
 		'달러인덱스' 	 : {name: '달러인덱스', key: '^NYICDX', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
+    'VIX'					: {name: 'VIX', key: 'VIX', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
 		'미국5년채권'	 : {name: '미국5년채권', key: 'US5YT', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
 		'미국10년채권' : {name: '미국10년채권', key: 'US10YT', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
 		'미국30년채권' : {name: '미국30년채권', key: 'US30YT', dataList: [], detailInfo: null, newsInfoList: [], isLoading: false, lastUpdated: null, isMultiLine: false, analysisData: null},
@@ -78,6 +100,22 @@
     }
     updateCounters[chartMode]++;
     updateCounters = { ...updateCounters }; // 해당 차트만 리렌더링
+  };
+
+  // 브라우저 크기 변경 시 보기모드 자동 조정 함수 🔄
+  const handleResize = () => {
+    if (typeof window !== 'undefined') {
+      const newOptimalMode = getOptimalDisplayMode(window.innerWidth, window.innerHeight);
+      if (newOptimalMode !== nowDisplayMode) {
+        nowDisplayMode = newOptimalMode;
+        // 안전장치: fullChartViewer 값들이 0이 아닐 때만 계산 🛡️
+        if (fullChartViewerHeight > 0 && fullChartViewerWidth > 0) {
+          heightRangeValue = Math.round((fullChartViewerHeight - 300) / newOptimalMode.row) - (newOptimalMode.row * 5);
+          widthRangeValue = Math.round((fullChartViewerWidth - 50) / newOptimalMode.col) - 15;
+        }
+        console.log(`🔄 Window resized: ${window.innerWidth}x${window.innerHeight} → Display mode changed to:`, Object.keys(displayModeObject).find(key => displayModeObject[key] === newOptimalMode));
+      }
+    }
   };
 
   // 개별 종목 업데이트 함수
@@ -139,6 +177,13 @@
 	onMount(async() => {
     if (!!!localStorage) {
       return;
+    }
+
+    // 브라우저 크기에 따른 최적 보기모드 설정 🖥️
+    if (typeof window !== 'undefined') {
+      const optimalMode = getOptimalDisplayMode(window.innerWidth, window.innerHeight);
+      nowDisplayMode = optimalMode;
+      console.log(`🖥️ Browser size: ${window.innerWidth}x${window.innerHeight} → Optimal display mode set to:`, Object.keys(displayModeObject).find(key => displayModeObject[key] === optimalMode));
     }
 
     isProgress = true;
@@ -220,13 +265,26 @@
 
     await tick();
 
+    // 안전장치: fullChartViewer 값들이 0이 아닐 때만 계산 🛡️
+    if (fullChartViewerHeight > 0 && fullChartViewerWidth > 0) {
     heightRangeValue = Math.round((fullChartViewerHeight - 300) / nowDisplayMode.row) - (nowDisplayMode.row * 5);
     widthRangeValue = Math.round((fullChartViewerWidth - 50) / nowDisplayMode.col) - 15;
+    }
+
+    // 리사이즈 이벤트 리스너 등록
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', handleResize);
+    }
 	});
 
   onDestroy(() => {
     if (typeof document !== 'undefined') {
       cancelRequest(axiosController);
+    }
+    
+    // 리사이즈 이벤트 리스너 제거 🧹
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('resize', handleResize);
     }
   })
 

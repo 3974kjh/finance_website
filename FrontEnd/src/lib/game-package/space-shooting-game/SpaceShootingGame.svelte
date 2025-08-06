@@ -727,9 +727,9 @@
         if (time > this.enemySpawnTimer + baseSpawnInterval) {
           // 여러 마리 동시 생성
           for (let i = 0; i < enemiesPerWave; i++) {
-            this.spawnEnemy();
+        this.spawnEnemy();
           }
-          this.enemySpawnTimer = time;
+        this.enemySpawnTimer = time;
         }
       }
 
@@ -1120,8 +1120,8 @@
       const enemiesToDestroy: Phaser.GameObjects.Rectangle[] = [];
       
       // 1단계: 모든 적에게 데미지 적용 (제거하지 않음)
-      this.enemies?.children.entries.forEach(enemy => {
-        const enemyObj = enemy as Phaser.GameObjects.Rectangle;
+        this.enemies?.children.entries.forEach(enemy => {
+          const enemyObj = enemy as Phaser.GameObjects.Rectangle;
         const currentHealth = enemyObj.getData('health') || 1;
         const newHealth = currentHealth - 20; // 20 데미지 적용
         enemyObj.setData('health', newHealth);
@@ -1176,7 +1176,7 @@
         console.log('🔥 Ultimate: All boss missiles cleared!');
       }
 
-      this.scoreText?.setText(`Score: ${this.score}`);
+            this.scoreText?.setText(`Score: ${this.score}`);
             
       // 궁극기 시각 효과
       this.createUltimateEffect();
