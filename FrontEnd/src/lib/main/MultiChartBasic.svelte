@@ -406,6 +406,8 @@
               on:click|capture|preventDefault|stopPropagation={() => {
                 delete chartModeObject[chartMode];
                 delete updateCounters[chartMode];
+                // Svelte 반응성을 위해 객체 재할당
+                chartModeObject = { ...chartModeObject };
                 updateCounters = { ...updateCounters };
                 updateLocalStorage();
               }}
@@ -602,6 +604,8 @@
               on:click|capture|preventDefault|stopPropagation={() => {
                 delete chartModeObject[chartMode];
                 delete updateCounters[chartMode];
+                // Svelte 반응성을 위해 객체 재할당
+                chartModeObject = { ...chartModeObject };
                 updateCounters = { ...updateCounters };
                 updateLocalStorage();
               }}
