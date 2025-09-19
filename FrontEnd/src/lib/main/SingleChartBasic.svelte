@@ -636,21 +636,21 @@
                         <span class="text-sm font-medium text-gray-700">시초가</span>
                         <div class="flex items-center space-x-1">
                           <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(formatCostValue(dataList[dataList.length - 1]?.Open)) ?? '-'} ₩`}</span>
-                          {@html setUpDownRatioTag(nowValue ?? 0, dataList[dataList.length - 1]?.Open ?? 0)}
+                          {@html setUpDownRatioTag(dataList[dataList.length - 1]?.Open ?? 0, nowValue ?? 0)}
                         </div>
                       </div>
                       <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
                         <span class="text-sm font-medium text-gray-700">최고가</span>
                         <div class="flex items-center space-x-1">
                           <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(formatCostValue(dataList[dataList.length - 1]?.High)) ?? '-'} ₩`}</span>
-                          {@html setUpDownRatioTag(nowValue ?? 0, dataList[dataList.length - 1]?.High ?? 0)}
+                          {@html setUpDownRatioTag(dataList[dataList.length - 1]?.High ?? 0, nowValue ?? 0)}
                         </div>
                       </div>
                       <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
                         <span class="text-sm font-medium text-gray-700">최저가</span>
                         <div class="flex items-center space-x-1">
                           <span class="text-sm font-semibold text-gray-900">{`${formatIncludeComma(formatCostValue(dataList[dataList.length - 1]?.Low)) ?? '-'} ₩`}</span>
-                          {@html setUpDownRatioTag(nowValue ?? 0, dataList[dataList.length - 1]?.Low ?? 0)}
+                          {@html setUpDownRatioTag(dataList[dataList.length - 1]?.Low ?? 0, nowValue ?? 0)}
                         </div>
                       </div>
                       <div class="flex items-center justify-between bg-white/60 rounded-lg p-2">
