@@ -24,6 +24,7 @@
   let dataList: any = [];
 
   let durationModeList: Array<{name: string, value: {month: number, week: number}, isSelected: boolean}> = [
+    { name: '전체', value: {month: 99999, week: 99999}, isSelected: false },
     { name: '10 YEAR', value: {month: 120, week: 520}, isSelected: false },
     { name: '5 YEAR', value: {month: 60, week: 260}, isSelected: false },
     { name: '2 YEAR', value: {month: 24, week: 104}, isSelected: false },

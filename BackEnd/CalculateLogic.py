@@ -198,6 +198,16 @@ def 고점저점예측(code, term):
     return 한달뒤저항평균예측값, 한달뒤지지평균예측값, 저항평균예측값, 지지평균예측값, 현재값, 고가예측값, 저가예측값, 지지저항변화율평균값
 
 def findStockPeaksAndTroughs(code, term):
+    if (term == 99999): 
+        return {
+            'expectValue': 0,
+            'afterMonthExpectValue': 0,
+            'nowValue': 0,
+            'bottomValue': 0,
+            'topValue': 0,
+            'expectRatioValue': 0
+        }
+
     after_month_top_value, after_month_bottom_value, top_value, bottom_value, now_value, max_value, min_value, expect_ratio_value = 고점저점예측(code, term)
 
     return {

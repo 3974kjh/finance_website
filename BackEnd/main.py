@@ -237,10 +237,13 @@ async def login(request: LoginRequest):
 async def get_stock_data(request: StockRequest):
     try:
         end_date = datetime.now()
-        durationDay = request.duration * (30 if request.isMonth else 7)
-        start_date = end_date - timedelta(days=durationDay)
 
-        df = fdr.DataReader(request.symbol, start_date, end_date)
+        if (request.duration == 99999):
+            df = fdr.DataReader(request.symbol)
+        else:
+            durationDay = request.duration * (30 if request.isMonth else 7)
+            start_date = end_date - timedelta(days=durationDay)
+            df = fdr.DataReader(request.symbol, start_date, end_date)
 
         if df.empty:
             raise HTTPException(status_code=404, detail="데이터를 찾을 수 없습니다.")
