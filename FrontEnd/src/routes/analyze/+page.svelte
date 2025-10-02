@@ -41,6 +41,9 @@
   // 주식 목록
 	let stockInfoList: StockType[] = [];
 
+  // 시작 시간
+  let startAnalyzeTime: string | null = null;
+
   // 결과 목록
   let calcSignalScoreResultList: any = [];
   let filteredCalcSignalScoreResultList: any = [];
@@ -80,11 +83,6 @@
   // 페이지네이션 관련 변수
   let currentPage: number = 0;
   const itemsPerPage: number = 50; // 페이지당 50개 항목
-
-  /**
-   * 로컬 호스트 여부
-   */
-  const isLocalHost: boolean = $page.url.hostname === 'localhost';
 
   // 페이지네이션 표시 여부에 따른 테이블 높이 계산
   $: showPagination = filteredCalcSignalScoreResultList.length > itemsPerPage;
@@ -160,6 +158,7 @@
     analyzeDate = getCalcResultList?.date || null;
 
     filteredCalcSignalScoreResultList = _.cloneDeep(calcSignalScoreResultList);
+    startAnalyzeTime = null;
 
     sessionStorage.removeItem('selectedDurationKey');
     sessionStorage.removeItem('selectedStockMode');
@@ -336,13 +335,26 @@
    * 분석한 증시정보 데이터 저장
   */
   const onSaveFinanceRankList = async () => {
-    if (!isLocalHost) {
-      toast.error('수행 권환이 없습니다.');
+    if (calcSignalScoreResultList.length < 1) {
+      toast.error('저장할 데이터가 없습니다.');
       return;
     }
 
-    if (calcSignalScoreResultList.length < 1) {
-      toast.error('저장할 데이터가 없습니다.');
+    if (
+      !!!startAnalyzeTime ||
+      startAnalyzeTime === new Date().toISOString()
+    ) {
+      toast.error('분석 시작 시간이 존재하지 않습니다.');
+      return;
+    }
+
+    // 분석 시작 시간이 오후 3시 30분 이전인지 확인
+    const analyzeDate = new Date(startAnalyzeTime);
+    const targetTime = new Date(analyzeDate);
+    targetTime.setHours(15, 30, 0, 0); // 15:30:00.000
+
+    if (analyzeDate < targetTime) {
+      toast.error('오후 3시 30분 이후에만 저장할 수 있습니다.');
       return;
     }
 
@@ -485,7 +497,7 @@
   <div class="absolute top-0 left-0 w-96 h-96 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 animate-pulse"></div>
   <div class="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-r from-cyan-500/20 to-teal-500/20 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 animate-pulse"></div>
   
-  {#if isLocalHost && isShowConditionSetting}
+  {#if isShowConditionSetting}
     <div 
       class="flex flex-wrap absolute top-[80px] right-0 w-[100%] h-[80px] bg-white/10 backdrop-blur-md p-4 border border-white/20 shadow-xl gap-4"
       style="z-index: 100;"
@@ -546,11 +558,6 @@
           disabled={loadProgress} 
           class="h-10 flex items-center space-x-2 px-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed"
           on:click={async () => {
-            if (!isLocalHost) {
-              toast.error('수행 권환이 없습니다.');
-              return;
-            }
-
             const nowDate = new Date();
 
             // 분석일자 변경
@@ -563,6 +570,8 @@
             count = -1;
             totalStockInfoList = 0;
             calcSignalScoreResultList = [];
+            startAnalyzeTime = null;
+
             // 페이지 초기화
             currentPage = 0;
 
@@ -585,9 +594,10 @@
               return parseInt(stockInfo?.Marcap ?? 0);
             });
 
-
             // 카운트 시작
             count = 0;
+
+            startAnalyzeTime = new Date().toISOString();
 
             for (let range = 0; range < Math.ceil(totalStockInfoList / multipleLength); range++) {
               const calcResult = await getCalcSignalScoreResultList(
@@ -708,7 +718,7 @@
             on:onUpdateKakaoAccessCodeCallback={onUpdateKakaoAccessCode}
           />
         </div>
-        <button disabled={!isLocalHost} class="h-10 flex items-center space-x-2 px-3 {isShowConditionSetting ? 'bg-gray-400' : 'bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700'} disabled:from-gray-400 disabled:to-gray-500 text-white rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed transform"
+        <button class="h-10 flex items-center space-x-2 px-3 {isShowConditionSetting ? 'bg-gray-400' : 'bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700'} disabled:from-gray-400 disabled:to-gray-500 text-white rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed transform"
           on:click={() => {
             isShowConditionSetting = !isShowConditionSetting;
           }}

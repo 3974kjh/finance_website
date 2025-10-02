@@ -203,7 +203,7 @@ export const formatCostValue = (value: number | string | any): string | null => 
 }
 
 /**
- * 숫자나 문자값을 가져와서 세 자리마다 쉼표를 넣어 가격을 보기 쉽게 만드는 함수
+ * 숫자나 문자값을 가져와서 소수점 셋째자리에서 반올림하고, 세 자리마다 쉼표를 넣어 가격을 보기 쉽게 만드는 함수
  * @param value 
  * @returns 
  */
@@ -223,8 +223,12 @@ export const formatIncludeComma = (value: number | string | any): string | null 
     return null;
   }
 
+  // 소수점 셋째자리에서 반올림
+  const num = parseFloat(priceString);
+  const rounded = Math.round(num * 100) / 100;
+
   // 정수부와 소수부 분리
-  const [integerPart, decimalPart] = priceString.split('.');
+  const [integerPart, decimalPart] = rounded.toString().split('.');
 
   // 정수부에 쉼표 추가
   const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
