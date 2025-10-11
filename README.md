@@ -130,7 +130,6 @@ pnpm run dev
 
 ### 🌐 접속 정보
 - **Frontend**: http://finance-website-687.pages.dev
-- **Backend API**: https://ba9c-112-223-52-250.ngrok-free.app
 
 ## 💡 주요 이점
 
