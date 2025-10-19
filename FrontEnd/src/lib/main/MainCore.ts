@@ -459,7 +459,7 @@ export const makeStockFinalReportText = (stockName: string, overallStocFinalObje
 
     return {
       text: `${text} 그래서 <b>${scoreText}</b>를 받았습니다.`,
-      positionScore: isReversal ? positionScore : 100 - positionScore
+      positionScore: isReversal ? 100 - positionScore : positionScore
     };
   }
 
