@@ -506,11 +506,18 @@ export const makeStockFinalReportText = (stockName: string, overallStocFinalObje
       `<b>폭풍 매수 하세요.</b> ${overallStocFinalObject.isOverGoldenCross ?
         '(고평가 상태이긴 합니다.)' : '(고평가 상태가 아닙니다.)'}`;
   } else if (
-    (priceTotalScore >= 120)
+    (priceTotalScore >= 140)
   ) {
     reportBuyOrSellText = overallStocFinalObject.isNearGoldenCross ?
       '<b>진짜 매수 하세요.</b>' :
       `<b>매수 하세요.</b> ${overallStocFinalObject.isOverGoldenCross ?
+        '(고평가 상태이긴 합니다.)' : '(고평가 상태가 아닙니다.)'}`;
+  } else if (
+    (priceTotalScore >= 100)
+  ) {
+    reportBuyOrSellText = overallStocFinalObject.isNearGoldenCross ?
+      '<b>진짜 매수 할만합니다.</b>' :
+      `<b>매수 할만합니다.</b> ${overallStocFinalObject.isOverGoldenCross ?
         '(고평가 상태이긴 합니다.)' : '(고평가 상태가 아닙니다.)'}`;
   } else if (
     (priceTotalScore >= 60)
