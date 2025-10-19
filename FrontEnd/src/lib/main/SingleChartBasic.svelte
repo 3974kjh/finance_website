@@ -10,7 +10,10 @@
 	  isOverGoldenCross,
 	  isNearGoldenCross,
 	  calculateGeneralizedPricePosition,
-    makeStockFinalReportText
+    makeStockFinalReportText,
+
+	calculateBollingerBands
+
   } from '$lib/main';
   import { calculateRatio, formatCostValue, formatIncludeComma } from '$lib/utils/CommonHelper';
   import { NaverFinanceImg, CompanyGuideImg } from '$lib/images/logo';
@@ -70,7 +73,9 @@
     crossNormalizeValue: null as number | null,
     volumeNormalizeValue: null as number | null,
     lineNormalizeValue: null as number | null,
-    expectNormalizeValue: null as number | null
+    expectNormalizeValue: null as number | null,
+    isOverGoldenCross: false,
+    isNearGoldenCross: false
   }
 
   let signalScoreWeight = {
@@ -184,62 +189,6 @@
       return movingAverages;
     };
 
-    /**
-     * 볼린저 밴드 계산 함수
-     * @param data - 데이터 리스트
-     * @param period - 기간
-     * @param multiplier - 곱수
-     * @returns {upBollingerBandList: Array<number | null>, middleBollingerBandList: Array<number | null>, downBollingerBandList: Array<number | null>}
-     */
-    const calculateBollingerBands = (data: any, period: number = 20, multiplier: number = 2) => {
-      const upBollingerBandList: (number | null)[] = [];
-      const middleBollingerBandList: (number | null)[] = [];
-      const downBollingerBandList: (number | null)[] = [];
-
-      for (let index = 0; index < data.length; index++) {
-        if (index < period - 1) {
-          // 데이터가 부족한 경우 null로 표시
-          upBollingerBandList.push(null);
-          middleBollingerBandList.push(null);
-          downBollingerBandList.push(null);
-        } else {
-          // 현재 기간의 데이터 추출
-          const periodData = data.slice(index - period + 1, index + 1);
-          
-          // 중심선 (20일 이동평균) 계산
-          const sum = periodData.reduce((acc: any, cur: any) => acc + cur.Open, 0);
-          const middleBand = sum / period;
-          
-          // 표준편차 계산
-          const squaredDifferences = periodData.map((item: any) => {
-            const diff = item.Open - middleBand;
-            return diff * diff;
-          });
-          const variance = squaredDifferences.reduce((acc: number, val: number) => acc + val, 0) / period;
-          const standardDeviation = Math.sqrt(variance);
-          
-          // 상단 밴드와 하단 밴드 계산
-          const upperBand = middleBand + (multiplier * standardDeviation);
-          const lowerBand = middleBand - (multiplier * standardDeviation);
-          
-          // 값을 formatCostValue로 포맷팅
-          const formattedMiddle = formatCostValue(middleBand);
-          const formattedUpper = formatCostValue(upperBand);
-          const formattedLower = formatCostValue(lowerBand);
-          
-          middleBollingerBandList.push(formattedMiddle ? parseFloat(formattedMiddle) : null);
-          upBollingerBandList.push(formattedUpper ? parseFloat(formattedUpper) : null);
-          downBollingerBandList.push(formattedLower ? parseFloat(formattedLower) : null);
-        }
-      }
-
-      return {
-        upBollingerBandList,
-        middleBollingerBandList,
-        downBollingerBandList
-      };
-    }
-
     // 각 이동평균 계산
     const ma5 = calculateMA(financeDataResult, 5);
     const ma20 = calculateMA(financeDataResult, 20);
@@ -259,12 +208,8 @@
       parseFloat(expectRatioValue)
     )
 
-    overallStocFinalObject.isOverGoldenCross = isOverGoldenCross(ma20[ma20.length - 1], ma60[ma60.length - 1]);
-    overallStocFinalObject.isNearGoldenCross = isNearGoldenCross(
-      nowValue,
-      ma20[ma20.length - 1],
-      ma60[ma60.length - 1]
-    );
+    overallStocFinalObject.isOverGoldenCross = calcSignalScoreResult.isOverGoldenCross;
+    overallStocFinalObject.isNearGoldenCross = calcSignalScoreResult.isNearGoldenCross;
     overallStocFinalObject.generalizedPricePosition = calculateGeneralizedPricePosition(
       nowValue,
       bollingerBands.upBollingerBandList[bollingerBands.upBollingerBandList.length - 1],

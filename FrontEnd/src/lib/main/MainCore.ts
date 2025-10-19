@@ -3,6 +3,7 @@ import { getSearchResultByNaverApi } from '$lib/api-connector/NaverApi';
 import { sendFinanceResultByKakaoApi } from '$lib/api-connector/KakaoApi';
 import _ from 'lodash';
 import type { OverallStockFinalObjectType } from "$lib/types";
+import { formatCostValue } from "$lib/utils/CommonHelper";
 
 /**
   * 주가 데이터 가져오기
@@ -210,7 +211,10 @@ export const calculateExpectFinanceScore = (
     crossNormalizeValue: 0,
     volumeNormalizeValue: 0,
     lineNormalizeValue: 0,
-    expectNormalizeValue: 0
+    expectNormalizeValue: 0,
+    isNearLowerBand: false,
+    isOverGoldenCross: false,
+    isNearGoldenCross: false
   }
 
   let nowValue = dataList[dataList.length - 1]?.Close;
@@ -267,6 +271,27 @@ export const calculateExpectFinanceScore = (
    */
   let calcExpectValue = parseFloat(calculateChangeRate(nowValue, expectValue));
   resultObject.expectNormalizeValue = selfNormalize(calcExpectValue, -30, 30);
+
+  // 오늘 기준 볼린저 밴드 값 조회
+  const todayBollingerBands = getTodayBollingerBands(dataList, 20, 2);
+  resultObject.isNearLowerBand = todayBollingerBands?.isNearLowerBand ?? false;
+
+  /**
+   * 골든크로스 여부 확인
+   * @param ma20Value 
+   * @param ma60Value 
+   * @returns 
+   */
+  resultObject.isOverGoldenCross = isOverGoldenCross(ma20Value, ma60Value);
+
+  /**
+   * 골든크로스 임박 여부 확인
+   * @param nowValue 
+   * @param ma20Value 
+   * @param ma60Value 
+   * @returns 
+   */
+  resultObject.isNearGoldenCross = isNearGoldenCross(nowValue, ma20Value, ma60Value);
 
   return resultObject;
 }
@@ -363,16 +388,11 @@ export const isNearGoldenCross = (
   const ma20 = typeof ma20Value === 'string' ? parseFloat(ma20Value) : ma20Value;
   const ma60 = typeof ma60Value === 'string' ? parseFloat(ma60Value) : ma60Value;
 
-  // 골든크로스가 이미 발생한 경우는 제외
-  if (ma20 > ma60) {
-    return false;
-  }
-
-  // 20일 이평선과 60일 이평선의 차이가 5% 이내이고, 현재가가 둘 다보다 높으면 임박
+  // 20일 이평선과 60일 이평선의 차이가 2% 이내이고, 현재가가 둘 다보다 높으면 임박
   const diff = Math.abs(ma20 - ma60);
-  const diffPercent = (diff / ma60) * 100;
+  const diffPercent = (diff / now) * 100;
 
-  return diffPercent <= 5 && now > ma20 && now > ma60;
+  return diffPercent <= 2 && now > ma20 && now > ma60;
 }
 
 /**
@@ -530,8 +550,123 @@ export const makeStockFinalReportText = (stockName: string, overallStocFinalObje
       reportBuyOrSellText = '<b>관심 가지지 마세요.</b>';
     }
   } else {
-    reportBuyOrSellText = '<b>갖다 버리세요.</b> (점수가 너무 낮습니다.)';
+    reportBuyOrSellText = '<b>쳐다도 보지 마세요.</b> (너무 고평가되거나 과열되었습니다.)';
   }
 
   return `<p class='text-lg'><b>${stockName}</b>는 ${reportBuyOrSellText}</p><br/>${reportText}<br/>`;
+}
+
+/**
+ * 오늘 기준 볼린저 밴드 값 조회 (최적화된 단일 계산)
+ * @param data - 차트 데이터 배열 (시간순 정렬, 최신 데이터가 마지막)
+ * @param period - 기간 (기본값: 20일)
+ * @param multiplier - 표준편차 배수 (기본값: 2)
+ * @returns {{ upperBand: number, middleBand: number, lowerBand: number, currentPrice: number } | null}
+ */
+export const getTodayBollingerBands = (data: any, period: number = 20, multiplier: number = 2) => {
+  // 데이터가 충분하지 않으면 null 반환
+  if (!data || data.length < period) {
+    return null;
+  }
+
+  // 최근 period개의 데이터만 추출 (오늘 포함)
+  const recentData = data.slice(-period);
+  
+  // 한 번의 루프로 합계와 제곱합을 동시에 계산
+  let sum = 0;
+  let sumOfSquares = 0;
+  
+  for (let i = 0; i < period; i++) {
+    const closePrice = recentData[i].Close || 0;
+    sum += closePrice;
+    sumOfSquares += closePrice * closePrice;
+  }
+  
+  // 평균 계산 (중간선)
+  const middleBand = sum / period;
+  
+  // 분산 계산: Var(X) = E(X²) - [E(X)]²
+  const variance = (sumOfSquares / period) - (middleBand * middleBand);
+  
+  // 표준편차 계산
+  const standardDeviation = Math.sqrt(variance);
+  
+  // 상한선과 하한선 계산
+  const upperBand = middleBand + (multiplier * standardDeviation);
+  const lowerBand = middleBand - (multiplier * standardDeviation);
+  
+  // 현재가(오늘 종가)
+  const currentPrice = data[data.length - 1].Close || 0;
+
+  const bandPosition = calculateGeneralizedPricePosition(currentPrice, upperBand, lowerBand);
+  
+  return {
+    upperBand: parseFloat(upperBand.toFixed(2)),
+    middleBand: parseFloat(middleBand.toFixed(2)),
+    lowerBand: parseFloat(lowerBand.toFixed(2)),
+    currentPrice: parseFloat(currentPrice.toFixed(2)),
+    // 추가 정보
+    standardDeviation: parseFloat(standardDeviation.toFixed(2)),
+    // 현재가가 밴드의 어느 위치에 있는지 (0~1, 0.5가 중간)
+    bandPosition: bandPosition,
+    // 볼린저 밴드의 하단 부분에 위치하고 있는지 여부
+    isNearLowerBand: bandPosition < 0.6, // 0.6 이하면 하단 부분에 위치하고 있는 것으로 판단
+  };
+}
+
+/**
+ * 볼린저 밴드 계산 함수
+ * @param data - 데이터 리스트
+ * @param period - 기간
+ * @param multiplier - 곱수
+ * @returns {upBollingerBandList: Array<number | null>, middleBollingerBandList: Array<number | null>, downBollingerBandList: Array<number | null>}
+*/
+export const calculateBollingerBands = (data: any, period: number = 20, multiplier: number = 2) => {
+  const upBollingerBandList: (number | null)[] = [];
+  const middleBollingerBandList: (number | null)[] = [];
+  const downBollingerBandList: (number | null)[] = [];
+
+  for (let index = 0; index < data.length; index++) {
+    if (index < period - 1) {
+      // 데이터가 부족한 경우 null로 표시
+      upBollingerBandList.push(null);
+      middleBollingerBandList.push(null);
+      downBollingerBandList.push(null);
+    } else {
+      // 현재 기간의 데이터 추출
+      const periodData = data.slice(index - period + 1, index + 1);
+      
+      // 중심선 (20일 이동평균) 계산
+      const sum = periodData.reduce((acc: any, cur: any) => acc + cur.Open, 0);
+      const middleBand = sum / period;
+      
+      // 표준편차 계산
+      const squaredDifferences = periodData.map((item: any) => {
+        const diff = item.Open - middleBand;
+        return diff * diff;
+      });
+
+      const variance = squaredDifferences.reduce((acc: number, val: number) => acc + val, 0) / period;
+      const standardDeviation = Math.sqrt(variance);
+      
+      // 상단 밴드와 하단 밴드 계산
+      const upperBand = middleBand + (multiplier * standardDeviation);
+      const lowerBand = middleBand - (multiplier * standardDeviation);
+      
+      // 값을 formatCostValue로 포맷팅
+      const formattedMiddle = formatCostValue(middleBand);
+      const formattedUpper = formatCostValue(upperBand);
+      const formattedLower = formatCostValue(lowerBand);
+      
+      middleBollingerBandList.push(formattedMiddle ? parseFloat(formattedMiddle) : null);
+      upBollingerBandList.push(formattedUpper ? parseFloat(formattedUpper) : null);
+      downBollingerBandList.push(formattedLower ? parseFloat(formattedLower) : null);
+    }
+  }
+
+  return {
+    upBollingerBandList,
+    middleBollingerBandList,
+    downBollingerBandList
+  };
 }

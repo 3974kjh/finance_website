@@ -80,13 +80,21 @@
   let kakaoAccessCode: string = '';
   let kakaoAccessToken: string = '';
 
+  // 골든크로스 필터 옵션 (토글 방식)
+  let goldenCrossFilterList: Array<{name: string, value: string, isSelected: boolean}> = [
+    { name: '골든크로스 돌파', value: 'OVER', isSelected: false },
+    { name: '골든크로스 근접', value: 'NEAR', isSelected: false },
+    { name: '볼린저밴드 하단', value: 'LOWER_BAND', isSelected: false },
+    { name: '우수 종합점수', value: 'GOOD_SCORE', isSelected: false },
+  ];
+
   // 페이지네이션 관련 변수
   let currentPage: number = 0;
   const itemsPerPage: number = 50; // 페이지당 50개 항목
 
   // 페이지네이션 표시 여부에 따른 테이블 높이 계산
   $: showPagination = filteredCalcSignalScoreResultList.length > itemsPerPage;
-  $: showSearchStatus = searchStockText.trim() !== '' && calcSignalScoreResultList.length > 0;
+  $: showSearchStatus = (searchStockText.trim() !== '' || hasGoldenCrossFilter) && calcSignalScoreResultList.length > 0;
   $: tableHeight = (() => {
     // innerHeight가 0이거나 너무 작으면 기본값 사용
     const windowHeight = innerHeight > 0 ? innerHeight : 800;
@@ -96,13 +104,56 @@
     return Math.max(400, baseHeight); // 최소 높이를 400px로 증가
   })();
 
-  // 실시간 검색 필터링
-  $: filteredCalcSignalScoreResultList = searchStockText.trim() === '' 
-    ? calcSignalScoreResultList
-    : calcSignalScoreResultList.filter((item: any) => 
+  // 골든크로스 필터 선택값 가져오기 (배열로 반환)
+  $: selectedGoldenCrossFilters = goldenCrossFilterList.filter(item => item.isSelected).map(item => item.value);
+  $: hasGoldenCrossFilter = selectedGoldenCrossFilters.length > 0;
+
+  // 실시간 검색 및 골든크로스 필터링
+  $: filteredCalcSignalScoreResultList = (() => {
+    let filtered = calcSignalScoreResultList;
+    
+    // 골든크로스 필터 적용 (AND 조건: 선택된 모든 조건을 만족해야 표시)
+    if (hasGoldenCrossFilter) {
+      filtered = filtered.filter((item: any) => {
+        const hasOver = selectedGoldenCrossFilters.includes('OVER');
+        const hasNear = selectedGoldenCrossFilters.includes('NEAR');
+        const hasLowerBand = selectedGoldenCrossFilters.includes('LOWER_BAND');
+        const hasGoodScore = selectedGoldenCrossFilters.includes('GOOD_SCORE');
+        
+        // 선택된 조건들을 배열로 수집
+        const conditions: boolean[] = [];
+        
+        if (hasOver) {
+          conditions.push(item.isOverGoldenCross === true);
+        }
+        
+        if (hasNear) {
+          conditions.push(item.isNearGoldenCross === true);
+        }
+        
+        if (hasLowerBand) {
+          conditions.push(item.isNearLowerBand === true);
+        }
+        
+        if (hasGoodScore) {
+          conditions.push(item.isGoodTotalScore === true);
+        }
+        
+        // 모든 선택된 조건이 true여야 함 (AND 조건)
+        return conditions.length > 0 && conditions.every(condition => condition === true);
+      });
+    }
+    
+    // 검색 필터 적용
+    if (searchStockText.trim() !== '') {
+      filtered = filtered.filter((item: any) => 
         item.name.toLowerCase().includes(searchStockText.toLowerCase()) || 
         item.code.toLowerCase().includes(searchStockText.toLowerCase())
       );
+    }
+    
+    return filtered;
+  })();
 
   // 페이지네이션 데이터
   $: paginatedData = filteredCalcSignalScoreResultList.slice(
@@ -113,8 +164,8 @@
   // 페이지 수 계산
   $: maxPage = Math.ceil(filteredCalcSignalScoreResultList.length / itemsPerPage);
 
-  // 검색 시 첫 페이지로 이동
-  $: if (searchStockText) {
+  // 검색 또는 필터 변경 시 첫 페이지로 이동
+  $: if (searchStockText || selectedGoldenCrossFilters) {
     currentPage = 0;
   }
 
@@ -217,9 +268,14 @@
       const scoreResult = multiAwaitResult[index];
       index += 1;
 
-      if (!!!scoreResult || scoreResult <= 0) {
+      if (!!!scoreResult?.signalScore || scoreResult.signalScore <= 0) {
         continue;
       }
+
+      // 추세신호 점수
+      const trendScore = parseFloat(scoreResult.signalScore.toFixed(2));
+      // 마켓 평가 점수
+      const marcapScore = marcap <= 0 ? 0 : parseFloat((selfNormalize(rank, 1, totalStockInfoList) * 50).toFixed(2));
 
       calcScoreResultList.push({
         name: stockInfo?.Name ?? '',
@@ -233,9 +289,13 @@
         volume: stockInfo?.Volume,
         marcap: marcap,
         amount: amount,
-        trendScore: parseFloat(scoreResult.toFixed(2)),
-        marcapScore: marcap <= 0 ? 0 : parseFloat((selfNormalize(rank, 1, totalStockInfoList) * 50).toFixed(2)),
-        totalScore: marcap <= 0 ? scoreResult : scoreResult + parseFloat((selfNormalize(rank, 1, totalStockInfoList) * 50).toFixed(2))
+        trendScore: trendScore,
+        marcapScore: marcapScore,
+        totalScore: trendScore + marcapScore,
+        isOverGoldenCross: scoreResult.isOverGoldenCross,
+        isNearGoldenCross: scoreResult.isNearGoldenCross,
+        isNearLowerBand: scoreResult.isNearLowerBand,
+        isGoodTotalScore: trendScore > 50 && marcapScore >= 40
       })
     }
 
@@ -283,6 +343,32 @@
     })
   }
 
+  // 토글 방식으로 변경: 선택/해제를 토글
+  const toggleGoldenCrossFilter = (list: any, filterValue: string) => {
+    if (list.length < 1) {
+      return [];
+    }
+
+    return list.map((item: any) => {
+      if (item.value === filterValue) {
+        return {
+          ...item,
+          isSelected: !item.isSelected // 토글
+        }
+      } else {
+        return item;
+      }
+    })
+  }
+
+  // 모든 필터 초기화
+  const resetGoldenCrossFilters = (list: any) => {
+    return list.map((item: any) => ({
+      ...item,
+      isSelected: false
+    }));
+  }
+
   const getSelectedStockModeValue = (list: any) => {
     const selectedStockMode = list.find((item: any) => item.isSelected);
 
@@ -303,13 +389,23 @@
     const financeDataResult = await getFinanceDataListByChartMode(symbol, duration.month, true, axiosController);
 
     if (financeDataResult.length < 1) {
-      return 0;
+      return {
+        isOverGoldenCross: false,
+        isNearGoldenCross: false,
+        isNearLowerBand: false,
+        signalScore: 0
+      };
     }
     
     const expectResult = await getExpectStockValue({symbol: symbol, term: duration.week}, axiosController);
 
     if (!!!expectResult || !!!expectResult?.data || expectResult.length < 1) {
-      return 0;
+      return {
+        isOverGoldenCross: false,
+        isNearGoldenCross: false,
+        isNearLowerBand: false,
+        signalScore: 0
+      };
     }
 
     let expectValue = expectResult.data?.expectValue;
@@ -328,7 +424,12 @@
       parseFloat(expectRatioValue)
     )
 
-    return calculateSignalScore(calcSignalScoreResult, signalScoreWeight);
+    return {
+      isOverGoldenCross: calcSignalScoreResult.isOverGoldenCross,
+      isNearGoldenCross: calcSignalScoreResult.isNearGoldenCross,
+      isNearLowerBand: calcSignalScoreResult.isNearLowerBand,
+      signalScore: calculateSignalScore(calcSignalScoreResult, signalScoreWeight)
+    };
   }
 
   /**
@@ -565,6 +666,7 @@
 
             axiosController = new AbortController();
             searchStockText = '';
+            goldenCrossFilterList = resetGoldenCrossFilters(goldenCrossFilterList);
             loadingText = '증시 목록을 가져오는 중입니다...';
             // 카운트 초기화
             count = -1;
@@ -708,6 +810,49 @@
           {/if}
         </div>
       </div>
+      <!-- 골든크로스 필터 -->
+      <div class="flex items-center space-x-3">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 bg-gradient-to-r from-amber-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"></path>
+            </svg>
+          </div>
+          <span class="font-bold text-white">골든크로스</span>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          {#each goldenCrossFilterList as filter}
+            <button
+              class="relative h-10 px-3 rounded-lg font-medium text-sm transition-all duration-200 shadow-md hover:shadow-lg {filter.isSelected ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg ring-2 ring-white/50' : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30'}"
+              on:click={() => {
+                goldenCrossFilterList = toggleGoldenCrossFilter(goldenCrossFilterList, filter.value);
+              }}
+            >
+              <span class="flex items-center space-x-1">
+                {#if filter.isSelected}
+                  <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                  </svg>
+                {/if}
+                <span>{filter.name}</span>
+              </span>
+            </button>
+          {/each}
+          {#if hasGoldenCrossFilter}
+            <button
+              class="h-10 px-2 rounded-lg font-medium text-sm transition-all duration-200 bg-red-500/80 hover:bg-red-600 text-white shadow-md hover:shadow-lg"
+              on:click={() => {
+                goldenCrossFilterList = resetGoldenCrossFilters(goldenCrossFilterList);
+              }}
+              title="필터 초기화"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          {/if}
+        </div>
+      </div>
       <!-- 액션 버튼들 -->
       <div class="flex items-center space-x-2 ml-auto">
         <div class="ml-4">
@@ -730,10 +875,16 @@
       </div>
     </div>
     <!-- 검색 상태 표시 -->
-    {#if searchStockText.trim() !== '' && calcSignalScoreResultList.length > 0}
+    {#if (searchStockText.trim() !== '' || hasGoldenCrossFilter) && calcSignalScoreResultList.length > 0}
       <div class="flex justify-center">
         <div class="px-4 py-2 bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 rounded-full text-sm text-blue-200 shadow-lg">
-          🔍 '<span class="font-semibold text-white">{searchStockText}</span>' 검색 중 - <span class="font-semibold text-white">{filteredCalcSignalScoreResultList.length}</span>개 결과 / 전체 <span class="font-semibold text-white">{calcSignalScoreResultList.length}</span>개
+          {#if searchStockText.trim() !== '' && hasGoldenCrossFilter}
+            🔍 '<span class="font-semibold text-white">{searchStockText}</span>' 검색 + <span class="font-semibold text-amber-300">{goldenCrossFilterList.filter(f => f.isSelected).map(f => f.name).join(' & ')}</span> 필터 - <span class="font-semibold text-white">{filteredCalcSignalScoreResultList.length}</span>개 결과 / 전체 <span class="font-semibold text-white">{calcSignalScoreResultList.length}</span>개
+          {:else if searchStockText.trim() !== ''}
+            🔍 '<span class="font-semibold text-white">{searchStockText}</span>' 검색 중 - <span class="font-semibold text-white">{filteredCalcSignalScoreResultList.length}</span>개 결과 / 전체 <span class="font-semibold text-white">{calcSignalScoreResultList.length}</span>개
+          {:else if hasGoldenCrossFilter}
+            ⚡ <span class="font-semibold text-amber-300">{goldenCrossFilterList.filter(f => f.isSelected).map(f => f.name).join(' & ')}</span> 필터 적용 - <span class="font-semibold text-white">{filteredCalcSignalScoreResultList.length}</span>개 결과 / 전체 <span class="font-semibold text-white">{calcSignalScoreResultList.length}</span>개
+          {/if}
         </div>
       </div>
     {/if}
@@ -862,9 +1013,9 @@
             <span class="text-gray-400 mx-1">/</span>
             <span class="text-gray-800">{maxPage}</span>
           </span>
-          {#if searchStockText.trim() !== ''}
+          {#if searchStockText.trim() !== '' || hasGoldenCrossFilter}
             <span class="text-xs px-2 py-0.5 bg-blue-500/20 text-blue-200 rounded-full border border-blue-400/30">
-              검색: {filteredCalcSignalScoreResultList.length}/{calcSignalScoreResultList.length}
+              필터: {filteredCalcSignalScoreResultList.length}/{calcSignalScoreResultList.length}
             </span>
           {:else}
             <span class="text-xs px-2 py-0.5 bg-gray-800/80 text-white rounded-full border border-gray-600/50 shadow-sm">
