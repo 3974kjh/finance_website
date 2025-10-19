@@ -6,10 +6,16 @@
     getFinanceDataListByChartMode, 
     setUpDownRatioTag, setUpDownIcon, setUpDownColor, 
     calculateExpectFinanceScore,
-    getNewInfoList
+    getNewInfoList,
+	  isOverGoldenCross,
+	  isNearGoldenCross,
+	  calculateGeneralizedPricePosition,
+    makeStockFinalReportText
   } from '$lib/main';
   import { calculateRatio, formatCostValue, formatIncludeComma } from '$lib/utils/CommonHelper';
   import { NaverFinanceImg, CompanyGuideImg } from '$lib/images/logo';
+	import type { OverallStockFinalObjectType } from '$lib/types';
+  import toast from 'svelte-french-toast';
 
   export let singleChartInfo: {
 		title: string,
@@ -39,6 +45,27 @@
   let topValue: string = '';
   let expectRatioValue: string = '';
 
+  /**
+   * 전체 종목 최종 결과 객체 초기화 함수
+   */
+  const initOverallStocFinalObject = () => {
+    return {
+      isOverGoldenCross: false,
+      isNearGoldenCross: false,
+      generalizedPricePosition: null,
+      stockFinanceScore: 0
+    }
+  }
+
+  /**
+   * 전체 종목 최종 결과 객체
+   * 
+   * isOverGoldenCross: 골든크로스 초과 여부 (20일 이평선이 60일 이평선 돌파 여부)
+   * isNearGoldenCross: 골든크로스 근접 여부 (오늘 기준 20일 이평선 값과 60일 이평선 값의 차이가 현재가 기준 5% 이내 여부)
+   * generalizedPricePosition: 일반화된 가격 위치 (오늘 기준 볼린져 밴드 상한 = 100, 하한 값 = 0을 기준으로 현재가의 위치가 어디에 위치하는지 일반화된 값, 상한이나 하한을 초과한 경우 100을 넘어서거나 음수값이 될 수 있음)
+   */
+  let overallStocFinalObject: OverallStockFinalObjectType = initOverallStocFinalObject();
+
   let calcSignalScoreResult = {
     crossNormalizeValue: null as number | null,
     volumeNormalizeValue: null as number | null,
@@ -64,8 +91,19 @@
     movingAverage: true, // 이동평균선
     stockInfo: false,    // 종목 정보 - 닫힌 상태
     signalScore: false,  // 투자 신호 점수 - 닫힌 상태
+    finalReport: true,   // 종합 분석 결과 - 열린 상태
     news: true          // 관련 뉴스
   };
+
+  /**
+   * 종목 최종 결과 텍스트
+   */
+  let stockFinalReportText: string = '';
+
+  /**
+   * 복사 성공 여부 상태
+   */
+  let isCopied: boolean = false;
 
   onMount(async () => {
     if (!!!singleChartInfo) {
@@ -146,10 +184,69 @@
       return movingAverages;
     };
 
+    /**
+     * 볼린저 밴드 계산 함수
+     * @param data - 데이터 리스트
+     * @param period - 기간
+     * @param multiplier - 곱수
+     * @returns {upBollingerBandList: Array<number | null>, middleBollingerBandList: Array<number | null>, downBollingerBandList: Array<number | null>}
+     */
+    const calculateBollingerBands = (data: any, period: number = 20, multiplier: number = 2) => {
+      const upBollingerBandList: (number | null)[] = [];
+      const middleBollingerBandList: (number | null)[] = [];
+      const downBollingerBandList: (number | null)[] = [];
+
+      for (let index = 0; index < data.length; index++) {
+        if (index < period - 1) {
+          // 데이터가 부족한 경우 null로 표시
+          upBollingerBandList.push(null);
+          middleBollingerBandList.push(null);
+          downBollingerBandList.push(null);
+        } else {
+          // 현재 기간의 데이터 추출
+          const periodData = data.slice(index - period + 1, index + 1);
+          
+          // 중심선 (20일 이동평균) 계산
+          const sum = periodData.reduce((acc: any, cur: any) => acc + cur.Open, 0);
+          const middleBand = sum / period;
+          
+          // 표준편차 계산
+          const squaredDifferences = periodData.map((item: any) => {
+            const diff = item.Open - middleBand;
+            return diff * diff;
+          });
+          const variance = squaredDifferences.reduce((acc: number, val: number) => acc + val, 0) / period;
+          const standardDeviation = Math.sqrt(variance);
+          
+          // 상단 밴드와 하단 밴드 계산
+          const upperBand = middleBand + (multiplier * standardDeviation);
+          const lowerBand = middleBand - (multiplier * standardDeviation);
+          
+          // 값을 formatCostValue로 포맷팅
+          const formattedMiddle = formatCostValue(middleBand);
+          const formattedUpper = formatCostValue(upperBand);
+          const formattedLower = formatCostValue(lowerBand);
+          
+          middleBollingerBandList.push(formattedMiddle ? parseFloat(formattedMiddle) : null);
+          upBollingerBandList.push(formattedUpper ? parseFloat(formattedUpper) : null);
+          downBollingerBandList.push(formattedLower ? parseFloat(formattedLower) : null);
+        }
+      }
+
+      return {
+        upBollingerBandList,
+        middleBollingerBandList,
+        downBollingerBandList
+      };
+    }
+
     // 각 이동평균 계산
     const ma5 = calculateMA(financeDataResult, 5);
     const ma20 = calculateMA(financeDataResult, 20);
     const ma60 = calculateMA(financeDataResult, 60);
+
+    // 볼린저 밴드 계산
+    const bollingerBands = calculateBollingerBands(financeDataResult, 20, 2);
 
     // 해당 주가의 여러 요인들을 종합하여 각 요인별 점수를 계산하여 일반화한 값 가져오기
     calcSignalScoreResult = calculateExpectFinanceScore(
@@ -162,6 +259,22 @@
       parseFloat(expectRatioValue)
     )
 
+    overallStocFinalObject.isOverGoldenCross = isOverGoldenCross(ma20[ma20.length - 1], ma60[ma60.length - 1]);
+    overallStocFinalObject.isNearGoldenCross = isNearGoldenCross(
+      nowValue,
+      ma20[ma20.length - 1],
+      ma60[ma60.length - 1]
+    );
+    overallStocFinalObject.generalizedPricePosition = calculateGeneralizedPricePosition(
+      nowValue,
+      bollingerBands.upBollingerBandList[bollingerBands.upBollingerBandList.length - 1],
+      bollingerBands.downBollingerBandList[bollingerBands.downBollingerBandList.length - 1]
+    );
+    overallStocFinalObject.stockFinanceScore = calculateSignalScore(calcSignalScoreResult, signalScoreWeight);
+
+    // 종목 최종 결과 텍스트 생성
+    stockFinalReportText = makeStockFinalReportText(singleChartInfo.title, overallStocFinalObject);
+
     return financeDataResult.map((data: any, index: number) => {
       return {
         ...data,
@@ -173,6 +286,9 @@
         ma5: ma5[index] ?? undefined,
         ma20: ma20[index] ?? undefined,
         ma60: ma60[index] ?? undefined,
+        upBollingerBand: bollingerBands.upBollingerBandList[index] ?? undefined,
+        middleBollingerBand: bollingerBands.middleBollingerBandList[index] ?? undefined,
+        downBollingerBand: bollingerBands.downBollingerBandList[index] ?? undefined,
       }
     });
   }
@@ -211,8 +327,6 @@
   }
 
   let clientHeight: number = 0;
-
-  $: console.log(clientHeight);
 
   /**
    * 데이터 새로고침 함수
@@ -293,6 +407,37 @@
     }
     
     return 'KRX'; // 기본값
+  }
+
+  /**
+   * 종합 분석 결과를 클립보드에 복사
+   */
+  const copyToClipboard = async () => {
+    if (!stockFinalReportText) {
+      toast.error('복사할 내용이 없습니다.');
+      return;
+    }
+
+    try {
+      // HTML 태그를 제거하여 순수 텍스트만 추출
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = stockFinalReportText;
+      const plainText = tempDiv.textContent || tempDiv.innerText || '';
+
+      // 클립보드에 복사
+      await navigator.clipboard.writeText(plainText);
+      
+      // 복사 성공 피드백
+      isCopied = true;
+      toast.success('분석 결과가 클립보드에 복사되었습니다.');
+      
+      // 1초 후 상태 초기화
+      setTimeout(() => {
+        isCopied = false;
+      }, 1000);
+    } catch (error) {
+      toast.error('복사에 실패했습니다. 다시 시도해주세요.');
+    }
   }
 
 </script>
@@ -692,8 +837,8 @@
                 </svg>
                 <p class="font-semibold text-red-800">투자 신호 점수</p>
                 {#if !sectionStates.signalScore}
-                  <span class="text-sm {calculateSignalScore(calcSignalScoreResult, signalScoreWeight) > 50 ? 'text-red-600 bg-red-100' : 'text-blue-600 bg-blue-100'} px-2 py-0.5 rounded-full font-semibold">
-                    {calculateSignalScore(calcSignalScoreResult, signalScoreWeight) || 0}점
+                  <span class="text-sm {overallStocFinalObject.stockFinanceScore > 50 ? 'text-red-600 bg-red-100' : 'text-blue-600 bg-blue-100'} px-2 py-0.5 rounded-full font-semibold">
+                    {overallStocFinalObject.stockFinanceScore || 0}점
                   </span>
                 {/if}
               </div>
@@ -799,16 +944,16 @@
                 </div>
 
                 <div class="border-t border-gray-200 pt-3">
-                  <div class="bg-gradient-to-r {calculateSignalScore(calcSignalScoreResult, signalScoreWeight) > 50 ? 'from-red-100 to-red-50 border-red-200' : 'from-blue-100 to-blue-50 border-blue-200'} border rounded-lg p-3">
+                  <div class="bg-gradient-to-r {overallStocFinalObject.stockFinanceScore > 50 ? 'from-red-100 to-red-50 border-red-200' : 'from-blue-100 to-blue-50 border-blue-200'} border rounded-lg p-3">
                     <div class="flex items-center justify-between mb-2">
                       <div class="flex items-center space-x-2">
-                        <svg class="w-4 h-4 {calculateSignalScore(calcSignalScoreResult, signalScoreWeight) > 50 ? 'text-red-600' : 'text-blue-600'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 {overallStocFinalObject.stockFinanceScore > 50 ? 'text-red-600' : 'text-blue-600'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
                         </svg>
-                        <span class="font-semibold {calculateSignalScore(calcSignalScoreResult, signalScoreWeight) > 50 ? 'text-red-700' : 'text-blue-700'}">Total Score</span>
+                        <span class="font-semibold {overallStocFinalObject.stockFinanceScore > 50 ? 'text-red-700' : 'text-blue-700'}">Total Score</span>
                         <span class="text-xs text-gray-500">(0~100)</span>
                       </div>
-                      <span class="text-lg font-bold {calculateSignalScore(calcSignalScoreResult, signalScoreWeight) > 50 ? 'text-red-600' : 'text-blue-600'}">{calculateSignalScore(calcSignalScoreResult, signalScoreWeight) ?? '-'}</span>
+                      <span class="text-lg font-bold {overallStocFinalObject.stockFinanceScore > 50 ? 'text-red-600' : 'text-blue-600'}">{overallStocFinalObject.stockFinanceScore ?? '-'}</span>
                     </div>
                     <div class="flex items-center justify-between text-xs text-gray-600">
                       <span>총 가중치:</span>
@@ -824,6 +969,76 @@
                     </div>
                   </div>
                 </div>
+              </div>
+            {/if}
+          </div>
+          
+          <!-- 종합 분석 결과 -->
+          <div class="flex flex-col w-full bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200/50 rounded-xl overflow-hidden flex-shrink-0">
+            <div class="flex items-center w-full p-3 hover:bg-indigo-100/50 transition-colors duration-200">
+              <button 
+                class="flex items-center space-x-2 flex-1"
+                on:click={() => sectionStates.finalReport = !sectionStates.finalReport}
+              >
+                <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <p class="font-semibold text-indigo-800">종합 분석 결과</p>
+                {#if isProgress}
+                  <div class="animate-spin w-3 h-3 border border-indigo-600 border-t-transparent rounded-full"></div>
+                {/if}
+              </button>
+              <div class="flex items-center space-x-2">
+                {#if stockFinalReportText && !isProgress}
+                  <button
+                    class="p-1.5 rounded-lg hover:bg-indigo-200/60 transition-all duration-200 group relative"
+                    on:click={copyToClipboard}
+                    title="분석 결과 복사"
+                  >
+                    {#if isCopied}
+                      <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                      </svg>
+                    {:else}
+                      <svg class="w-4 h-4 text-indigo-600 group-hover:text-indigo-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                      </svg>
+                    {/if}
+                  </button>
+                {/if}
+                <button
+                  class="p-1"
+                  on:click={() => sectionStates.finalReport = !sectionStates.finalReport}
+                >
+                  <svg class="w-4 h-4 text-indigo-600 transition-transform duration-200 {sectionStates.finalReport ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            {#if sectionStates.finalReport}
+              <div class="px-3 pb-3">
+                {#if isProgress}
+                  <div class="bg-white/60 rounded-lg p-3 animate-pulse">
+                    <div class="space-y-2">
+                      <div class="h-3 bg-gray-300 rounded w-full"></div>
+                      <div class="h-3 bg-gray-300 rounded w-5/6"></div>
+                      <div class="h-3 bg-gray-300 rounded w-4/5"></div>
+                      <div class="h-3 bg-gray-300 rounded w-full"></div>
+                      <div class="h-3 bg-gray-300 rounded w-3/4"></div>
+                    </div>
+                  </div>
+                {:else if stockFinalReportText}
+                  <div class="bg-white/80 rounded-lg p-4 shadow-sm border border-indigo-100">
+                    <div class="text-sm text-gray-700 leading-relaxed space-y-2">
+                      {@html stockFinalReportText}
+                    </div>
+                  </div>
+                {:else}
+                  <div class="bg-white/60 rounded-lg p-3 text-center">
+                    <p class="text-sm text-gray-500">분석 결과가 없습니다.</p>
+                  </div>
+                {/if}
               </div>
             {/if}
           </div>

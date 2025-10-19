@@ -2,6 +2,7 @@ import { getFinanceDataList } from "$lib/api-connector/FinanceApi";
 import { getSearchResultByNaverApi } from '$lib/api-connector/NaverApi';
 import { sendFinanceResultByKakaoApi } from '$lib/api-connector/KakaoApi';
 import _ from 'lodash';
+import type { OverallStockFinalObjectType } from "$lib/types";
 
 /**
   * 주가 데이터 가져오기
@@ -320,4 +321,210 @@ export const sendFinanceResult = async (
   })
 
   return result;
+}
+
+/**
+ * 골든크로스 발생 여부 확인
+ * 20일 이동평균선이 60일 이동평균선을 상향 돌파했는지 확인
+ * @param ma20Value - 20일 이동평균 값
+ * @param ma60Value - 60일 이동평균 값
+ * @returns 골든크로스 발생 여부 (true: 발생, false: 미발생)
+ */
+export const isOverGoldenCross = (ma20Value: number | string | null, ma60Value: number | string | null): boolean => {
+  if (!ma20Value || !ma60Value) {
+    return false;
+  }
+
+  const ma20 = typeof ma20Value === 'string' ? parseFloat(ma20Value) : ma20Value;
+  const ma60 = typeof ma60Value === 'string' ? parseFloat(ma60Value) : ma60Value;
+
+  // 20일 이평선이 60일 이평선보다 위에 있으면 골든크로스
+  return ma20 > ma60;
+}
+
+/**
+ * 골든크로스 임박 여부 확인
+ * 현재가와 이동평균선의 위치를 기반으로 골든크로스가 임박했는지 판단
+ * @param nowValue - 현재가
+ * @param ma20Value - 20일 이동평균 값
+ * @param ma60Value - 60일 이동평균 값
+ * @returns 골든크로스 임박 여부 (true: 임박, false: 아님)
+ */
+export const isNearGoldenCross = (
+  nowValue: number | string,
+  ma20Value: number | string | null,
+  ma60Value: number | string | null
+): boolean => {
+  if (!ma20Value || !ma60Value) {
+    return false;
+  }
+
+  const now = typeof nowValue === 'string' ? parseFloat(nowValue) : nowValue;
+  const ma20 = typeof ma20Value === 'string' ? parseFloat(ma20Value) : ma20Value;
+  const ma60 = typeof ma60Value === 'string' ? parseFloat(ma60Value) : ma60Value;
+
+  // 골든크로스가 이미 발생한 경우는 제외
+  if (ma20 > ma60) {
+    return false;
+  }
+
+  // 20일 이평선과 60일 이평선의 차이가 5% 이내이고, 현재가가 둘 다보다 높으면 임박
+  const diff = Math.abs(ma20 - ma60);
+  const diffPercent = (diff / ma60) * 100;
+
+  return diffPercent <= 5 && now > ma20 && now > ma60;
+}
+
+/**
+ * 볼린저 밴드 내에서 현재가의 위치를 0~1 사이로 정규화
+ * 0에 가까울수록 하한선 근처, 1에 가까울수록 상한선 근처
+ * @param nowValue - 현재가
+ * @param upBollingerBand - 볼린저 밴드 상한 값
+ * @param downBollingerBand - 볼린저 밴드 하한 값
+ * @returns 정규화된 위치 값 (0~1, 범위를 벗어나면 0 미만 또는 1 초과 가능)
+ */
+export const calculateGeneralizedPricePosition = (
+  nowValue: number | string,
+  upBollingerBand: number | string | null,
+  downBollingerBand: number | string | null
+): number => {
+  if (!upBollingerBand || !downBollingerBand) {
+    return 0.5; // 기본값: 중간
+  }
+
+  const now = typeof nowValue === 'string' ? parseFloat(nowValue) : nowValue;
+  const upper = typeof upBollingerBand === 'string' ? parseFloat(upBollingerBand) : upBollingerBand;
+  const lower = typeof downBollingerBand === 'string' ? parseFloat(downBollingerBand) : downBollingerBand;
+
+  // 밴드 폭이 0이면 중간값 반환
+  if (upper === lower) {
+    return 0.5;
+  }
+
+  // 현재가의 볼린저 밴드 내 위치를 0~1로 정규화
+  // 하한 = 0, 상한 = 1, 중간 = 0.5
+  const position = (now - lower) / (upper - lower);
+
+  return parseFloat(position.toFixed(2));
+}
+
+/**
+ * 종목 최종 결과 텍스트 생성
+ * @param stockName - 종목명
+ * @param overallStocFinalObject - 종목 최종 결과 객체
+ * @returns 종목 최종 결과 텍스트
+ */
+export const makeStockFinalReportText = (stockName: string, overallStocFinalObject: OverallStockFinalObjectType) => {
+  /**
+   * 현재가의 위치를 기반으로 텍스트 생성
+   * @param max 최대값
+   * @param position 현재가의 위치
+   * @param isReversal 반전 여부
+   * @returns 현재가의 위치를 기반으로 텍스트 생성
+   */
+  const pricePositionText = (
+    max: number,
+    position: number,
+    isReversal: boolean = false
+  ) => {
+    let text: string = '';
+    let scoreText: string = '';
+    let positionScore: number = 0;
+
+    if (position >= max) {
+      text = '상한선을 초과하여 고점에 도달하였습니다.';
+    } else if (position >= max * 0.7) {
+      text = '상한선 근처에 위치하고 있습니다.';
+    } else if (position >= max * 0.4) {
+      text = '중간 수준에 위치하고 있습니다.';
+    } else if (position >= 0) {
+      text = '하한선 근처에 위치하고 있습니다.';
+    } else {
+      text = '하한선을 초과하여 저점에 도달하였습니다.';
+    }
+
+    positionScore = max === 100 ? position : position * 100;
+
+    if (positionScore >= 100) {
+      scoreText = isReversal ? '초고평가' : '초저평가';
+    } else if (positionScore >= 70) {
+      scoreText = isReversal ? '고평가' : '저평가';
+    } else if (positionScore >= 40) {
+      scoreText = '적정 평가';
+    } else if (positionScore >= 20) {
+      scoreText = isReversal ? '저평가' : '고평가';
+    } else {
+      scoreText = isReversal ? '초저평가' : '초고평가';
+    }
+
+    return {
+      text: `${text} 그래서 <b>${scoreText}</b>를 받았습니다.`,
+      positionScore: isReversal ? positionScore : 100 - positionScore
+    };
+  }
+
+  // 종목 최종 결과 텍스트
+  let reportText: string = '';
+  // 종목 살지말지 결정 텍스트
+  let reportBuyOrSellText: string = '';
+  // 점수 총합
+  let priceTotalScore: number = 0;
+
+  if (overallStocFinalObject.generalizedPricePosition === null) {
+    return reportText;
+  }
+
+  reportText += `<b>${stockName}</b> 종목의 분석결과는 다음과 같습니다.<br/>`;
+
+  if (overallStocFinalObject.isOverGoldenCross) {
+    reportText += `<b>${stockName}</b>은 이미 20일 이동평균선이 60일 이동평균선을 <b>상향 돌파</b>하였습니다.<br/>`;
+  }
+
+  if (overallStocFinalObject.isNearGoldenCross) {
+    reportText += '<b>(중요) 골든크로스가 임박</b>하였습니다.<br/>';
+  } else {
+    reportText += '<b>(중요) 골든크로스가 임박하지 않았습니다.</b><br/>';
+  }
+  
+  if (overallStocFinalObject.generalizedPricePosition) {
+    const pricePositionTextResult = pricePositionText(1, overallStocFinalObject.generalizedPricePosition, true);
+    reportText += `볼린저 밴드 내 현재가 위치를 일반화한 값은 <b>${overallStocFinalObject.generalizedPricePosition}</b>입니다. ${pricePositionTextResult.text}<br/>`;
+    priceTotalScore += pricePositionTextResult.positionScore;
+  }
+
+  if (overallStocFinalObject.stockFinanceScore) {
+    const stockFinanceScoreTextResult = pricePositionText(100, overallStocFinalObject.stockFinanceScore, false);
+    reportText += `종목 지표 점수는 <b>${overallStocFinalObject.stockFinanceScore}</b>점 입니다. ${stockFinanceScoreTextResult.text}`;
+    priceTotalScore += stockFinanceScoreTextResult.positionScore;
+  }
+
+  if (
+    priceTotalScore >= 180
+  ) {
+    reportBuyOrSellText = overallStocFinalObject.isNearGoldenCross ? 
+      '<b>진짜 폭풍 매수 하세요.</b>' : 
+      `<b>폭풍 매수 하세요.</b> ${overallStocFinalObject.isOverGoldenCross ?
+        '(고평가 상태이긴 합니다.)' : '(고평가 상태가 아닙니다.)'}`;
+  } else if (
+    (priceTotalScore >= 120)
+  ) {
+    reportBuyOrSellText = overallStocFinalObject.isNearGoldenCross ?
+      '<b>진짜 매수 하세요.</b>' :
+      `<b>매수 하세요.</b> ${overallStocFinalObject.isOverGoldenCross ?
+        '(고평가 상태이긴 합니다.)' : '(고평가 상태가 아닙니다.)'}`;
+  } else if (
+    (priceTotalScore >= 60)
+  ) {
+    if (overallStocFinalObject.isNearGoldenCross) {
+      reportBuyOrSellText = '<b>관심 가지세요.</b>';
+    } else if (overallStocFinalObject.isOverGoldenCross) {
+      reportBuyOrSellText = '<b>낫 배드입니다.</b>';
+    } else {
+      reportBuyOrSellText = '<b>관심 가지지 마세요.</b>';
+    }
+  } else {
+    reportBuyOrSellText = '<b>갖다 버리세요.</b> (점수가 너무 낮습니다.)';
+  }
+
+  return `<p class='text-lg'><b>${stockName}</b>는 ${reportBuyOrSellText}</p><br/>${reportText}<br/>`;
 }

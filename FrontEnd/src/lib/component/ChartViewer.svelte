@@ -1,7 +1,6 @@
 <script lang="ts">
   import { LineChart } from '$lib/component';
   import { getExpectStockValue } from '$lib/api-connector/FinanceApi';
-  import type { ExpectResultType } from '$lib/types';
   import { createEventDispatcher, tick } from 'svelte';
   import { setUpDownRatioTag } from '$lib/main';
 

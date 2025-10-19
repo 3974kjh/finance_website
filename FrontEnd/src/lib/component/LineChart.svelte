@@ -270,6 +270,24 @@
           color: '#32CD32', 
           width: isLargeDataset ? 2 : 3,
           point: { visible: false }
+        },
+        { 
+          valueField: 'upBollingerBand', 
+          name: '볼린저상한', 
+          hoverMode: 'allArgumentPoints', 
+          color: '#FF6B6B', 
+          dashStyle: 'dash',
+          point: { visible: false },
+          width: isLargeDataset ? 2 : 3
+        },
+        { 
+          valueField: 'downBollingerBand', 
+          name: '볼린저하한', 
+          hoverMode: 'allArgumentPoints', 
+          color: '#4169E1', 
+          dashStyle: 'dash',
+          point: { visible: false },
+          width: isLargeDataset ? 2 : 3
         }
       ];
     }
@@ -348,6 +366,10 @@
             color = '#ea580c'; // orange-600
           } else if (seriesName === '60일이평선') {
             color = '#16a34a'; // green-600
+          } else if (seriesName === '볼린저상한') {
+            color = '#dc2626'; // red-600
+          } else if (seriesName === '볼린저하한') {
+            color = '#2563eb'; // blue-600
           }
 
           return color;
@@ -417,6 +439,10 @@
                 value = typeof e.data?.ma20 === 'string' ? Math.round(parseFloat(e.data?.ma20) * 10) / 10 : Math.round(e.data?.ma20 * 10) / 10;
               } else if (e.seriesName === '60일이평선') {
                 value = typeof e.data?.ma60 === 'string' ? Math.round(parseFloat(e.data?.ma60) * 10) / 10 : Math.round(e.data?.ma60 * 10) / 10;
+              } else if (e.seriesName === '볼린저상한') {
+                value = typeof e.data?.upBollingerBand === 'string' ? Math.round(parseFloat(e.data?.upBollingerBand) * 10) / 10 : Math.round(e.data?.upBollingerBand * 10) / 10;
+              } else if (e.seriesName === '볼린저하한') {
+                value = typeof e.data?.downBollingerBand === 'string' ? Math.round(parseFloat(e.data?.downBollingerBand) * 10) / 10 : Math.round(e.data?.downBollingerBand * 10) / 10;
               }
             } else {
               value = typeof e.data.Close === 'string' ? Math.round(parseInt(e.data.Close) * 10) / 10 : Math.round(e.data.Close * 10) / 10;
@@ -540,6 +566,16 @@
                 if (data.ma60 !== undefined && data.ma60 !== null && data.ma60 !== 0) {
                   const ma60Value = typeof data.ma60 === 'string' ? parseFloat(data.ma60) : data.ma60;
                   parts.push(`60일이평: ${formatIncludeComma(Math.round(ma60Value * 10) / 10)}`);
+                }
+
+                if (data.upBollingerBand !== undefined && data.upBollingerBand !== null && data.upBollingerBand !== 0) {
+                  const upBollingerValue = typeof data.upBollingerBand === 'string' ? parseFloat(data.upBollingerBand) : data.upBollingerBand;
+                  parts.push(`볼린저상한: ${formatIncludeComma(Math.round(upBollingerValue * 10) / 10)}`);
+                }
+                
+                if (data.downBollingerBand !== undefined && data.downBollingerBand !== null && data.downBollingerBand !== 0) {
+                  const downBollingerValue = typeof data.downBollingerBand === 'string' ? parseFloat(data.downBollingerBand) : data.downBollingerBand;
+                  parts.push(`볼린저하한: ${formatIncludeComma(Math.round(downBollingerValue * 10) / 10)}`);
                 }
               }
               

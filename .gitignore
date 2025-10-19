@@ -99,6 +99,10 @@ BackEnd/key.py
 # Backend 데이터 폴더 (민감/대용량 데이터)
 BackEnd/Data/
 BackEnd/Data/**
+BackEnd/venvPip/
+
+# Frontend 데이터 폴더 (민감/대용량 데이터)
+FrontEnd/pnpm-lock.*
 
 # 너무 큰 데이터 파일들 (필요시 주석 해제)
 # *.db
