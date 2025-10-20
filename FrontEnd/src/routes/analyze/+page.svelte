@@ -2,7 +2,7 @@
   import { getFinanceStockList, getExpectStockValue, saveFinanceRankList, getTodayAnalyze } from '$lib/api-connector/FinanceApi';
   import type { StockType } from '$lib/types';
   import { calculateRatio, formatCostValue, formatIncludeComma, sortBySimilarity, getTodayDateFormatted } from '$lib/utils/CommonHelper';
-  import { getFinanceDataListByChartMode, calculateExpectFinanceScore, selfNormalize, SingleChartBasic, sendFinanceResult } from '$lib/main';
+  import { getFinanceDataListByChartMode, calculateExpectFinanceScore, selfNormalize, SingleChartBasic, sendFinanceResult, makeStockFinalReportText } from '$lib/main';
   import { onMount, onDestroy, tick } from 'svelte';
   import { DownLoadProgressBar, ProgressCircle, KakaoLoginAndSend } from '$lib/component';
   import { cancelRequest } from "$lib/axios-provider/AxiosProvider";
@@ -277,6 +277,14 @@
       // 마켓 평가 점수
       const marcapScore = marcap <= 0 ? 0 : parseFloat((selfNormalize(rank, 1, totalStockInfoList) * 50).toFixed(2));
 
+      // 종목 최종 결과 텍스트 생성
+      const stockBuyLevel = makeStockFinalReportText(stockInfo.title, {
+        isOverGoldenCross: scoreResult.isOverGoldenCross,
+        isNearGoldenCross: scoreResult.isNearGoldenCross,
+        generalizedPricePosition: scoreResult.bandPosition,
+        stockFinanceScore: trendScore
+      })?.stockBuyLevel ?? 'C';
+
       calcScoreResultList.push({
         name: stockInfo?.Name ?? '',
         value: stockInfo?.Code ?? stockInfo?.Symbol,
@@ -295,7 +303,8 @@
         isOverGoldenCross: scoreResult.isOverGoldenCross,
         isNearGoldenCross: scoreResult.isNearGoldenCross,
         isNearLowerBand: scoreResult.isNearLowerBand,
-        isGoodTotalScore: trendScore > 50 && marcapScore >= 40
+        isGoodTotalScore: trendScore > 50 && marcapScore >= 40,
+        stockBuyLevel: stockBuyLevel
       })
     }
 
@@ -393,6 +402,7 @@
         isOverGoldenCross: false,
         isNearGoldenCross: false,
         isNearLowerBand: false,
+        bandPosition: 0,
         signalScore: 0
       };
     }
@@ -404,6 +414,7 @@
         isOverGoldenCross: false,
         isNearGoldenCross: false,
         isNearLowerBand: false,
+        bandPosition: 0,
         signalScore: 0
       };
     }
@@ -428,6 +439,7 @@
       isOverGoldenCross: calcSignalScoreResult.isOverGoldenCross,
       isNearGoldenCross: calcSignalScoreResult.isNearGoldenCross,
       isNearLowerBand: calcSignalScoreResult.isNearLowerBand,
+      bandPosition: calcSignalScoreResult.bandPosition,
       signalScore: calculateSignalScore(calcSignalScoreResult, signalScoreWeight)
     };
   }
