@@ -353,7 +353,7 @@
   }
 
   /**
-   * 종합 분석 결과를 클립보드에 복사
+   * 종합 분석 결과를 클립보드에 복사 (깔끔한 텍스트 형태로)
    */
   const copyToClipboard = async () => {
     if (!stockFinalReportText) {
@@ -362,10 +362,41 @@
     }
 
     try {
+      // HTML에서 투자 유의사항 부분을 먼저 제거
+      let filteredHTML = stockFinalReportText;
+      
+      // disclaimer 클래스를 가진 div 제거 (투자 유의사항 부분)
+      filteredHTML = filteredHTML.replace(/<div class='disclaimer[^>]*>[\s\S]*?<\/div>/gi, '');
+      
       // HTML 태그를 제거하여 순수 텍스트만 추출
       const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = stockFinalReportText;
-      const plainText = tempDiv.textContent || tempDiv.innerText || '';
+      tempDiv.innerHTML = filteredHTML;
+      let plainText = tempDiv.textContent || tempDiv.innerText || '';
+
+      // 텍스트 정리 및 포맷팅
+      plainText = plainText
+        // 투자 유의사항 관련 텍스트가 남아있다면 제거
+        .replace(/\[주의사항\][\s\S]*$/gi, '')
+        .replace(/투자\s*유의사항[\s\S]*$/gi, '')
+        .replace(/•.*?참고자료[\s\S]*$/gi, '')
+        // 연속된 공백을 하나로 축약
+        .replace(/\s+/g, ' ')
+        // 연속된 줄바꿈을 최대 2개로 제한
+        .replace(/\n\s*\n\s*\n+/g, '\n\n')
+        // 앞뒤 공백 제거
+        .trim()
+        // 각 라인의 앞뒤 공백 제거
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .join('\n')
+        // 섹션 구분을 위한 적절한 줄바꿈 추가
+        .replace(/(\[.*?\])/g, '\n$1')
+        .replace(/^[\n\s]*/, '') // 맨 앞의 빈 줄 제거
+        // 보고서 형태로 정리
+        .replace(/(\w+)\s+투자\s+분석\s+보고서/, '=== $1 투자 분석 보고서 ===\n')
+        .replace(/(\[.*?\].*?:)/g, '\n$1')
+        .replace(/([가-힣]+등급.*?:)/g, '\n$1');
 
       // 클립보드에 복사
       await navigator.clipboard.writeText(plainText);

@@ -517,7 +517,7 @@ export const makeStockFinalReportText = (
     };
   }
 
-  reportText += `<div class='bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border-l-4 border-blue-500 mb-4'><h3 class='text-lg font-bold text-gray-800 mb-2'><b>${stockName}</b> 기술적 분석 리포트</h3>`;
+  reportText += `<div class='bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-r-lg border-l-4 border-blue-500 mb-4'><h3 class='text-lg font-bold text-gray-800 mb-2'><b>${stockName}</b> 기술적 분석 리포트</h3>`;
 
   // 골든크로스 상태 분석
   let trendStrength = 0; // 추세 강도
@@ -535,7 +535,7 @@ export const makeStockFinalReportText = (
   
   if (overallStocFinalObject.generalizedPricePosition) {
     const pricePositionTextResult = pricePositionText(1, overallStocFinalObject.generalizedPricePosition, true);
-    reportText += `<div class='mb-3'><b>📊 볼린저밴드 분석:</b> 현재가 위치 지수 <b>${(overallStocFinalObject.generalizedPricePosition * 100).toFixed(1)}%</b><br/>${pricePositionTextResult.text}</div>`;
+    reportText += `<div class='mb-3'><b>[기술적분석] 볼린저밴드 분석:</b> 현재가 위치 지수 <b>${(overallStocFinalObject.generalizedPricePosition * 100).toFixed(1)}%</b><br/>${pricePositionTextResult.text}</div>`;
     priceTotalScore += pricePositionTextResult.positionScore;
     trendStrength += pricePositionTextResult.riskLevel === '낮음' ? 20 : (pricePositionTextResult.riskLevel === '중간' ? 10 : 0);
   }
@@ -556,7 +556,7 @@ export const makeStockFinalReportText = (
       fundamentalLevel = '미흡';
     }
     
-    reportText += `<div class='mb-3'><b>📈 펀더멘털 분석:</b> 종목 지표 점수 <b>${overallStocFinalObject.stockFinanceScore}점</b> (${fundamentalLevel})<br/>${stockFinanceScoreTextResult.text}</div>`;
+    reportText += `<div class='mb-3'><b>[펀더멘털] 기본분석:</b> 종목 지표 점수 <b>${overallStocFinalObject.stockFinanceScore}점</b> (${fundamentalLevel})<br/>${stockFinanceScoreTextResult.text}</div>`;
     priceTotalScore += stockFinanceScoreTextResult.positionScore;
   }
 
@@ -575,19 +575,19 @@ export const makeStockFinalReportText = (
   const isHighQuality = overallStocFinalObject.stockFinanceScore >= 70;
   const isFairValued = priceTotalScore >= 120 && priceTotalScore <= 160;
 
-  if (totalInvestmentScore >= 220 && hasStrongTrend && isHighQuality) {
+  if (totalInvestmentScore >= 210 && hasStrongTrend && isHighQuality) {
     investmentGrade = 'S+ 등급 (최우선 투자 대상)';
     riskAssessment = isFairValued ? '리스크: 매우낮음 | 기대수익률: 매우높음' : '리스크: 낮음 | 기대수익률: 매우높음';
     investmentStrategy = isFairValued ? '즉시 적극매수 권장. 포트폴리오 비중 확대 검토 (적정가치 구간)' : '즉시 적극매수 권장. 포트폴리오 비중 확대 검토';
     timeHorizon = '단기~중기 (1-6개월)';
-    reportBuyOrSellText = '🚀 <b>최우선 매수 대상</b>';
+    reportBuyOrSellText = '[최우선매수] <b>최우선 매수 대상</b>';
     stockBuyLevel = 'S+';
   } else if (totalInvestmentScore >= 190 && hasMomentum) {
     investmentGrade = 'S 등급 (우수한 투자 기회)';
     riskAssessment = isFairValued ? '리스크: 낮음 | 기대수익률: 높음' : (priceTotalScore >= 160 ? '리스크: 중간 | 기대수익률: 높음' : '리스크: 낮음 | 기대수익률: 높음');
     investmentStrategy = isFairValued ? '적극매수 권장. 분할 매수 전략 고려 (적정가치 구간)' : '적극매수 권장. 분할 매수 전략 고려';
     timeHorizon = '중기 (3-6개월)';
-    reportBuyOrSellText = '⭐ <b>적극 매수 추천</b>';
+    reportBuyOrSellText = '[적극매수] <b>적극 매수 추천</b>';
     stockBuyLevel = 'S';
   } else if (totalInvestmentScore >= 160) {
     investmentGrade = 'A+ 등급 (양호한 투자 기회)';
@@ -596,28 +596,28 @@ export const makeStockFinalReportText = (
       (isFairValued ? '매수 권장. 시장 상황 고려하여 진입 (적정가치 구간)' : '매수 권장. 시장 상황 고려하여 진입') : 
       (isFairValued ? '신중한 매수. 기술적 신호 재확인 필요 (적정가치 구간)' : '신중한 매수. 기술적 신호 재확인 필요');
     timeHorizon = '중기 (2-4개월)';
-    reportBuyOrSellText = '📈 <b>매수 권장</b>';
+    reportBuyOrSellText = '[매수권장] <b>매수 권장</b>';
     stockBuyLevel = 'A+';
   } else if (totalInvestmentScore >= 120) {
     investmentGrade = 'A 등급 (보통 수준)';
     riskAssessment = isFairValued ? '리스크: 중간 | 기대수익률: 보통' : '리스크: 중간 | 기대수익률: 보통';
     investmentStrategy = isFairValued ? '관망 후 매수. 적정가치 구간으로 안정적' : '관망 후 매수. 추가 긍정 신호 대기';
     timeHorizon = '중장기 (3-6개월)';
-    reportBuyOrSellText = hasMomentum ? '🔍 <b>관심종목 등록</b>' : '⏳ <b>관망 권장</b>';
+    reportBuyOrSellText = hasMomentum ? '[관심종목] <b>관심종목 등록</b>' : '[관망] <b>관망 권장</b>';
     stockBuyLevel = 'A';
   } else if (totalInvestmentScore >= 80) {
     investmentGrade = 'B 등급 (투자 주의)';
     riskAssessment = '리스크: 높음 | 기대수익률: 낮음';
     investmentStrategy = '투자 보류. 기본적 변화 관찰 필요';
     timeHorizon = '장기 관찰 (6개월 이상)';
-    reportBuyOrSellText = '⚠️ <b>투자 보류</b>';
+    reportBuyOrSellText = '[투자주의] <b>투자 보류</b>';
     stockBuyLevel = 'B';
   } else {
     investmentGrade = 'C 등급 (투자 부적합)';
     riskAssessment = '리스크: 매우높음 | 기대손실 가능성';
     investmentStrategy = '투자 금지. 다른 대안 종목 검토';
     timeHorizon = '투자 대상 제외';
-    reportBuyOrSellText = '🚫 <b>투자 비추천</b>';
+    reportBuyOrSellText = '[투자비권장] <b>투자 비추천</b>';
     stockBuyLevel = 'C';
   }
 
@@ -625,17 +625,17 @@ export const makeStockFinalReportText = (
   let specialNote = '';
   if (overallStocFinalObject.isNearGoldenCross && !overallStocFinalObject.isOverGoldenCross && priceTotalScore >= 140) {
     specialNote = isFairValued ? 
-      '<div class="mt-2 p-2 bg-green-50 rounded"><span class="text-green-700"><b>🎯 골든크로스 임박 + 적정가치:</b> 상승 전환 신호가 강하며 가치평가도 안정적입니다.</span></div>' :
-      '<div class="mt-2 p-2 bg-green-50 rounded"><span class="text-green-700"><b>🎯 골든크로스 임박 보너스:</b> 상승 전환 신호가 강하게 감지됩니다.</span></div>';
+      '<div class="mt-2 p-2 bg-green-50 rounded"><span class="text-green-700"><b>[골든크로스임박] 골든크로스 임박 + 적정가치:</b> 상승 전환 신호가 강하며 가치평가도 안정적입니다.</span></div>' :
+      '<div class="mt-2 p-2 bg-green-50 rounded"><span class="text-green-700"><b>[골든크로스임박] 골든크로스 임박 보너스:</b> 상승 전환 신호가 강하게 감지됩니다.</span></div>';
   } else if (priceTotalScore >= 180 && !hasMomentum) {
-    specialNote = '<div class="mt-2 p-2 bg-orange-50 rounded"><span class="text-orange-700"><b>⚡ 모멘텀 부족 주의:</b> 높은 점수에도 불구하고 추세 신호가 약합니다.</span></div>';
+    specialNote = '<div class="mt-2 p-2 bg-orange-50 rounded"><span class="text-orange-700"><b>[모멘텀부족] 모멘텀 부족 주의:</b> 높은 점수에도 불구하고 추세 신호가 약합니다.</span></div>';
   } else if (isFairValued && isHighQuality) {
-    specialNote = '<div class="mt-2 p-2 bg-blue-50 rounded"><span class="text-blue-700"><b>💎 안정성 우수:</b> 적정가치 구간과 우수한 펀더멘털을 동시에 만족합니다.</span></div>';
+    specialNote = '<div class="mt-2 p-2 bg-blue-50 rounded"><span class="text-blue-700"><b>[안정성우수] 안정성 우수:</b> 적정가치 구간과 우수한 펀더멘털을 동시에 만족합니다.</span></div>';
   }
 
   reportBuyOrSellText += `
     <div class='mt-4 p-4 bg-white rounded-lg shadow-sm'>
-      <h4 class='text-base font-bold text-gray-800 mb-3 pb-2 border-b border-gray-200'>📋 투자 분석 요약</h4>
+      <h4 class='text-base font-bold text-gray-800 mb-3 pb-2 border-b border-gray-200'>[투자분석] 투자 분석 요약</h4>
       <div class='space-y-2 text-sm text-gray-700'>
         <div class='flex items-start'>
           <span class='font-semibold text-gray-600 w-20 flex-shrink-0'>투자등급:</span>
@@ -664,11 +664,11 @@ export const makeStockFinalReportText = (
   return {
     reportText: `
       <div class='investment-analysis-report max-w-4xl mx-auto'>
-        <div class='text-xl font-bold text-center mb-6 p-4 bg-gradient-to-r from-slate-700 to-slate-800 text-white rounded-lg shadow-md'>
-          📊 ${stockName} 투자 분석 보고서
+        <div class='text-xl font-bold text-center mb-3 p-2 bg-gradient-to-r from-slate-700 to-slate-800 text-white rounded-lg shadow-md'>
+          ${stockName} 투자 분석 보고서
         </div>
         
-        <div class='recommendation-summary mb-6 p-4 text-center text-lg font-semibold rounded-lg shadow-sm ${
+        <div class='recommendation-summary mb-3 p-4 text-center text-lg font-semibold rounded-lg shadow-sm ${
           reportBuyOrSellText.includes('최우선') || reportBuyOrSellText.includes('적극') ? 'bg-green-50 text-green-800' :
           reportBuyOrSellText.includes('권장') || reportBuyOrSellText.includes('관심') ? 'bg-blue-50 text-blue-800' :
           reportBuyOrSellText.includes('보류') ? 'bg-yellow-50 text-yellow-800' :
@@ -677,12 +677,12 @@ export const makeStockFinalReportText = (
           ${reportBuyOrSellText}
         </div>
 
-        <div class='technical-analysis mb-6'>
+        <div class='technical-analysis'>
           ${reportText}
         </div>
         
-        <div class='disclaimer mt-8 p-4 bg-gray-50 rounded-lg text-xs text-gray-600 border-l-4 border-gray-300'>
-          <div class='font-semibold text-gray-700 mb-2'>⚠️ 투자 유의사항</div>
+        <div class='disclaimer mt-3 p-2 bg-gray-50 rounded-lg text-xs text-gray-600 border-gray-300'>
+          <div class='font-semibold text-gray-700 mb-2'>[주의사항] 투자 유의사항</div>
           <div class='space-y-1'>
             <div>• 본 분석은 기술적 지표를 바탕으로 한 참고자료이며, 투자 결정은 개인의 판단과 책임하에 이루어져야 합니다.</div>
             <div>• 과거 데이터 기반 분석으로 미래 수익을 보장하지 않으며, 투자 손실 가능성을 충분히 고려하시기 바랍니다.</div>
