@@ -226,7 +226,11 @@ export const calculateExpectFinanceScore = (
   // 60일 이평선 값
   let ma60Value = getCalcMoveAvgValue(dataList, 60);
 
-  // 60일 VWMA(거래량 가중 이동평균)
+  // 당일 VWMA(거래량 가중 당일 이평선 값)
+  let vwmaTodayValue = getVWMAValue(dataList, 1);
+  // 20일 VWMA(거래량 가중 20일 이평선 값)
+  let vwma20Value = getVWMAValue(dataList, 20);
+  // 60일 VWMA(거래량 가중 60일 이평선 값)
   let vwma60Value = getVWMAValue(dataList, 60);
 
   /**
@@ -252,7 +256,9 @@ export const calculateExpectFinanceScore = (
   let calcComputeVolumeRatio = getCalcComputeVolumeRatio(dataList, 60);
   // 유동성비율
   let calcTodayVolumeRatioValue = Number.isNaN(todayAmount / companyMarcap) ? 0 : (todayAmount / companyMarcap) * 100;
-  resultObject.volumeNormalizeValue = calcTodayVolumeRatioValue === 0 ? getAverageValue([selfNormalize(totalSumVWMA, -30, 30), selfNormalize(calcComputeVolumeRatio, -100, 100)]) : getAverageValue([selfNormalize(totalSumVWMA, -30, 30), selfNormalize(calcComputeVolumeRatio, -100, 100), selfNormalize(calcTodayVolumeRatioValue, 0, 2)]);
+  resultObject.volumeNormalizeValue = calcTodayVolumeRatioValue === 0 ? 
+    getAverageValue([selfNormalize(totalSumVWMA, -30, 30), selfNormalize(calcComputeVolumeRatio, -100, 100)]) :
+    getAverageValue([selfNormalize(totalSumVWMA, -30, 30), selfNormalize(calcComputeVolumeRatio, -100, 100), selfNormalize(calcTodayVolumeRatioValue, 0, 2)]);
 
   /**
    * 지지/저항 (가중치 15% - 초기 값)
@@ -280,20 +286,20 @@ export const calculateExpectFinanceScore = (
 
   /**
    * 골든크로스 여부 확인
-   * @param ma20Value 
-   * @param ma60Value 
+   * @param vwma20Value 
+   * @param vwma60Value 
    * @returns 
    */
-  resultObject.isOverGoldenCross = isOverGoldenCross(ma20Value, ma60Value);
+  resultObject.isOverGoldenCross = isOverGoldenCross(vwma20Value, vwma60Value);
 
   /**
    * 골든크로스 임박 여부 확인
-   * @param nowValue 
-   * @param ma20Value 
-   * @param ma60Value 
+   * @param vwmaTodayValue 
+   * @param vwma20Value 
+   * @param vwma60Value 
    * @returns 
    */
-  resultObject.isNearGoldenCross = isNearGoldenCross(nowValue, ma20Value, ma60Value);
+  resultObject.isNearGoldenCross = isNearGoldenCross(vwmaTodayValue, vwma20Value, vwma60Value);
 
   return resultObject;
 }
