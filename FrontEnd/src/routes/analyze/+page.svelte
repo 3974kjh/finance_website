@@ -4,11 +4,12 @@
   import { calculateRatio, formatCostValue, formatIncludeComma, sortBySimilarity, getTodayDateFormatted } from '$lib/utils/CommonHelper';
   import { getFinanceDataListByChartMode, calculateExpectFinanceScore, selfNormalize, SingleChartBasic, sendFinanceResult, makeStockFinalReportText } from '$lib/main';
   import { onMount, onDestroy, tick } from 'svelte';
+  import { browser } from '$app/environment';
   import { DownLoadProgressBar, ProgressCircle, KakaoLoginAndSend } from '$lib/component';
   import { cancelRequest } from "$lib/axios-provider/AxiosProvider";
   import { page } from '$app/stores';
   import toast from 'svelte-french-toast';
-  import { slide } from 'svelte/transition';
+  import { slide, fade, fly } from 'svelte/transition';
   import _ from 'lodash';
 
   let stockModeList: Array<{name: string, value: string, isSelected: boolean}> = [
@@ -88,13 +89,96 @@
     { name: '우수 종합점수', value: 'GOOD_SCORE', isSelected: false },
   ];
 
+  // 매수등급 필터 옵션
+  let stockBuyLevelOptions = [
+    { 
+      name: '전체', 
+      value: 'ALL', 
+      rank: 'ALL', 
+      description: '모든 등급 종목 표시', 
+      bgColor: 'bg-gradient-to-r from-gray-500/80 to-gray-600/80',
+      borderColor: 'border-gray-400/30',
+      textColor: 'text-white'
+    },
+    { 
+      name: 'S+ 등급', 
+      value: 'S+', 
+      rank: 'S+', 
+      description: '최우선 투자대상 · 강력한 상승신호', 
+      bgColor: 'bg-gradient-to-r from-purple-500/80 to-pink-500/80',
+      borderColor: 'border-purple-400/30',
+      textColor: 'text-purple-200'
+    },
+    { 
+      name: 'S 등급', 
+      value: 'S', 
+      rank: 'S', 
+      description: '적극 매수권장 · 우수한 기술적 신호', 
+      bgColor: 'bg-gradient-to-r from-blue-500/80 to-indigo-500/80',
+      borderColor: 'border-blue-400/30',
+      textColor: 'text-blue-200'
+    },
+    { 
+      name: 'A+ 등급', 
+      value: 'A+', 
+      rank: 'A+', 
+      description: '매수 권장 · 양호한 상승 추세', 
+      bgColor: 'bg-gradient-to-r from-emerald-500/80 to-teal-500/80',
+      borderColor: 'border-emerald-400/30',
+      textColor: 'text-emerald-200'
+    },
+    { 
+      name: 'A 등급', 
+      value: 'A', 
+      rank: 'A', 
+      description: '관심 종목 · 매수 검토 권장', 
+      bgColor: 'bg-gradient-to-r from-green-500/80 to-lime-500/80',
+      borderColor: 'border-green-400/30',
+      textColor: 'text-green-200'
+    },
+    { 
+      name: 'B 등급', 
+      value: 'B', 
+      rank: 'B', 
+      description: '투자 주의 · 추가 분석 필요', 
+      bgColor: 'bg-gradient-to-r from-yellow-500/80 to-orange-500/80',
+      borderColor: 'border-yellow-400/30',
+      textColor: 'text-yellow-200'
+    },
+    { 
+      name: 'C 등급', 
+      value: 'C', 
+      rank: 'C', 
+      description: '투자 비권장 · 고위험 종목', 
+      bgColor: 'bg-gradient-to-r from-red-500/80 to-rose-500/80',
+      borderColor: 'border-red-400/30',
+      textColor: 'text-red-200'
+    }
+  ];
+  let selectedStockBuyLevel: string = 'ALL';
+  let isDropdownOpen: boolean = false;
+  let dropdownButton: HTMLButtonElement;
+  let dropdownPosition = { top: 0, left: 0, width: 0 };
+
+  // 드롭다운 위치 계산
+  const updateDropdownPosition = () => {
+    if (dropdownButton) {
+      const rect = dropdownButton.getBoundingClientRect();
+      dropdownPosition = {
+        top: rect.bottom + 8,
+        left: rect.left,
+        width: rect.width
+      };
+    }
+  };
+
   // 페이지네이션 관련 변수
   let currentPage: number = 0;
   const itemsPerPage: number = 50; // 페이지당 50개 항목
 
   // 페이지네이션 표시 여부에 따른 테이블 높이 계산
   $: showPagination = filteredCalcSignalScoreResultList.length > itemsPerPage;
-  $: showSearchStatus = (searchStockText.trim() !== '' || hasGoldenCrossFilter) && calcSignalScoreResultList.length > 0;
+  $: showSearchStatus = (searchStockText.trim() !== '' || hasGoldenCrossFilter || selectedStockBuyLevel !== 'ALL') && calcSignalScoreResultList.length > 0;
   $: tableHeight = (() => {
     // innerHeight가 0이거나 너무 작으면 기본값 사용
     const windowHeight = innerHeight > 0 ? innerHeight : 800;
@@ -108,7 +192,7 @@
   $: selectedGoldenCrossFilters = goldenCrossFilterList.filter(item => item.isSelected).map(item => item.value);
   $: hasGoldenCrossFilter = selectedGoldenCrossFilters.length > 0;
 
-  // 실시간 검색 및 골든크로스 필터링
+  // 실시간 검색 및 필터링
   $: filteredCalcSignalScoreResultList = (() => {
     let filtered = calcSignalScoreResultList;
     
@@ -144,6 +228,13 @@
       });
     }
     
+    // 매수등급 필터 적용
+    if (selectedStockBuyLevel !== 'ALL') {
+      filtered = filtered.filter((item: any) => 
+        item.stockBuyLevel === selectedStockBuyLevel
+      );
+    }
+    
     // 검색 필터 적용
     if (searchStockText.trim() !== '') {
       filtered = filtered.filter((item: any) => 
@@ -165,9 +256,12 @@
   $: maxPage = Math.ceil(filteredCalcSignalScoreResultList.length / itemsPerPage);
 
   // 검색 또는 필터 변경 시 첫 페이지로 이동
-  $: if (searchStockText || selectedGoldenCrossFilters) {
+  $: if (searchStockText || selectedGoldenCrossFilters || selectedStockBuyLevel) {
     currentPage = 0;
   }
+
+  // 선택된 매수등급 옵션
+  $: selectedStockBuyLevelOption = stockBuyLevelOptions.find(opt => opt.value === selectedStockBuyLevel);
 
   // 테이블 상단으로 스크롤
   const scrollToTableTop = () => {
@@ -216,6 +310,12 @@
 
     loadProgress = false;
     count = 0;
+
+    // 이벤트 리스너 추가
+    if (browser) {
+      document.addEventListener('click', handleClickOutside);
+      window.addEventListener('scroll', handleScroll);
+    }
   })
 
   onDestroy(() => {
@@ -226,6 +326,10 @@
 
       sessionStorage.setItem('selectedDurationKey', selectedDurationKey);
       sessionStorage.setItem('selectedStockMode', JSON.stringify(getSelectedStockModeValue(stockModeList)));
+      
+      // 이벤트 리스너 제거
+      document.removeEventListener('click', handleClickOutside);
+      window.removeEventListener('scroll', handleScroll);
     }
   });
 
@@ -598,12 +702,51 @@
   }
 
   let isShowConditionSetting: boolean = false;
+
+  // 드롭다운 외부 클릭 감지
+  const handleClickOutside = (event: MouseEvent) => {
+    const target = event.target as Element;
+    if (!target.closest('.custom-dropdown')) {
+      isDropdownOpen = false;
+    }
+  };
+
+  // 드롭다운 옵션 선택
+  const selectBuyLevelOption = (value: string) => {
+    selectedStockBuyLevel = value;
+    isDropdownOpen = false;
+  };
+
+  // 드롭다운 토글
+  const toggleDropdown = () => {
+    if (!isDropdownOpen) {
+      updateDropdownPosition();
+    }
+    isDropdownOpen = !isDropdownOpen;
+  };
+
+  // 스크롤 시 드롭다운 닫기
+  const handleScroll = () => {
+    if (isDropdownOpen) {
+      isDropdownOpen = false;
+    }
+  };
+
+  // 키보드 네비게이션
+  const handleKeydown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      isDropdownOpen = false;
+    } else if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      isDropdownOpen = !isDropdownOpen;
+    }
+  };
 </script>
 
 <svelte:head>
 	<title>데이터 분석 - FinanceChart</title>
 </svelte:head>
-<svelte:window bind:innerHeight/>
+<svelte:window bind:innerHeight on:click={handleClickOutside}/>
 <div class="flex w-full h-full relative bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 overflow-hidden">
   <!-- 배경 데코레이션 -->
   <div class="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,_rgba(59,130,246,0.1)_1px,_transparent_0)] bg-[size:32px_32px] pointer-events-none"></div>
@@ -679,6 +822,7 @@
             axiosController = new AbortController();
             searchStockText = '';
             goldenCrossFilterList = resetGoldenCrossFilters(goldenCrossFilterList);
+            selectedStockBuyLevel = 'ALL';
             loadingText = '증시 목록을 가져오는 중입니다...';
             // 카운트 초기화
             count = -1;
@@ -865,6 +1009,44 @@
           {/if}
         </div>
       </div>
+      <!-- 매수등급 필터 -->
+      <div class="flex items-center space-x-3">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+            </svg>
+          </div>
+          <span class="font-bold text-white">매수등급</span>
+        </div>
+        <div class="relative custom-dropdown">
+          <!-- 선택된 항목 표시 버튼 -->
+          <button
+            bind:this={dropdownButton}
+            type="button"
+            class="h-10 px-4 pr-3 rounded-lg bg-white/10 backdrop-blur-md border border-white/20 focus:border-green-400/70 focus:ring-2 focus:ring-green-400/30 outline-none transition-all duration-200 text-white font-medium shadow-lg hover:shadow-xl hover:bg-white/15 cursor-pointer w-48 max-w-xs flex items-center justify-between"
+            on:click={toggleDropdown}
+            on:keydown={handleKeydown}
+            aria-haspopup="listbox"
+            aria-expanded={isDropdownOpen}
+          >
+            <div class="flex items-center space-x-3">
+              <div class="w-8 h-6 rounded bg-gradient-to-r {selectedStockBuyLevelOption?.bgColor || 'from-gray-500/80 to-gray-600/80'} flex items-center justify-center text-xs font-bold text-white shadow-sm">
+                {selectedStockBuyLevelOption?.rank || 'ALL'}
+              </div>
+              <span class="font-medium text-white">{selectedStockBuyLevelOption?.name || '전체'}</span>
+            </div>
+            <svg 
+              class="w-4 h-4 text-white/70 transform transition-transform duration-200 {isDropdownOpen ? 'rotate-180' : 'rotate-0'}" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
       <!-- 액션 버튼들 -->
       <div class="flex items-center space-x-2 ml-auto">
         <div class="ml-4">
@@ -887,15 +1069,25 @@
       </div>
     </div>
     <!-- 검색 상태 표시 -->
-    {#if (searchStockText.trim() !== '' || hasGoldenCrossFilter) && calcSignalScoreResultList.length > 0}
+    {#if (searchStockText.trim() !== '' || hasGoldenCrossFilter || selectedStockBuyLevel !== 'ALL') && calcSignalScoreResultList.length > 0}
+      {@const searchActive = searchStockText.trim() !== ''}
+      {@const goldenActive = hasGoldenCrossFilter}
+      {@const buyLevelActive = selectedStockBuyLevel !== 'ALL'}
+      
       <div class="flex justify-center">
         <div class="px-4 py-2 bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 rounded-full text-sm text-blue-200 shadow-lg">
-          {#if searchStockText.trim() !== '' && hasGoldenCrossFilter}
-            🔍 '<span class="font-semibold text-white">{searchStockText}</span>' 검색 + <span class="font-semibold text-amber-300">{goldenCrossFilterList.filter(f => f.isSelected).map(f => f.name).join(' & ')}</span> 필터 - <span class="font-semibold text-white">{filteredCalcSignalScoreResultList.length}</span>개 결과 / 전체 <span class="font-semibold text-white">{calcSignalScoreResultList.length}</span>개
-          {:else if searchStockText.trim() !== ''}
-            🔍 '<span class="font-semibold text-white">{searchStockText}</span>' 검색 중 - <span class="font-semibold text-white">{filteredCalcSignalScoreResultList.length}</span>개 결과 / 전체 <span class="font-semibold text-white">{calcSignalScoreResultList.length}</span>개
-          {:else if hasGoldenCrossFilter}
-            ⚡ <span class="font-semibold text-amber-300">{goldenCrossFilterList.filter(f => f.isSelected).map(f => f.name).join(' & ')}</span> 필터 적용 - <span class="font-semibold text-white">{filteredCalcSignalScoreResultList.length}</span>개 결과 / 전체 <span class="font-semibold text-white">{calcSignalScoreResultList.length}</span>개
+          {#if searchActive || goldenActive || buyLevelActive}
+            🔍 필터 적용중: 
+            {#if searchActive}
+              '<span class="font-semibold text-white">{searchStockText}</span>' 검색
+            {/if}
+            {#if goldenActive}
+              {searchActive ? ' + ' : ''}<span class="font-semibold text-amber-300">{goldenCrossFilterList.filter(f => f.isSelected).map(f => f.name).join(' & ')}</span>
+            {/if}
+            {#if buyLevelActive}
+              {(searchActive || goldenActive) ? ' + ' : ''}<span class="inline-flex items-center space-x-1"><span class="font-semibold text-green-300">{selectedStockBuyLevelOption?.rank}</span><span class="text-green-200">등급</span></span>
+            {/if}
+            - <span class="font-semibold text-white">{filteredCalcSignalScoreResultList.length}</span>개 결과 / 전체 <span class="font-semibold text-white">{calcSignalScoreResultList.length}</span>개
           {/if}
         </div>
       </div>
@@ -907,13 +1099,14 @@
           <thead class="bg-gradient-to-r from-slate-500 to-slate-600 border-b border-slate-400 flex-shrink-0">
             <tr>
               <th class="text-white font-semibold py-3 px-3 text-center text-shadow-light" style="width: 5%;">Rank</th>
+              <th class="text-white font-semibold py-3 px-3 text-center text-shadow-light" style="width: 5%;">Buy-Tier</th>
               <th class="text-white font-semibold py-3 px-3 text-center text-shadow-light" style="width: 10%;">코드</th>
               <th class="text-white font-semibold py-3 px-3 text-left text-shadow-light" style="width: 20%;">주식명</th>
               <th class="text-white font-semibold py-3 px-3 text-right text-shadow-light" style="width: 10%;">총점수</th>
               <th class="text-white font-semibold py-3 px-3 text-right text-shadow-light" style="width: 10%;">추세점수</th>
               <th class="text-white font-semibold py-3 px-3 text-right text-shadow-light" style="width: 10%;">규모점수</th>
               <th class="text-white font-semibold py-3 px-3 text-right text-shadow-light" style="width: 10%;">현재가</th>
-              <th class="text-white font-semibold py-3 px-3 text-right text-shadow-light" style="width: 25%;">시가총액</th>
+              <th class="text-white font-semibold py-3 px-3 text-right text-shadow-light" style="width: 20%;">시가총액</th>
             </tr>
           </thead>
           <tbody class="bg-white/95 backdrop-blur-lg elegant-scrollbar flex-1 overflow-y-auto" style="height: {tableHeight}px; max-height: {tableHeight}px; min-height: {tableHeight}px;">
@@ -934,13 +1127,14 @@
                   }}
                 >
                   <td class="py-2 px-3 text-center text-gray-600 font-medium" style="width: 5%;">{calcSignalScoreResultInfo.rank}</td>
+                  <td class="py-2 px-3 text-center text-gray-600 font-medium" style="width: 5%;">{calcSignalScoreResultInfo?.stockBuyLevel ?? '-'}</td>
                   <td class="py-2 px-3 text-center text-gray-600 font-mono text-sm" style="width: 10%;">{calcSignalScoreResultInfo.code}</td>
                   <td class="py-2 px-3 text-left text-gray-700 font-semibold" style="width: 20%;">{calcSignalScoreResultInfo.name}</td>
                   <td class="py-2 px-3 text-right text-gray-600 font-medium" style="width: 10%;">{calcSignalScoreResultInfo?.totalScore ?? '-'}</td>
                   <td class="py-2 px-3 text-right text-gray-600 font-medium" style="width: 10%;">{calcSignalScoreResultInfo?.trendScore ?? '-'}</td>
                   <td class="py-2 px-3 text-right text-gray-600 font-medium" style="width: 10%;">{calcSignalScoreResultInfo?.marcapScore ?? '-'}</td>
                   <td class="py-2 px-3 text-right text-gray-600 font-medium" style="width: 10%;">{`${formatIncludeComma(calcSignalScoreResultInfo?.close) ?? '-'} ₩`}</td>
-                  <td class="py-2 px-3 text-right text-gray-600 font-medium" style="width: 25%;">{`${formatIncludeComma(calcSignalScoreResultInfo?.marcap) ?? '-'} ₩`}</td>
+                  <td class="py-2 px-3 text-right text-gray-600 font-medium" style="width: 20%;">{`${formatIncludeComma(calcSignalScoreResultInfo?.marcap) ?? '-'} ₩`}</td>
                 </tr>
               {/each}
             {:else if loadProgress}
@@ -1025,7 +1219,7 @@
             <span class="text-gray-400 mx-1">/</span>
             <span class="text-gray-800">{maxPage}</span>
           </span>
-          {#if searchStockText.trim() !== '' || hasGoldenCrossFilter}
+          {#if searchStockText.trim() !== '' || hasGoldenCrossFilter || selectedStockBuyLevel !== 'ALL'}
             <span class="text-xs px-2 py-0.5 bg-blue-500/20 text-blue-200 rounded-full border border-blue-400/30">
               필터: {filteredCalcSignalScoreResultList.length}/{calcSignalScoreResultList.length}
             </span>
@@ -1064,6 +1258,46 @@
     </div>
   {/if}
 </div>
+
+<!-- 드롭다운 포털 - body에 직접 렌더링 -->
+{#if isDropdownOpen}
+  <div 
+    class="fixed bg-slate-800/95 backdrop-blur-md rounded-lg border border-white/20 shadow-2xl max-h-80 overflow-y-auto overflow-x-hidden w-80 max-w-sm"
+    style="top: {dropdownPosition.top}px; left: {dropdownPosition.left}px; z-index: 99999;"
+    in:fly={{ y: -10, duration: 250, delay: 50 }}
+    out:fly={{ y: -10, duration: 200 }}
+  >
+    {#each stockBuyLevelOptions as option, index}
+      <button
+        type="button"
+        class="w-full px-3 py-3 flex items-center space-x-3 hover:bg-white/10 hover:shadow-lg active:bg-white/20 transition-all duration-200 {selectedStockBuyLevel === option.value ? 'bg-white/15 border-l-4 border-green-400 shadow-inner' : ''} first:rounded-t-lg last:rounded-b-lg group"
+        on:click={() => selectBuyLevelOption(option.value)}
+        in:fly={{ x: -20, duration: 200, delay: index * 40 }}
+        out:fade={{ duration: 150 }}
+      >
+        <!-- 랭크 배지 -->
+        <div class="w-9 h-6 rounded-md bg-gradient-to-r {option.bgColor} flex items-center justify-center text-xs font-bold text-white shadow-lg border {option.borderColor} transition-all duration-200 group-hover:shadow-xl group-hover:brightness-110 flex-shrink-0">
+          {option.rank}
+        </div>
+        
+        <!-- 내용 -->
+        <div class="flex-1 text-left min-w-0">
+          <div class="font-semibold text-white text-sm transition-colors duration-200 group-hover:text-green-200 truncate">{option.name}</div>
+          <div class="text-xs text-white/60 mt-1 transition-opacity duration-200 group-hover:text-white/80 leading-tight break-words">{option.description}</div>
+        </div>
+        
+        <!-- 선택 표시 -->
+        {#if selectedStockBuyLevel === option.value}
+          <div class="flex items-center justify-center w-6 h-6 rounded-full bg-green-500/20 border border-green-400/50" in:fly={{ x: 10, duration: 200 }}>
+            <svg class="w-3 h-3 text-green-400 transition-all duration-200" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+            </svg>
+          </div>
+        {/if}
+      </button>
+    {/each}
+  </div>
+{/if}
 
 <style>
 	.tableWrap {
@@ -1204,5 +1438,52 @@
 
   .animate-pulse {
     animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* 커스텀 드롭다운 스크롤바 */
+  .custom-dropdown .max-h-80::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .custom-dropdown .max-h-80::-webkit-scrollbar-track {
+    background: rgba(51, 65, 85, 0.3);
+    border-radius: 8px;
+    margin: 4px 0;
+  }
+
+  .custom-dropdown .max-h-80::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, 
+      rgba(34, 197, 94, 0.4) 0%,
+      rgba(16, 185, 129, 0.6) 50%,
+      rgba(5, 150, 105, 0.4) 100%
+    );
+    border-radius: 8px;
+    border: 2px solid rgba(51, 65, 85, 0.2);
+    transition: all 0.3s ease;
+  }
+
+  .custom-dropdown .max-h-80::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, 
+      rgba(34, 197, 94, 0.6) 0%,
+      rgba(16, 185, 129, 0.8) 50%,
+      rgba(5, 150, 105, 0.6) 100%
+    );
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: scaleX(1.2);
+  }
+
+  /* Firefox용 커스텀 드롭다운 스크롤바 */
+  .custom-dropdown .max-h-80 {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(34, 197, 94, 0.6) rgba(51, 65, 85, 0.3);
+  }
+
+  /* 드롭다운 애니메이션 최적화 */
+  .custom-dropdown button {
+    will-change: transform, background-color;
+  }
+  
+  .custom-dropdown .group:hover .w-10 {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   }
 </style> 

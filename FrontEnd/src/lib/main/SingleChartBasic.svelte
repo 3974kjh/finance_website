@@ -11,9 +11,7 @@
 	  isNearGoldenCross,
 	  calculateGeneralizedPricePosition,
     makeStockFinalReportText,
-
-	calculateBollingerBands
-
+	  calculateBollingerBands
   } from '$lib/main';
   import { calculateRatio, formatCostValue, formatIncludeComma } from '$lib/utils/CommonHelper';
   import { NaverFinanceImg, CompanyGuideImg } from '$lib/images/logo';
@@ -420,6 +418,7 @@
           </svg>
         </button>
       </div>
+      <!-- svelte-ignore a11y-missing-content -->
       <div class="flex justify-end space-x-2">
         <a 
           class="flex items-center justify-center w-10 h-10 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-all duration-200"
