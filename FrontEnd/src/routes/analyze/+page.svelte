@@ -996,14 +996,14 @@
           {/each}
           {#if hasGoldenCrossFilter}
             <button
-              class="h-10 px-2 rounded-lg font-medium text-sm transition-all duration-200 bg-red-500/80 hover:bg-red-600 text-white shadow-md hover:shadow-lg"
+              class="h-10 w-10 rounded-lg transition-all duration-200 bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/30 text-white/70 hover:text-white shadow-sm hover:shadow-md backdrop-blur-sm group flex items-center justify-center"
               on:click={() => {
                 goldenCrossFilterList = resetGoldenCrossFilters(goldenCrossFilterList);
               }}
               title="필터 초기화"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              <svg class="w-4 h-4 transition-transform duration-200 group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
               </svg>
             </button>
           {/if}
