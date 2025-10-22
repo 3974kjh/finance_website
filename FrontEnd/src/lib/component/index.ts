@@ -1,4 +1,5 @@
 export {default as LineChart} from './LineChart.svelte';
+export {default as SubLineChart} from './SubLineChart.svelte';
 export {default as BarChart} from './BarChart.svelte';
 export {default as ChartViewer} from './ChartViewer.svelte';
 export {default as RangeBar} from './RangeBar.svelte';

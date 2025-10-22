@@ -1,17 +1,20 @@
 <script lang="ts">
-  import { onMount, tick, createEventDispatcher } from 'svelte';
-  import { LineChart, ProgressCircle, NewsInfoListComponent } from '$lib/component';
+  import { onMount, createEventDispatcher } from 'svelte';
+  import { LineChart, SubLineChart, ProgressCircle, NewsInfoListComponent } from '$lib/component';
   import { getExpectStockValue, getFinanceStockList } from '$lib/api-connector/FinanceApi';
   import { 
     getFinanceDataListByChartMode, 
     setUpDownRatioTag, setUpDownIcon, setUpDownColor, 
     calculateExpectFinanceScore,
     getNewInfoList,
-	  isOverGoldenCross,
-	  isNearGoldenCross,
-	  calculateGeneralizedPricePosition,
+    calculateGeneralizedPricePosition,
     makeStockFinalReportText,
-	  calculateBollingerBands
+    calculateBollingerBands,
+    calculateMA,
+    calculateVWMA,
+
+	getAverageValue
+
   } from '$lib/main';
   import { calculateRatio, formatCostValue, formatIncludeComma } from '$lib/utils/CommonHelper';
   import { NaverFinanceImg, CompanyGuideImg } from '$lib/images/logo';
@@ -170,27 +173,19 @@
     bottomValue = expectResult.data?.bottomValue;
     topValue = expectResult.data?.topValue;
     expectRatioValue = expectResult.data?.expectRatioValue;
-
-    // 이동평균 계산 함수
-    const calculateMA = (data: any, moveSize: number): (number | string | null)[] => {
-      const movingAverages: (number | string | null)[] = [];
-      for (let index = 0; index < data.length; index++) {
-        if (index < moveSize - 1) {
-          // 데이터가 부족한 경우 null로 표시
-          movingAverages.push(null);
-        } else {
-          const moveList = data.slice(index - moveSize + 1, index + 1);
-          const sum = moveList.reduce((acc: any, cur: any) => acc + cur.Open, 0);
-          movingAverages.push(formatCostValue(sum / moveSize));
-        }
-      }
-      return movingAverages;
-    };
-
+    
     // 각 이동평균 계산
-    const ma5 = calculateMA(financeDataResult, 5);
-    const ma20 = calculateMA(financeDataResult, 20);
-    const ma60 = calculateMA(financeDataResult, 60);
+    const ma5 = calculateMA(financeDataResult, 5, 'Open');
+    const ma20 = calculateMA(financeDataResult, 20, 'Open');
+    const ma60 = calculateMA(financeDataResult, 60, 'Open');
+
+    // 각 VWMA 계산
+    const vwma5 = calculateVWMA(financeDataResult, 5, 'Open', 'Volume');
+    const vwma20 = calculateVWMA(financeDataResult, 20, 'Open', 'Volume');
+    const vwma60 = calculateVWMA(financeDataResult, 60, 'Open', 'Volume');
+
+    // VWMA 평균값 계산
+    const vwmaAvg = getAverageValue(calculateVWMA(financeDataResult, 1, 'Open', 'Volume'));
 
     // 볼린저 밴드 계산
     const bollingerBands = calculateBollingerBands(financeDataResult, 20, 2);
@@ -226,9 +221,14 @@
         expectValue: expectResult.data?.expectValue,
         nowValue: expectResult.data?.nowValue,
         topValue: expectResult.data?.topValue,
+        volume: (data?.Volume ?? 0) * (expectResult.data?.nowValue ?? 0),
         ma5: ma5[index] ?? undefined,
         ma20: ma20[index] ?? undefined,
         ma60: ma60[index] ?? undefined,
+        vwma5: vwma5[index] ?? undefined,
+        vwma20: vwma20[index] ?? undefined,
+        vwma60: vwma60[index] ?? undefined,
+        vwmaAvg: vwmaAvg,
         upBollingerBand: bollingerBands.upBollingerBandList[index] ?? undefined,
         middleBollingerBand: bollingerBands.middleBollingerBandList[index] ?? undefined,
         downBollingerBand: bollingerBands.downBollingerBandList[index] ?? undefined,
@@ -413,7 +413,6 @@
       toast.error('복사에 실패했습니다. 다시 시도해주세요.');
     }
   }
-
 </script>
 
 <div class="flex flex-col w-full h-full bg-gradient-to-br from-slate-50 to-gray-100 absolute p-3 space-y-3 z-10" style="top: 0px; left: 0px" bind:clientHeight={clientHeight}>
@@ -478,14 +477,21 @@
       </div>
     </div>
     <div class="flex flex-row w-full grow space-x-3" style="height: {clientHeight - 150}px">
-      <div class="flex w-[80%] h-full bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-xl shadow-lg overflow-hidden">
+      <div class="flex flex-col w-[80%] h-full bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-xl shadow-lg overflow-hidden">
         {#if dataList.length > 0 && isProgress === false}
           {#key dataList}
-            <LineChart
-              lineDataList={dataList}
-              isMultiLine={true}
-              isDetailMode={true}
-            />
+            <div class="flex h-[60%] w-full">
+              <LineChart
+                lineDataList={dataList}
+                isMultiLine={true}
+                isDetailMode={true}
+              />
+            </div>
+            <div class="flex h-[40%] w-full">
+              <SubLineChart
+                lineDataList={dataList}
+              />
+            </div>
           {/key}
         {:else if isProgress}
           <div class="flex w-full h-full justify-center items-center">

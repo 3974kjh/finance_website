@@ -147,7 +147,7 @@ const getCalcComputeVolumeRatio = (dataList: any, day: number) => {
  * @param values 
  * @returns 
  */
-const getAverageValue = (values: any) => {
+export const getAverageValue = (values: any) => {
   let sumValue: number = 0;
 
   if (values.length < 1) {
@@ -160,6 +160,51 @@ const getAverageValue = (values: any) => {
 
   return parseFloat((sumValue / values.length).toFixed(2))
 }
+
+/**
+ * 이동평균 계산 함수
+ * @param dataList 
+ * @param moveSize
+ * @param property 
+ * @returns 
+ */
+export const calculateMA = (dataList: any, moveSize: number, property: string): (number | string | null)[] => {
+  const movingAverages: (number | string | null)[] = [];
+  for (let index = 0; index < dataList.length; index++) {
+    if (index < moveSize - 1) {
+      // 데이터가 부족한 경우 null로 표시
+      movingAverages.push(null);
+    } else {
+      const moveList = dataList.slice(index - moveSize + 1, index + 1);
+      const sum = moveList.reduce((acc: any, cur: any) => acc + (cur[property] ?? 0), 0);
+      movingAverages.push(formatCostValue(sum / moveSize));
+    }
+  }
+  return movingAverages;
+};
+
+/**
+ * VWMA(거래량 가중 이동평균) 계산 함수
+ * @param dataList 
+ * @param moveSize
+ * @param property
+ * @param volumeProperty
+ * @returns 
+ */
+export const calculateVWMA = (dataList: any, moveSize: number, property: string, volumeProperty: string): (number | string | null)[] => {
+  const movingAverages: (number | string | null)[] = [];
+  for (let index = 0; index < dataList.length; index++) {
+    if (index < moveSize - 1) {
+      // 데이터가 부족한 경우 null로 표시
+      movingAverages.push(null);
+    } else {
+      const moveList = dataList.slice(index - moveSize + 1, index + 1);
+      const sum = moveList.reduce((acc: any, cur: any) => acc + ((cur[property] ?? 0) * (cur[volumeProperty] ?? 0)), 0);
+      movingAverages.push(formatCostValue(sum / moveSize));
+    }
+  }
+  return movingAverages;
+};
 
 /**
  * 이평선 값 계산
