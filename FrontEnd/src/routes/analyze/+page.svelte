@@ -293,6 +293,8 @@
     kakaoAccessCode = sessionStorage.getItem('kakaoAccessCode') ?? '';
     kakaoAccessToken = sessionStorage.getItem('kakaoAccessToken') ?? '';
 
+    startAnalyzeTime = sessionStorage.getItem('startAnalyzeTime') || null;
+
     const getSelectedDurationKey = sessionStorage.getItem('selectedDurationKey');
     const getSelectedStockMode = sessionStorage.getItem('selectedStockMode');
     const getCalcResultList = await getTodayAnalyze();
@@ -321,6 +323,8 @@
   onDestroy(() => {
     if (typeof document !== 'undefined') {
       cancelRequest(axiosController);
+      sessionStorage.setItem('startAnalyzeTime', startAnalyzeTime ?? '');
+
       sessionStorage.setItem('kakaoAccessCode', kakaoAccessCode);
       sessionStorage.setItem('kakaoAccessToken', kakaoAccessToken);
 

@@ -267,24 +267,6 @@
     cursor: row-resize;
   }
 
-  /* :global(.splitpanes__splitter:hover) {
-    background: rgba(255, 255, 255, 0.1) !important;
-  } */
-
-  /* 기존 스플릿 바 아이콘을 흰색으로 변경 */
-  /* :global(.splitpanes__splitter) {
-    color: white !important;
-    fill: white !important;
-    stroke: white !important;
-  } */
-
-  /* 기존 아이콘의 색상 변경 */
-  /* :global(.splitpanes__splitter *) {
-    color: white !important;
-    fill: white !important;
-    stroke: white !important;
-  } */
-
   /* 스플릿 바 ::before, ::after 가상 요소 아이콘 스타일 */
   :global(.splitpanes__splitter::before),
   :global(.splitpanes__splitter::after) {

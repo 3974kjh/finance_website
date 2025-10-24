@@ -3,7 +3,6 @@
 	import { getRealtimeSearchTerms } from '$lib/api-connector/FinanceApi';
 	import { getSearchResultByNaverApi } from '$lib/api-connector/NaverApi';
 	import { browser } from '$app/environment';
-	import { DownLoadProgressBar } from '$lib/component';
 	import toast from 'svelte-french-toast';
 
 	// 타입 정의
@@ -28,7 +27,6 @@
 	let searchTermsData: SearchTermData[] = [];
 	let realtimeSearchLoading = false; // 전체 loading을 realtimeSearchLoading으로 분리
 	let selectedTermIndex: number = -1; // 선택된 검색어 인덱스
-	let error: string = ''; // 에러 메시지 상태 변수
 
 	// 키워드 검색 관련 변수들
 	let searchKeyword: string = '';
@@ -37,7 +35,6 @@
 	
 	// 검색 기록 관리 변수들
 	let searchHistory: string[] = [];
-	let showSearchHistory: boolean = false;
 	let maxHistoryItems: number = 10;
 
 	// 검색 모드 관리 (실시간 검색어 vs 직접 검색)
@@ -144,7 +141,6 @@
 	const fetchRealtimeSearchTerms = async (forceRefresh = false) => {
 		try {
 			realtimeSearchLoading = true;
-			error = '';
 			selectedTermIndex = -1; // 선택 초기화
 			
 			// 로딩 시작 시 날짜 정보도 초기화
@@ -183,13 +179,11 @@
 				}
 			} else {
 				const errorMsg = '실시간 검색어를 가져올 수 없습니다.';
-				error = errorMsg;
 				dateInfo = ''; // 에러 시에도 날짜 정보 초기화
 				toast.error(errorMsg);
 			}
 		} catch (err) {
 			const errorMsg = '실시간 검색어를 가져오는 중 오류가 발생했습니다.';
-			error = errorMsg;
 			dateInfo = ''; // 에러 시에도 날짜 정보 초기화
 			
 			if (err instanceof Error) {
@@ -399,7 +393,6 @@
 	// 검색 기록 항목 클릭 (순서 변경하지 않음)
 	const selectFromHistory = (keyword: string) => {
 		searchKeyword = keyword;
-		showSearchHistory = false;
 		
 		// 즉시 customSearchData를 초기화하여 오른쪽 패널이 표시되도록 함
 		customSearchData = {
@@ -1177,7 +1170,6 @@
 	/* 현대적인 텍스트 말줄임 */
 	.line-clamp-2 {
 		display: -webkit-box;
-		-webkit-line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 		line-height: 1.5;
@@ -1185,7 +1177,6 @@
 
 	.line-clamp-3 {
 		display: -webkit-box;
-		-webkit-line-clamp: 3;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 		line-height: 1.6;
@@ -1290,39 +1281,10 @@
 		}
 	}
 
-	.gradient-text-animated {
-		background: linear-gradient(-45deg, #667eea, #764ba2, #f093fb, #f5576c);
-		background-size: 400% 400%;
-		animation: gradient-flow 3s ease infinite;
-		-webkit-background-clip: text;
-		-webkit-text-fill-color: transparent;
-		background-clip: text;
-	}
-
 	/* 호버 시 아이콘 회전 애니메이션 */
 	@keyframes icon-rotate {
 		from { transform: rotate(0deg); }
 		to { transform: rotate(360deg); }
-	}
-
-	/* 현대적인 그림자 효과 */
-	.modern-shadow {
-		box-shadow: 
-			0 4px 6px -1px rgba(0, 0, 0, 0.1),
-			0 2px 4px -1px rgba(0, 0, 0, 0.06),
-			0 0 0 1px rgba(255, 255, 255, 0.05);
-	}
-
-	.modern-shadow-lg {
-		box-shadow: 
-			0 10px 15px -3px rgba(0, 0, 0, 0.1),
-			0 4px 6px -2px rgba(0, 0, 0, 0.05),
-			0 0 0 1px rgba(255, 255, 255, 0.1);
-	}
-
-	/* 부드러운 전환 효과 */
-	.smooth-transition {
-		transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 	}
 
 	/* 반응형 폰트 크기 */
@@ -1335,24 +1297,6 @@
 		.line-clamp-3 {
 			line-height: 1.4;
 		}
-	}
-
-	/* 검색 기록 드롭다운 스크롤바 */
-	.max-h-60::-webkit-scrollbar {
-		width: 4px;
-	}
-
-	.max-h-60::-webkit-scrollbar-track {
-		background: rgba(0, 0, 0, 0.05);
-	}
-
-	.max-h-60::-webkit-scrollbar-thumb {
-		background: rgba(0, 0, 0, 0.2);
-		border-radius: 2px;
-	}
-
-	.max-h-60::-webkit-scrollbar-thumb:hover {
-		background: rgba(0, 0, 0, 0.3);
 	}
 
 	/* 검색 기록 영역 스크롤바 개선 */
