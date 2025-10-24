@@ -20,7 +20,7 @@ export const getFinanceDataListByChartMode = async (symbol: string, duration: nu
   }
 
   for (let item of Object.keys(dataObject)) {
-    if (!!!dataObject[item]?.Open) {
+    if (!!!dataObject[item]?.Close) {
       continue;
     }
 
@@ -117,7 +117,7 @@ const getVWMAValue = (dataList: any, day: number) => {
   let totalVolumeValue: number = 0;
 
   for (let lastIndex = dataList.length - 1; lastIndex >= dataList.length - day; lastIndex--) {
-    multiplyVolumeAndCloseValue += (dataList[lastIndex]?.Volume ?? 0) * (dataList[lastIndex]?.Open ?? 0); 
+    multiplyVolumeAndCloseValue += (dataList[lastIndex]?.Volume ?? 0) * (dataList[lastIndex]?.Close ?? 0); 
     totalVolumeValue += (dataList[lastIndex]?.Volume ?? 0)
   }
 
@@ -149,13 +149,21 @@ const getCalcComputeVolumeRatio = (dataList: any, day: number) => {
  */
 export const getAverageValue = (values: any) => {
   let sumValue: number = 0;
+  let existValueCount: number = 0;
 
   if (values.length < 1) {
     return sumValue;
   }
 
   for (let value of values) {
-    sumValue += parseFloat(value);
+    const convertValue = parseFloat(value);
+
+    if (Number.isNaN(convertValue)) {
+      continue;
+    }
+
+    sumValue += convertValue;
+    existValueCount++;
   }
 
   return parseFloat((sumValue / values.length).toFixed(2))
@@ -774,19 +782,18 @@ export const getTodayBollingerBands = (data: any, period: number = 20, multiplie
   
   // 표준편차 계산
   const standardDeviation = Math.sqrt(variance);
-  
-  // 상한선과 하한선 계산
+
+  // 현재가 기준 볼린저 밴드 상한선과 하한선 계산
   const upperBand = middleBand + (multiplier * standardDeviation);
   const lowerBand = middleBand - (multiplier * standardDeviation);
-  
+
   // 현재가(오늘 종가)
   const currentPrice = data[data.length - 1].Close || 0;
-
+  
   const bandPosition = calculateGeneralizedPricePosition(currentPrice, upperBand, lowerBand);
   
   return {
     upperBand: parseFloat(upperBand.toFixed(2)),
-    middleBand: parseFloat(middleBand.toFixed(2)),
     lowerBand: parseFloat(lowerBand.toFixed(2)),
     currentPrice: parseFloat(currentPrice.toFixed(2)),
     // 추가 정보
@@ -821,12 +828,12 @@ export const calculateBollingerBands = (data: any, period: number = 20, multipli
       const periodData = data.slice(index - period + 1, index + 1);
       
       // 중심선 (20일 이동평균) 계산
-      const sum = periodData.reduce((acc: any, cur: any) => acc + cur.Open, 0);
+      const sum = periodData.reduce((acc: any, cur: any) => acc + cur.Close, 0);
       const middleBand = sum / period;
       
       // 표준편차 계산
       const squaredDifferences = periodData.map((item: any) => {
-        const diff = item.Open - middleBand;
+        const diff = item.Close - middleBand;
         return diff * diff;
       });
 

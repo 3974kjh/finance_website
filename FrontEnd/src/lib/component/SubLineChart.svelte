@@ -324,7 +324,7 @@
             let value: number = 0;
 
             if (e.seriesName === '거래대금') {
-              value = typeof e.data.volume === 'string' ? Math.round(parseInt(e.data.volume) * 10) / 10 : Math.round(e.data.volume * 10) / 10;
+              value = typeof e.data.volume === 'string' ? Math.round(parseFloat(e.data.volume) * 10) / 10 : Math.round(e.data.volume * 10) / 10;
             } else if (e.seriesName === '5일VWMA') {
               value = typeof e.data?.vwma5 === 'string' ? Math.round(parseFloat(e.data?.vwma5) * 10) / 10 : Math.round(e.data?.vwma5 * 10) / 10;
             } else if (e.seriesName === '20일VWMA') {
