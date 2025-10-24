@@ -220,13 +220,17 @@ def saveXmlDataList(stock, financeDataList):
   today_analyze_file_path = setting.JSON_ANALYZE_FOLDER_PATH + '/' + nowDate
 
   if os.path.exists(today_analyze_file_path) == True:
-    return False
+    isSuccess = JsonDataBase.SaveAnalyzeJsonFile(financeDataList);
+    return isSuccess
 
+  # 현재 날짜 기준으로 XML 파일 경로 동적 생성
+  current_xml_path = setting.get_kr_xml_savepath()
+  
   # xml파일에 선별한 종목 카운트 추가하여 저장
-  if os.path.isfile(setting.XML_KR_SAVEPATH) == False:
-    isSuccess = MakeXmlFile(setting.XML_KR_SAVEPATH, financeDataList, stock)
+  if os.path.isfile(current_xml_path) == False:
+    isSuccess = MakeXmlFile(current_xml_path, financeDataList, stock)
   else:
-    isSuccess = UpdateXmlFile(setting.XML_KR_SAVEPATH, financeDataList, stock)
+    isSuccess = UpdateXmlFile(current_xml_path, financeDataList, stock)
 
   if (isSuccess == True):
     isSuccess = JsonDataBase.SaveAnalyzeJsonFile(financeDataList)
