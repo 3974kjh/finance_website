@@ -125,10 +125,12 @@ def UpdateXmlFile(xml_path, new_list, stock):
 
 def ReadXmlFile(xml_path, stock):
     path_dir = xml_path
-    folder_list = os.listdir(path_dir)
+    
+    # YYYY.MM 기준으로 오래된 날짜부터 최신 날짜 순으로 정렬
+    folder_list = sorted(os.listdir(path_dir), key=lambda x: tuple(map(int, x[:-4].split('.'))))
 
-    매달누적종목리스트 = {}
     # 매달누적종목리스트 Format = {'2023.03.xlsx' : {'RANKSUM' : [], 'CODE' : [], 'NAME': [], 'COUNT' : []}}
+    매달누적종목리스트 = {}
 
     for nowDate in folder_list:
       매달누적종목리스트[nowDate[:-4]] = {}
@@ -201,6 +203,7 @@ def ReadXmlFile(xml_path, stock):
 
 def transform_data(input_data):
   result = {}
+
   for key, value in input_data.items():
     result[key] = []
     for i in range(len(value['CODE'])):
@@ -211,6 +214,7 @@ def transform_data(input_data):
         'count': str(value['COUNT'][i]),
         'fullCount': str(value['FULLCOUNT'][i])
       })
+
   return result
 
 def saveXmlDataList(stock, financeDataList):
