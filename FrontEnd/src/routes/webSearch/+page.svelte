@@ -143,7 +143,7 @@
                   </svg>
                 </div>
               </button>
-              <div class="flex-1 p-4 bg-gray-50/80">
+              <div class="flex-1 p-4 bg-gray-50/80 relative">
                 <!-- svelte-ignore a11y-missing-attribute -->
                 <object data={investingUrl} type="text/html" class="research-frame">
                   <div class="flex items-center justify-center h-full bg-white/90 rounded-xl border-2 border-dashed border-blue-300/50 shadow-inner">
@@ -156,6 +156,13 @@
                     </div>
                   </div>
                 </object>
+                <!-- 로딩 오버레이 -->
+                <div class="absolute inset-4 flex items-center justify-center bg-white/90 backdrop-blur-sm rounded-xl loading-overlay pointer-events-none">
+                  <div class="text-center space-y-4">
+                    <div class="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
+                    <p class="text-slate-600 font-medium">FnGuide 페이지를 불러오는 중...</p>
+                  </div>
+                </div>
               </div>
             </div>
           </Pane>
@@ -179,7 +186,7 @@
                   </svg>
                 </div>
               </button>
-              <div class="flex-1 p-4 bg-gray-50/80">
+              <div class="flex-1 p-4 bg-gray-50/80 relative">
                 <!-- svelte-ignore a11y-missing-attribute -->
                 <object data={krxUrl} type="text/html" class="research-frame">
                   <div class="flex items-center justify-center h-full bg-white/90 rounded-xl border-2 border-dashed border-emerald-300/50 shadow-inner">
@@ -192,6 +199,13 @@
                     </div>
                   </div>
                 </object>
+                <!-- 로딩 오버레이 -->
+                <div class="absolute inset-4 flex items-center justify-center bg-white/90 backdrop-blur-sm rounded-xl loading-overlay pointer-events-none">
+                  <div class="text-center space-y-4">
+                    <div class="animate-spin w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full mx-auto"></div>
+                    <p class="text-slate-600 font-medium">한국은행 ECOS 페이지를 불러오는 중...</p>
+                  </div>
+                </div>
               </div>
             </div>
           </Pane>
@@ -218,7 +232,7 @@
             </svg>
           </div>
         </button>
-        <div class="flex-1 p-4 bg-gray-50/80">
+        <div class="flex-1 p-4 bg-gray-50/80 relative">
           <!-- svelte-ignore a11y-missing-attribute -->
           <object data={mkStockurl} type="text/html" class="research-frame">
             <div class="flex items-center justify-center h-full bg-white/90 rounded-xl border-2 border-dashed border-purple-300/50 shadow-inner">
@@ -231,6 +245,13 @@
               </div>
             </div>
           </object>
+          <!-- 로딩 오버레이 -->
+          <div class="absolute inset-4 flex items-center justify-center bg-white/90 backdrop-blur-sm rounded-xl loading-overlay pointer-events-none">
+            <div class="text-center space-y-4">
+              <div class="animate-spin w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full mx-auto"></div>
+              <p class="text-slate-600 font-medium">매일경제 증권 페이지를 불러오는 중...</p>
+            </div>
+          </div>
         </div>
       </div>
     </Pane>
@@ -385,5 +406,31 @@
   /* 그림자 효과 개선 */
   .shadow-2xl {
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  }
+
+  /* 로딩 오버레이 애니메이션 */
+  .loading-overlay {
+    animation: fadeOutOverlay 1.5s ease-out 2s forwards;
+  }
+
+  @keyframes fadeOutOverlay {
+    0% {
+      opacity: 1;
+      visibility: visible;
+    }
+    100% {
+      opacity: 0;
+      visibility: hidden;
+    }
+  }
+
+  /* 스피너 애니메이션 */
+  .animate-spin {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
   }
 </style>

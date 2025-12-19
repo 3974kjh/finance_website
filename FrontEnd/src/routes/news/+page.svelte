@@ -40,6 +40,11 @@
 	// 검색 모드 관리 (실시간 검색어 vs 직접 검색)
 	let searchMode: 'realtime' | 'custom' = 'realtime';
 
+	// 웹사이트 뷰어 상태 관리
+	let isViewingWebsite: boolean = false;
+	let viewingWebsiteUrl: string = '';
+	let viewingWebsiteTitle: string = '';
+
 	// 검색 기록 전체 삭제
 	const clearAllSearchHistory = () => {
 		try {
@@ -608,6 +613,20 @@
 		selectedTermIndex = -1;
 	};
 
+	// 웹사이트 뷰어 열기
+	const openWebsiteViewer = (url: string, title: string) => {
+		viewingWebsiteUrl = url;
+		viewingWebsiteTitle = title;
+		isViewingWebsite = true;
+	};
+
+	// 웹사이트 뷰어 닫기 (뉴스 목록으로 돌아가기)
+	const closeWebsiteViewer = () => {
+		isViewingWebsite = false;
+		viewingWebsiteUrl = '';
+		viewingWebsiteTitle = '';
+	};
+
 	// 선택된 검색어의 뉴스 데이터 가져오기 (현재 탭 모드 고려)
 	$: selectedNews = (searchMode === 'custom' && customSearchData) ? customSearchData.news : 
 	                  (searchMode === 'realtime' && selectedTermIndex >= 0) ? searchTermsData[selectedTermIndex]?.news || [] : [];
@@ -1006,10 +1025,63 @@
 				</div>
 			</div>
 
-			<!-- 오른쪽: 선택된 검색어의 뉴스 목록 -->
+			<!-- 오른쪽: 선택된 검색어의 뉴스 목록 또는 웹사이트 뷰어 -->
 			<div class="flex-1 flex flex-col">
 				<div class="bg-white/60 backdrop-blur-xl border border-white/30 rounded-3xl shadow-2xl shadow-gray-900/10 h-full overflow-hidden flex flex-col">
-					{#if customSearchData || selectedTermIndex >= 0}
+					{#if isViewingWebsite}
+						<!-- 웹사이트 뷰어 모드 -->
+						<div class="p-4 border-b border-white/20 flex-shrink-0 bg-gradient-to-r from-violet-50/50 to-fuchsia-50/50">
+							<div class="flex items-center justify-between">
+								<div class="flex items-center space-x-3 flex-1 min-w-0">
+									<button
+										class="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white rounded-xl shadow-lg shadow-violet-500/30 hover:shadow-xl hover:shadow-violet-500/40 transition-all duration-300 hover:scale-105 flex-shrink-0"
+										on:click={closeWebsiteViewer}
+										title="뉴스 목록으로 돌아가기"
+									>
+										<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+										</svg>
+									</button>
+									<div class="flex-1 min-w-0">
+										<h2 class="text-lg font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent truncate" title={viewingWebsiteTitle}>
+											{@html sanitizeHtml(viewingWebsiteTitle)}
+										</h2>
+										<p class="text-xs text-gray-500 truncate" title={viewingWebsiteUrl}>{viewingWebsiteUrl}</p>
+									</div>
+								</div>
+								<div class="flex items-center space-x-2 flex-shrink-0 ml-3">
+									<a
+										href={viewingWebsiteUrl}
+										target="_blank"
+										rel="noopener noreferrer"
+										class="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 transition-all duration-300 hover:scale-105"
+										title="새 탭에서 열기"
+									>
+										<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+										</svg>
+									</a>
+								</div>
+							</div>
+						</div>
+						<div class="flex-1 min-h-0 relative">
+							<iframe
+								src={viewingWebsiteUrl}
+								class="w-full h-full border-0"
+								title={viewingWebsiteTitle}
+								sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+								loading="lazy"
+							></iframe>
+							<!-- 로딩 오버레이 (iframe 로드 중) -->
+							<div class="absolute inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm iframe-loading-overlay pointer-events-none">
+								<div class="text-center space-y-4">
+									<div class="animate-spin w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full mx-auto"></div>
+									<p class="text-gray-600 font-medium">페이지를 불러오는 중...</p>
+								</div>
+							</div>
+						</div>
+					{:else if customSearchData || selectedTermIndex >= 0}
+						<!-- 뉴스 목록 모드 -->
 						<div class="p-6 border-b border-white/20 flex-shrink-0 bg-gradient-to-r from-emerald-50/50 to-teal-50/50">
 							<div class="flex items-center justify-between">
 								<div class="flex items-center space-x-3">
@@ -1046,16 +1118,14 @@
 										<div class="p-8 hover:bg-white/20 transition-all duration-300 group/news">
 											<div class="flex justify-between items-start space-x-6">
 												<div class="flex-1 min-w-0 space-y-4">
-													<a 
-														href={news.originallink || news.link} 
-														target="_blank" 
-														rel="noopener noreferrer"
-														class="block group-hover/news:text-emerald-600 transition-colors duration-300"
+													<button 
+														class="block text-left w-full group-hover/news:text-emerald-600 transition-colors duration-300"
+														on:click={() => openWebsiteViewer(news.originallink || news.link, news.title)}
 													>
 														<h4 class="text-xl font-bold text-gray-900 leading-relaxed mb-3 line-clamp-2 group-hover/news:text-emerald-700 transition-colors duration-300">
 															{@html sanitizeHtml(news.title)}
 														</h4>
-													</a>
+													</button>
 													<p class="text-gray-700 text-base leading-relaxed mb-4 line-clamp-3">
 														{@html sanitizeHtml(news.description)}
 													</p>
@@ -1074,16 +1144,16 @@
 													</div>
 												</div>
 												<div class="flex-shrink-0">
-													<a 
-														href={news.originallink || news.link} 
-														target="_blank" 
-														rel="noopener noreferrer"
+													<button 
 														class="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-2xl shadow-xl shadow-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/40 transition-all duration-300 hover:scale-110 group"
+														on:click={() => openWebsiteViewer(news.originallink || news.link, news.title)}
+														title="기사 보기"
 													>
 														<svg class="w-6 h-6 group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
 														</svg>
-													</a>
+													</button>
 												</div>
 											</div>
 										</div>
@@ -1317,5 +1387,26 @@
 
 	.flex-1.overflow-y-auto::-webkit-scrollbar-thumb:hover {
 		background: linear-gradient(45deg, rgba(156, 163, 175, 0.8), rgba(107, 114, 128, 0.8));
+	}
+
+	/* iframe 로딩 오버레이 애니메이션 */
+	.iframe-loading-overlay {
+		animation: fadeOutOverlay 1.5s ease-out 2s forwards;
+	}
+
+	@keyframes fadeOutOverlay {
+		0% {
+			opacity: 1;
+			visibility: visible;
+		}
+		100% {
+			opacity: 0;
+			visibility: hidden;
+		}
+	}
+
+	/* iframe 스타일 */
+	iframe {
+		background: white;
 	}
 </style> 
