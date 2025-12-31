@@ -236,6 +236,11 @@
 			return;
 		}
 		
+		// 웹사이트 뷰어가 열려있으면 닫기
+		if (isViewingWebsite) {
+			closeWebsiteViewer();
+		}
+		
 		selectedTermIndex = index; // 선택된 항목 설정
 		
 		// 뉴스 결과 영역을 최상단으로 스크롤
@@ -397,6 +402,11 @@
 
 	// 검색 기록 항목 클릭 (순서 변경하지 않음)
 	const selectFromHistory = (keyword: string) => {
+		// 웹사이트 뷰어가 열려있으면 닫기
+		if (isViewingWebsite) {
+			closeWebsiteViewer();
+		}
+		
 		searchKeyword = keyword;
 		
 		// 즉시 customSearchData를 초기화하여 오른쪽 패널이 표시되도록 함
@@ -415,11 +425,19 @@
 	const switchToCustomSearch = () => {
 		searchMode = 'custom';
 		selectedTermIndex = -1;
+		// 웹사이트 뷰어가 열려있으면 닫기
+		if (isViewingWebsite) {
+			closeWebsiteViewer();
+		}
 		// 실시간 검색어에서 오는 데이터는 초기화하지 않음 (customSearchData는 유지)
 	};
 
 	const switchToRealtimeSearch = () => {
 		searchMode = 'realtime';
+		// 웹사이트 뷰어가 열려있으면 닫기
+		if (isViewingWebsite) {
+			closeWebsiteViewer();
+		}
 		// 직접검색 데이터와 검색 키워드 초기화
 		customSearchData = null;
 		searchKeyword = '';
@@ -432,6 +450,11 @@
 		if (!searchKeyword.trim()) {
 			toast.error('검색어를 입력해주세요.');
 			return;
+		}
+		
+		// 웹사이트 뷰어가 열려있으면 닫기
+		if (isViewingWebsite) {
+			closeWebsiteViewer();
 		}
 		
 		try {
@@ -524,6 +547,11 @@
 		if (!searchKeyword.trim()) {
 			toast.error('검색어를 입력해주세요.');
 			return;
+		}
+		
+		// 웹사이트 뷰어가 열려있으면 닫기
+		if (isViewingWebsite) {
+			closeWebsiteViewer();
 		}
 		
 		try {
