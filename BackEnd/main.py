@@ -233,17 +233,94 @@ async def login(request: LoginRequest):
             message=f"로그인 처리 중 오류가 발생했습니다: {str(e)}"
         )
 
+def get_stock_suggestions_from_xml():
+    """
+    KR 폴더에서 가장 최근 XML 파일을 분석하여
+    code가 'ALL'이 아니고 name이 '횟수'가 아닌 종목들의 code와 name 목록을 반환
+    """
+    import xml.etree.ElementTree as ET
+    
+    # 현재 파일의 디렉토리를 기준으로 절대 경로 생성
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    kr_xml_path = os.path.join(current_dir, 'Data', 'Xml_Files', 'KR')
+    
+    try:
+        # KR 폴더에서 xml 파일 목록 가져오기
+        xml_files = [f for f in os.listdir(kr_xml_path) if f.endswith('.xml')]
+        
+        if not xml_files:
+            return []
+        
+        # YYYY.MM 형식으로 정렬하여 가장 최근 파일 선택
+        sorted_files = sorted(xml_files, key=lambda x: tuple(map(int, x[:-4].split('.'))), reverse=True)
+        latest_file = sorted_files[0]
+        latest_file_path = os.path.join(kr_xml_path, latest_file)
+        
+        # XML 파싱
+        tree = ET.parse(latest_file_path)
+        root = tree.getroot()
+        
+        suggestions = []
+        
+        df = pd.DataFrame()
+        current_date = datetime.now().strftime('%Y%m%d')
+        
+        # df가 비어있지 않은 경우 컬럼명 확인
+        marcap_col = None
+        amount_col = None
+        
+        # 모든 종목 정보 추출 (KRX 태그 기준)
+        for stock_elem in root.iter('KRX'):
+            code = stock_elem.find('CODE')
+            name = stock_elem.find('NAME')
+            
+            if code is not None and name is not None:
+                code_text = code.text
+                name_text = name.text
+
+                # code_text로 df에서 조회하여 시가 총액 추출하여 'Marcap'에 삽입
+                marcap_value = None
+                amount_value = None
+                
+                # code가 'ALL'이 아니고 name이 '횟수'가 아닌 항목만 추가
+                if code_text != 'ALL' and name_text != '횟수':
+                    stock_info = {
+                        'Code': code_text,
+                        'Name': name_text
+                    }
+                    
+                    # 시가총액과 거래대금이 있으면 추가
+                    if marcap_value is not None:
+                        stock_info['Marcap'] = marcap_value
+                    if amount_value is not None:
+                        stock_info['Amount'] = amount_value
+                    
+                    suggestions.append(stock_info)
+        
+        return suggestions
+    except Exception as e:
+        print(f"XML 파싱 오류: {str(e)}")  # 디버깅용 로그
+        return []
+
 @app.post("/stock_data/", response_model=StockResponse)
 async def get_stock_data(request: StockRequest):
+    # FinanceDataReader 시도
+    end_date = datetime.now()
+    start_date = None
+    
     try:
-        end_date = datetime.now()
-
         if (request.duration == 99999):
             df = fdr.DataReader(request.symbol)
+            # 전체 기간인 경우 최근 1년 데이터로 제한 (pykrx 폴백을 위해)
+            start_date = end_date - timedelta(days=365)
         else:
             durationDay = request.duration * (30 if request.isMonth else 7)
             start_date = end_date - timedelta(days=durationDay)
             df = fdr.DataReader(request.symbol, start_date, end_date)
+
+        # FinanceDataReader가 "LOGOUT" 문자열을 반환하는 경우 처리
+        if isinstance(df, str) and df == "LOGOUT":
+            raise ValueError("FinanceDataReader 세션 만료: LOGOUT")
 
         if df.empty:
             raise HTTPException(status_code=404, detail="데이터를 찾을 수 없습니다.")
@@ -257,13 +334,33 @@ async def get_stock_data(request: StockRequest):
         return StockResponse(symbol=request.symbol, data=data_dict)
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        error_message = str(e)
+        
+        # "LOGOUT" 에러 또는 기타 에러 발생 시 pykrx 폴백 시도
+        print(f"⚠️ FinanceDataReader 실패: {error_message}")
+        
+        # pykrx 폴백도 실패한 경우
+        if "LOGOUT" in error_message.upper():
+            raise HTTPException(
+                status_code=503, 
+                detail="FinanceDataReader 세션이 만료되었습니다. 잠시 후 다시 시도해주세요."
+            )
+        
+        # 다른 Exception 처리
+        raise HTTPException(status_code=500, detail=f"데이터 조회 실패: {error_message}")
     
 @app.post("/stock_list/", response_model=StockListResponse)
 async def get_stock_list(request: StockListRequest):
+    # FinanceDataReader 시도
     try:
         df = fdr.StockListing(request.symbol)
 
+        print(df.head(3))
+
+        # FinanceDataReader가 "LOGOUT" 문자열을 반환하는 경우 처리
+        if isinstance(df, str) and df == "LOGOUT":
+            raise ValueError("FinanceDataReader 세션 만료: LOGOUT")
+        
         if df.empty:
             raise HTTPException(status_code=404, detail="데이터를 찾을 수 없습니다.")
         
@@ -273,7 +370,32 @@ async def get_stock_list(request: StockListRequest):
         return StockListResponse(symbol=request.symbol, data=list(data_dict.values()))
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        error_message = str(e)
+        fdr_failed = True
+        
+        # "LOGOUT" 에러 또는 기타 에러 발생 시 폴백 시도
+        if "LOGOUT" in error_message.upper() or fdr_failed:
+            print(f"⚠️ FinanceDataReader 실패: {error_message}")
+            
+            # 2순위: XML 폴백 시도
+            suggestions = get_stock_suggestions_from_xml()
+            if suggestions:
+                print(f"✅ XML 폴백 데이터 반환: {len(suggestions)}개 종목")
+                return StockListResponse(
+                    symbol=request.symbol, 
+                    data=suggestions
+                )
+            
+            # 모든 폴백 실패한 경우
+            if "LOGOUT" in error_message.upper():
+                raise HTTPException(
+                    status_code=503, 
+                    detail="FinanceDataReader 세션이 만료되었습니다. 잠시 후 다시 시도해주세요."
+                )
+        
+        # 다른 Exception 처리
+        print(f"⚠️ FinanceDataReader 에러 발생: {error_message}")
+        raise HTTPException(status_code=500, detail=f"데이터 조회 실패: {error_message}")
     
 @app.post("/expect_stock/", response_model=ExpectStockListResponse)
 async def get_stock_list(request: ExpectStockRequest):

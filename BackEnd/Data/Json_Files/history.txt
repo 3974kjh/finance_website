@@ -1,0 +1,145 @@
+{
+  "virtualInvestItemObject": {
+    "240810": {
+      "name": "원익IPS",
+      "code": "240810",
+      "todayAmount": 114800,
+      "totalShares": "10",
+      "haveAmount": 1148000,
+      "data": [
+        {
+          "name": "원익IPS",
+          "code": "240810",
+          "buyYn": "Y",
+          "date": "2026.02.25 17:06",
+          "todayAmount": 114800,
+          "todayShares": "10",
+          "totalShares": "10",
+          "buyAmount": 1148000,
+          "buyReason": "반도체 소부장"
+        }
+      ]
+    },
+    "403870": {
+      "name": "HPSP",
+      "code": "403870",
+      "todayAmount": 41000,
+      "totalShares": "10",
+      "haveAmount": 410000,
+      "data": [
+        {
+          "name": "HPSP",
+          "code": "403870",
+          "buyYn": "Y",
+          "date": "2026.02.25 17:06",
+          "todayAmount": 41000,
+          "todayShares": "10",
+          "totalShares": "10",
+          "buyAmount": 410000,
+          "buyReason": "반도체 소부장 진입하기 좋은 위치"
+        }
+      ]
+    },
+    "030200": {
+      "name": "KT",
+      "code": "030200",
+      "todayAmount": 65500,
+      "totalShares": "10",
+      "haveAmount": 545000,
+      "data": [
+        {
+          "name": "KT",
+          "code": "030200",
+          "buyYn": "Y",
+          "date": "2025.08.12 12:54",
+          "todayAmount": 54500,
+          "todayShares": "10",
+          "totalShares": "10",
+          "buyAmount": 545000,
+          "buyReason": "단기적 6만 돌파 시 매도"
+        }
+      ]
+    },
+    "005930": {
+      "name": "삼성전자",
+      "code": "005930",
+      "todayAmount": 203500,
+      "totalShares": "10",
+      "haveAmount": 835000,
+      "data": [
+        {
+          "name": "삼성전자",
+          "code": "005930",
+          "buyYn": "Y",
+          "date": "2025.09.22 18:00",
+          "todayAmount": 83500,
+          "todayShares": "10",
+          "totalShares": "10",
+          "buyAmount": 835000,
+          "buyReason": "코스피 흐름 본다."
+        }
+      ]
+    },
+    "000660": {
+      "name": "SK하이닉스",
+      "code": "000660",
+      "todayAmount": 1018000,
+      "totalShares": "1",
+      "haveAmount": 800000,
+      "data": [
+        {
+          "name": "SK하이닉스",
+          "code": "000660",
+          "buyYn": "Y",
+          "date": "2026.01.27 17:54",
+          "todayAmount": 800000,
+          "todayShares": "1",
+          "totalShares": "1",
+          "buyAmount": 800000,
+          "buyReason": "140만 목표가 가나?"
+        }
+      ]
+    },
+    "005380": {
+      "name": "현대차",
+      "code": "005380",
+      "todayAmount": 572000,
+      "totalShares": "2",
+      "haveAmount": 985000,
+      "data": [
+        {
+          "name": "현대차",
+          "code": "005380",
+          "buyYn": "Y",
+          "date": "2026.01.28 15:43",
+          "todayAmount": 492500,
+          "todayShares": "2",
+          "totalShares": "2",
+          "buyAmount": 985000,
+          "buyReason": "관심 빠졌을 때 매수"
+        }
+      ]
+    },
+    "000990": {
+      "name": "DB하이텍",
+      "code": "000990",
+      "todayAmount": 90900,
+      "totalShares": "10",
+      "haveAmount": 1047000,
+      "data": [
+        {
+          "name": "DB하이텍",
+          "code": "000990",
+          "buyYn": "Y",
+          "date": "2026.01.28 16:07",
+          "todayAmount": 104700,
+          "todayShares": "10",
+          "totalShares": "10",
+          "buyAmount": 1047000,
+          "buyReason": "왜오르지?"
+        }
+      ]
+    }
+  },
+  "realInvestItemObject": {}
+}

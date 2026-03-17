@@ -345,21 +345,21 @@
 
     for (let stockInfo of stockList) {
       const symbol = stockInfo?.Code ?? stockInfo?.Symbol;
-      const marcap = stockInfo?.Marcap ?? 0;
-      const amount = stockInfo?.Amount ?? 0;
 
       if (!!!symbol) {
         continue;
       }
 
       // 해당 주식의 상세 값 조회 후 점수 계산
-      const promiseData = getCalculateExpectFinanceScore(marcap, amount, symbol, searchDuration);
+      const promiseData = getCalculateExpectFinanceScore(stockList, symbol, searchDuration);
       promiseFinanceDataList.push(promiseData);
     }
 
     const multiAwaitResult = await Promise.all(promiseFinanceDataList);
 
     let index: number = 0;
+
+    stockList = [...stockList]
 
     for (let stockInfo of stockList) {
       rank += 1;
@@ -502,7 +502,7 @@
   /**
    * 해당 주식의 상세 값 조회 후 점수 계산
   */
-  const getCalculateExpectFinanceScore = async (marcap: any, amount: any, symbol: string, duration: {month: number, week: number}) => {
+  const getCalculateExpectFinanceScore = async (stockList: any, symbol: string, duration: {month: number, week: number}) => {
     const financeDataResult = await getFinanceDataListByChartMode(symbol, duration.month, true, axiosController);
 
     if (financeDataResult.length < 1) {
@@ -514,6 +514,14 @@
         signalScore: 0
       };
     }
+
+    const marketCap = parseFloat((financeDataResult[financeDataResult.length - 1]?.High * financeDataResult[financeDataResult.length - 1]?.Volume).toFixed(2));
+    const amount = parseFloat((financeDataResult[financeDataResult.length - 1]?.Close * financeDataResult[financeDataResult.length - 1]?.Volume).toFixed(2));
+
+    const findStockInfoIndex = stockList.findIndex((item: any) => item.Code === symbol || item.Symbol === symbol);
+
+    stockList[findStockInfoIndex].Marcap = marketCap;
+    stockList[findStockInfoIndex].Amount = amount;
     
     const expectResult = await getExpectStockValue({symbol: symbol, term: duration.week}, axiosController);
 
@@ -535,8 +543,8 @@
     // 해당 주가의 여러 요인들을 종합하여 각 요인별 점수를 계산하여 일반화한 값 가져오기
     let calcSignalScoreResult = calculateExpectFinanceScore(
       financeDataResult,
-      parseFloat(marcap),
-      parseFloat(amount),
+      marketCap,
+      amount,
       parseFloat(topValue),
       parseFloat(bottomValue),
       parseFloat(expectValue),
