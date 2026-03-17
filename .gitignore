@@ -55,17 +55,18 @@ vite.config.ts.timestamp-*
 # 프로젝트별 민감한 데이터만
 # =====================================
 # 개인 설정이나 API 키가 포함된 파일들
-# secrets.json
-# config.local.json
+secrets.json
+config.local.json
 
 # Backend API 키 파일 (민감한 정보 포함)
-# BackEnd/key.py
-# **/key.py
+BackEnd/key.py
+**/key.py
 
 # Backend 데이터 폴더 (민감/대용량 데이터)
-# BackEnd/Data/
-# BackEnd/Data/**
+BackEnd/Data/
+BackEnd/Data/**
 BackEnd/venvPip/
+BackEnd/__pycache__/**
 
 # Frontend 데이터 폴더 (민감/대용량 데이터)
 FrontEnd/pnpm-lock.*
